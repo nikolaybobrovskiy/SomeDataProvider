@@ -1,0 +1,76 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DtcProtocolServer", "SomeDataProvider.DtcProtocolServer\SomeDataProvider.DtcProtocolServer.csproj", "{22EC7A36-C03C-4074-B1AA-2ABEE0A1FD04}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "System.Context", "..\..\..\YandexDisk\Projects\NBLib\src\System.Context\System.Context.csproj", "{510A808B-9502-455D-B318-0CA2867BA843}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Logging", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj", "{1981D773-3790-4F7E-8BAD-6CEFCED16A0E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Cli", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Cli\NBLib.Cli.csproj", "{E4844EA2-4F7B-4585-A808-5627DDA329D7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Logging.Serilog", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging.Serilog\NBLib.Logging.Serilog.csproj", "{2864863A-4647-4656-9076-6A7AEC91EFC9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serilog.Sinks.Console", "..\..\Serilog.Sinks.Console\src\Serilog.Sinks.Console\Serilog.Sinks.Console.csproj", "{D0499492-E53E-48C2-8719-BCB22D19C9AD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Enum", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Enum\NBLib.Enum.csproj", "{6F3965DA-DC0B-4612-A6DB-26C7D48EE099}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.BuiltInTypes", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj", "{2487ED1A-00F0-4E08-AE8F-47228BB835EA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Exceptions", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Exceptions\NBLib.Exceptions.csproj", "{BE4F6EFF-BE80-4EAA-AA6D-1C560FE6817C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.CodeFlow", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj", "{B4E430FF-3824-4BF6-9760-175D3278BD7D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.DateTime", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj", "{31D9144B-E971-4230-8AFF-ED1366C987DE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{22EC7A36-C03C-4074-B1AA-2ABEE0A1FD04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{22EC7A36-C03C-4074-B1AA-2ABEE0A1FD04}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{22EC7A36-C03C-4074-B1AA-2ABEE0A1FD04}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{22EC7A36-C03C-4074-B1AA-2ABEE0A1FD04}.Release|Any CPU.Build.0 = Release|Any CPU
+		{510A808B-9502-455D-B318-0CA2867BA843}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{510A808B-9502-455D-B318-0CA2867BA843}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{510A808B-9502-455D-B318-0CA2867BA843}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{510A808B-9502-455D-B318-0CA2867BA843}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1981D773-3790-4F7E-8BAD-6CEFCED16A0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1981D773-3790-4F7E-8BAD-6CEFCED16A0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1981D773-3790-4F7E-8BAD-6CEFCED16A0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1981D773-3790-4F7E-8BAD-6CEFCED16A0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E4844EA2-4F7B-4585-A808-5627DDA329D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E4844EA2-4F7B-4585-A808-5627DDA329D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E4844EA2-4F7B-4585-A808-5627DDA329D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E4844EA2-4F7B-4585-A808-5627DDA329D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2864863A-4647-4656-9076-6A7AEC91EFC9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2864863A-4647-4656-9076-6A7AEC91EFC9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2864863A-4647-4656-9076-6A7AEC91EFC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2864863A-4647-4656-9076-6A7AEC91EFC9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0499492-E53E-48C2-8719-BCB22D19C9AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0499492-E53E-48C2-8719-BCB22D19C9AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0499492-E53E-48C2-8719-BCB22D19C9AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0499492-E53E-48C2-8719-BCB22D19C9AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F3965DA-DC0B-4612-A6DB-26C7D48EE099}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F3965DA-DC0B-4612-A6DB-26C7D48EE099}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F3965DA-DC0B-4612-A6DB-26C7D48EE099}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F3965DA-DC0B-4612-A6DB-26C7D48EE099}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2487ED1A-00F0-4E08-AE8F-47228BB835EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2487ED1A-00F0-4E08-AE8F-47228BB835EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2487ED1A-00F0-4E08-AE8F-47228BB835EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2487ED1A-00F0-4E08-AE8F-47228BB835EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE4F6EFF-BE80-4EAA-AA6D-1C560FE6817C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE4F6EFF-BE80-4EAA-AA6D-1C560FE6817C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE4F6EFF-BE80-4EAA-AA6D-1C560FE6817C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE4F6EFF-BE80-4EAA-AA6D-1C560FE6817C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4E430FF-3824-4BF6-9760-175D3278BD7D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4E430FF-3824-4BF6-9760-175D3278BD7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4E430FF-3824-4BF6-9760-175D3278BD7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4E430FF-3824-4BF6-9760-175D3278BD7D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
