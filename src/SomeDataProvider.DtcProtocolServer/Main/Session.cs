@@ -5,6 +5,7 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 
 	using Microsoft.Extensions.Logging;
 
+	using NBLib.CodeFlow;
 	using NBLib.Logging;
 
 	using NetCoreServer;
@@ -12,8 +13,12 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
+	using Finally = NBLib.CodeFlow.Finally;
+
 	public class Session : TcpSession
 	{
+		private MessageProtocol? _currentMessageProtocol;
+
 		public Session(TcpServer server, ILoggerFactory loggerFactory)
 			: base(server)
 		{
@@ -28,24 +33,52 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 			{
 				L.LogOperation(() =>
 				{
-					var messageType = (MessageTypeEnum)BitConverter.ToUInt16(buffer.AsSpan(2, 2));
-					switch (messageType)
+					_currentMessageProtocol = _currentMessageProtocol ?? MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+					var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer, offset, size);
+					var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+					using (new Finally(() => decoder.TryDispose()))
+					using (new Finally(() => encoder.TryDispose()))
 					{
-						case MessageTypeEnum.EncodingRequest:
-							{
-								L.LogInformation("RequestReceived: {requestType}", MessageTypeEnum.EncodingRequest);
-								var encodingRequest = ByteArrayToStruct<EncodingRequest>(buffer);
-								Send(StructToByteArray(new EncodingResponse
+						var messageType = decoder.DecodeMessageType();
+						L.LogInformation("RequestReceived: {requestType}", messageType);
+						switch (messageType)
+						{
+							case MessageTypeEnum.EncodingRequest:
 								{
-									Size = encodingRequest.Size,
-									Type = MessageTypeEnum.EncodingResponse,
-									ProtocolVersion = encodingRequest.ProtocolVersion,
-									Encoding = EncodingEnum.JsonEncoding,
-								}));
-								break;
-							}
-						default:
-							throw new NotSupportedException();
+									var encodingRequest = decoder.DecodeEncodingRequest();
+									if (encodingRequest.ProtocolVersion != MessageProtocol.Version)
+									{
+										throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion} is not supported. Supported: {MessageProtocol.Version}.");
+									}
+									MessageProtocol? newVersionProtocol = null;
+									switch (encodingRequest.Encoding)
+									{
+										case EncodingEnum.BinaryEncoding:
+											if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
+												newVersionProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+											break;
+										default:
+											if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryWithVariableLengthStrings)
+												newVersionProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryWithVariableLengthStrings);
+											break;
+									}
+									encoder.EncodeEncodingResponse(new EncodingResponse
+									{
+										Size = Convert.ToUInt16(Marshal.SizeOf(typeof(EncodingResponse))),
+										Type = MessageTypeEnum.EncodingResponse,
+										ProtocolVersion = encodingRequest.ProtocolVersion,
+										Encoding = _currentMessageProtocol.Encoding,
+									});
+									Send(encoder.GetEncodedMessage());
+									if (newVersionProtocol != null)
+									{
+										_currentMessageProtocol = newVersionProtocol;
+									}
+									break;
+								}
+							default:
+								throw new NotSupportedException($"Message type is not supported: {messageType}.");
+						}
 					}
 				}, "ProcessRequest");
 			}
@@ -53,47 +86,6 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 			{
 				L.LogError(ex, "Error while processing request.");
 			}
-		}
-
-		static T ByteArrayToStruct<T>(byte[] bytes)
-			where T : struct
-		{
-			GCHandle handle = default;
-			T result;
-			try
-			{
-				handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-				result = (T)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(T))!;
-			}
-			finally
-			{
-				if (handle.IsAllocated)
-				{
-					handle.Free();
-				}
-			}
-			return result;
-		}
-
-		static byte[] StructToByteArray<T>(T obj)
-			where T : struct
-		{
-			var size = Marshal.SizeOf(obj);
-			var result = new byte[size];
-			GCHandle handle = default;
-			try
-			{
-				handle = GCHandle.Alloc(result, GCHandleType.Pinned);
-				Marshal.StructureToPtr(obj, handle.AddrOfPinnedObject(), false);
-			}
-			finally
-			{
-				if (handle.IsAllocated)
-				{
-					handle.Free();
-				}
-			}
-			return result;
 		}
 	}
 }
