@@ -4,7 +4,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
-	[StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
+	[StructLayout(LayoutKind.Sequential, Pack = 8, CharSet = CharSet.Ansi)]
 	struct LogonRequest
 	{
 		public ushort Size;

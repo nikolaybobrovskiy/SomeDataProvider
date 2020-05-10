@@ -1,41 +1,44 @@
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 {
+	using System;
 	using System.Runtime.InteropServices;
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
-	[StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-	struct LogonRequest
+	[StructLayout(LayoutKind.Sequential, Pack = 8, CharSet = CharSet.Ansi)]
+	readonly struct LogonRequest
 	{
-		public ushort Size;
+		public readonly ushort Size;
 
-		public MessageTypeEnum Type;
+		public readonly MessageTypeEnum Type;
 
-		public int ProtocolVersion;
+		public readonly ushort BaseSize;
 
-		public VariableLengthStringField Username;
+		public readonly int ProtocolVersion;
 
-		public VariableLengthStringField Password;
+		public readonly VariableLengthStringField Username;
 
-		public VariableLengthStringField GeneralTextData;
+		public readonly VariableLengthStringField Password;
 
-		public int Integer1;
+		public readonly VariableLengthStringField GeneralTextData;
 
-		public int Integer2;
+		public readonly int Integer1;
 
-		public int HeartbeatIntervalInSeconds;
+		public readonly int Integer2;
 
-		public TradeModeEnum TradeMode;
+		public readonly int HeartbeatIntervalInSeconds;
 
-		public VariableLengthStringField TradeAccount;
+		public readonly TradeModeEnum TradeMode;
 
-		public VariableLengthStringField HardwareIdentifier;
+		public readonly VariableLengthStringField TradeAccount;
 
-		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-		public VariableLengthStringField ClientName;
+		public readonly VariableLengthStringField HardwareIdentifier;
 
-		public string GetUserName(byte[] buffer)
+		public readonly VariableLengthStringField ClientName;
+
+		public string GetClientName(ReadOnlySpan<byte> buffer)
 		{
+			return ClientName.GetStringValue(buffer);
 		}
 	}
 }

@@ -15,6 +15,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			Size = size;
 		}
 
+		protected ReadOnlySpan<byte> BufferSpan => Buffer.AsSpan(Offset, Size);
+
 		protected byte[] Buffer { get; }
 
 		protected int Offset { get; }
@@ -23,7 +25,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public MessageTypeEnum DecodeMessageType()
 		{
-			return (MessageTypeEnum)BitConverter.ToUInt16(Buffer.AsSpan(Offset, Size).Slice(2, 2));
+			return (MessageTypeEnum)BitConverter.ToUInt16(BufferSpan.Slice(2, 2));
 		}
 
 		public virtual DtcProtocol.LogonRequest DecodeLogonRequest()

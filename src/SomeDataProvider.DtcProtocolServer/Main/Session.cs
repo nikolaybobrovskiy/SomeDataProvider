@@ -45,7 +45,7 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 								ProcessEncodingRequest(decoder, encoder);
 								break;
 							case MessageTypeEnum.LogonRequest:
-								var a = decoder.DecodeLogonRequest();
+								decoder.DecodeLogonRequest();
 								break;
 							default:
 								throw new NotSupportedException($"Message type is not supported: {messageType}.");
