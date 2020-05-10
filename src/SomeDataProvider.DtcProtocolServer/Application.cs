@@ -2,7 +2,6 @@
 namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
-	using System.ComponentModel.DataAnnotations;
 	using System.Context;
 	using System.Net;
 	using System.Threading;
@@ -24,7 +23,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		class StartCommand : CommandWithLogger<StartCommand>
 		{
 			readonly IConsoleCommandsInterpreter _consoleCommandsInterpreter;
-			private readonly ILoggerFactory _loggerFactory;
+			readonly ILoggerFactory _loggerFactory;
 
 			public StartCommand(IConsoleCommandsInterpreter consoleCommandsInterpreter, ILoggerFactory loggerFactory)
 				: base(loggerFactory)
@@ -34,7 +33,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			}
 
 			[Option("--port", Description = "Main server port. Default is 50001.")]
-			public int Port { get; set; } = 50001;
+			public int Port { get; set; } = 8000;
 
 			[Option("--history-port", Description = "History server port. Default is 50002.")]
 			public int HistoryPort { get; set; } = 50002;
@@ -44,18 +43,26 @@ namespace SomeDataProvider.DtcProtocolServer
 				var cts = new CancellationTokenSource();
 				using (RunContext.WithCancel(cts.Token, "Program exit requested.", CancellationReason.ApplicationExit))
 				{
-					var mainServer = new Main.Server(IPAddress.Any, Port, _loggerFactory);
-					L.LogInformation("Starting server...");
-					mainServer.Start();
-					_consoleCommandsInterpreter.OnQuitCommand += () =>
+					try
 					{
-						cts.Cancel();
-					};
-					_consoleCommandsInterpreter.Start();
-					GetContext.CancellationToken.WaitHandle.WaitOne();
-					L.LogInformation("Stopping server...");
-					mainServer.Stop();
-					return Task.FromResult(0);
+						var mainServer = new Main.Server(IPAddress.Any, Port, _loggerFactory);
+						L.LogInformation("Starting server...");
+						mainServer.Start();
+						_consoleCommandsInterpreter.OnQuitCommand += () =>
+						{
+							cts.Cancel();
+						};
+						_consoleCommandsInterpreter.Start();
+						GetContext.CancellationToken.WaitHandle.WaitOne();
+						L.LogInformation("Stopping server...");
+						mainServer.Stop();
+						return Task.FromResult(0);
+					}
+					catch (Exception ex) when (!(ex is OperationCanceledException))
+					{
+						L.LogCritical(ex, ex.Message);
+						return Task.FromResult(-1);
+					}
 				}
 			}
 		}
