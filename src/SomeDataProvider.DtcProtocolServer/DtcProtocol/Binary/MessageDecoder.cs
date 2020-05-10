@@ -8,7 +8,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 	class MessageDecoder : IMessageDecoder
 	{
-		protected MessageDecoder(byte[] buffer, in long offset, in long size)
+		protected MessageDecoder(byte[] buffer, int offset, int size)
 		{
 			Buffer = buffer;
 			Offset = offset;
@@ -17,23 +17,29 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		protected byte[] Buffer { get; }
 
-		protected long Offset { get; }
+		protected int Offset { get; }
 
-		protected long Size { get; }
+		protected int Size { get; }
 
 		public MessageTypeEnum DecodeMessageType()
 		{
-			return (MessageTypeEnum)BitConverter.ToUInt16(Buffer.AsSpan(2, 2));
+			return (MessageTypeEnum)BitConverter.ToUInt16(Buffer.AsSpan(Offset, Size).Slice(2, 2));
+		}
+
+		public virtual DtcProtocol.LogonRequest DecodeLogonRequest()
+		{
+			var logonRequest = StructConverter.ByteArrayToStruct<LogonRequest>(Buffer, Offset);
+			return new DtcProtocol.LogonRequest(logonRequest.HeartbeatIntervalInSeconds);
 		}
 
 		public EncodingRequest DecodeEncodingRequest()
 		{
-			return StructConverter.ByteArrayToStruct<EncodingRequest>(Buffer);
+			return StructConverter.ByteArrayToStruct<EncodingRequest>(Buffer, Offset);
 		}
 
 		public sealed class Factory : IMessageDecoderFactory
 		{
-			public IMessageDecoder CreateMessageDecoder(byte[] buffer, long offset, long size)
+			public IMessageDecoder CreateMessageDecoder(byte[] buffer, int offset, int size)
 			{
 				return new MessageDecoder(buffer, offset, size);
 			}

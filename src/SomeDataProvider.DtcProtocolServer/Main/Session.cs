@@ -32,7 +32,7 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 			{
 				L.LogOperation(() =>
 				{
-					var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer, offset, size);
+					var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer, Convert.ToInt32(offset), Convert.ToInt32(size));
 					var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
 					using (new Finally(() => decoder.TryDispose()))
 					using (new Finally(() => encoder.TryDispose()))
@@ -43,6 +43,9 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 						{
 							case MessageTypeEnum.EncodingRequest:
 								ProcessEncodingRequest(decoder, encoder);
+								break;
+							case MessageTypeEnum.LogonRequest:
+								var a = decoder.DecodeLogonRequest();
 								break;
 							default:
 								throw new NotSupportedException($"Message type is not supported: {messageType}.");
@@ -74,8 +77,8 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
 					break;
 				default:
-					if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryWithVariableLengthStrings)
-						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryWithVariableLengthStrings);
+					if (_currentMessageProtocol.Encoding != MessageProtocol.PreferredEncoding)
+						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
 					break;
 			}
 			encoder.EncodeEncodingResponse(_currentMessageProtocol.Encoding);

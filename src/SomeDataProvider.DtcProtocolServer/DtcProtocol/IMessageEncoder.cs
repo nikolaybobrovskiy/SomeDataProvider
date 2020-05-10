@@ -1,6 +1,5 @@
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary;
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	interface IMessageEncoder

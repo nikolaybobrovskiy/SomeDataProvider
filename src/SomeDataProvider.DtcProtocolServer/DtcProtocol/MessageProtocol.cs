@@ -8,6 +8,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 	{
 		public const int Version = 8;
 
+		public const EncodingEnum PreferredEncoding = EncodingEnum.BinaryWithVariableLengthStrings;
+
 		MessageProtocol(EncodingEnum encoding, IMessageDecoderFactory messageDecoderFactory, IMessageEncoderFactory messageEncoderFactory)
 		{
 			Encoding = encoding;
