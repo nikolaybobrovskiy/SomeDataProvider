@@ -12,7 +12,6 @@ namespace SomeDataProvider.DtcProtocolServer
 	using Microsoft.Extensions.Logging;
 
 	using NBLib.Cli;
-	using NBLib.TerminalGui;
 
 	using SomeDataProvider.DtcProtocolServer.Terminal;
 

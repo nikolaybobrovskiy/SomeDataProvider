@@ -9,9 +9,12 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 
 	class Server : TcpServer
 	{
+		readonly ILoggerFactory _loggerFactory;
+
 		public Server(IPAddress address, int port, ILoggerFactory loggerFactory)
 			: base(address, port)
 		{
+			_loggerFactory = loggerFactory;
 			L = loggerFactory.CreateLogger<Server>();
 		}
 
@@ -19,25 +22,32 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 
 		protected override TcpSession CreateSession()
 		{
-			return new Session(this);
+			return new Session(this, _loggerFactory);
 		}
 
 		protected override void OnStarted()
 		{
-			base.OnStarted();
 			L.LogInformation("Server started.");
 		}
 
 		protected override void OnStopped()
 		{
-			base.OnStopped();
 			L.LogInformation("Server stopped.");
 		}
 
 		protected override void OnError(SocketError error)
 		{
 			L.LogError($"Socket error: {error}.");
-			base.OnError(error);
+		}
+
+		protected override void OnConnected(TcpSession session)
+		{
+			L.LogInformation("Connected to server: {remoteEndPoint}, {sessionId}", session.Socket.RemoteEndPoint, session.Id);
+		}
+
+		protected override void OnDisconnected(TcpSession session)
+		{
+			L.LogInformation("Disconnected from server: {sessionId}", session.Id);
 		}
 	}
 }

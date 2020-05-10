@@ -13,7 +13,6 @@ namespace SomeDataProvider.DtcProtocolServer
 	using NBLib.Cli;
 
 	using Serilog;
-	using Serilog.Sinks.SystemConsole.Themes;
 
 	using SomeDataProvider.DtcProtocolServer.Terminal;
 
@@ -53,6 +52,7 @@ namespace SomeDataProvider.DtcProtocolServer
 				_gui.WriteLog(str);
 			}
 
+			https://medium.com/volosoft/asp-net-core-dependency-injection-best-practices-tips-tricks-c6e9c67f9d96
 			protected override void ConfigureServices(IServiceCollection services)
 			{
 				base.ConfigureServices(services);

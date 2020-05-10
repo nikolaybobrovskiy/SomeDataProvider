@@ -57,7 +57,19 @@ namespace SomeDataProvider.DtcProtocolServer
 			if (count == 0) return;
 			if (buffer[offset + count - 1] == '\n') countOffset++;
 			if (count > 1 && buffer[offset + count - 2] == '\r') countOffset++;
-			_stringsReceiver.ReceiveString(Encoding.UTF8.GetString(buffer, offset, count - countOffset));
+			var str = Encoding.UTF8.GetString(buffer, offset, count - countOffset);
+			if (str.IndexOf('\n') >= 0)
+			{
+				var strings = str.Split('\n');
+				foreach (var s in strings)
+				{
+					_stringsReceiver.ReceiveString(s.TrimEnd('\r'));
+				}
+			}
+			else
+			{
+				_stringsReceiver.ReceiveString(str);
+			}
 		}
 	}
 }
