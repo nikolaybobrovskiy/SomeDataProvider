@@ -1,7 +1,9 @@
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 {
 	using System;
-	using System.Runtime.InteropServices;
 
 	using NBLib.BuiltInTypes;
 
@@ -13,13 +15,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public void EncodeEncodingResponse(EncodingEnum encoding)
 		{
-			Bytes = StructConverter.StructToByteArray(new EncodingResponse
-			{
-				Size = Convert.ToUInt16(Marshal.SizeOf(typeof(EncodingResponse))),
-				Type = MessageTypeEnum.EncodingResponse,
-				ProtocolVersion = MessageProtocol.Version,
-				Encoding = encoding,
-			});
+			Bytes = StructConverter.StructToByteArray(new EncodingResponse(encoding));
+		}
+
+		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText)
+		{
+			throw new NotImplementedException();
 		}
 
 		public byte[] GetEncodedMessage()

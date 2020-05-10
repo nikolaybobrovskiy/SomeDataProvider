@@ -3,12 +3,11 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums
 {
-	enum EncodingEnum
+	enum LogonStatusEnum
 	{
-		BinaryEncoding = 0,
-		BinaryWithVariableLengthStrings = 1,
-		JsonEncoding = 2,
-		JsonCompactEncoding = 3,
-		ProtocolBuffers = 4
+		LogonSuccess = 1,
+		LogonError = 2,
+		LogonErrorNoReconnect = 3,
+		LogonReconnectNewAddress = 4
 	}
 }

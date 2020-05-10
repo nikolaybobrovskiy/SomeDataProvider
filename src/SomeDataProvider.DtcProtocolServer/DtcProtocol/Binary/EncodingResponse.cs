@@ -1,5 +1,10 @@
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 {
+	using System;
 	using System.Runtime.InteropServices;
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
@@ -17,5 +22,15 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 4)]
 		public string ProtocolType;
+
+		public EncodingResponse(EncodingEnum encoding)
+			: this()
+		{
+			Size = Convert.ToUInt16(Marshal.SizeOf(typeof(EncodingResponse)));
+			Type = MessageTypeEnum.EncodingResponse;
+			ProtocolType = "DTC";
+			Encoding = encoding;
+			ProtocolVersion = MessageProtocol.Version;
+		}
 	}
 }

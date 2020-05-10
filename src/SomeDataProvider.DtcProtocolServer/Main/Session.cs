@@ -1,9 +1,12 @@
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 namespace SomeDataProvider.DtcProtocolServer.Main
 {
 	using System;
 
 	using Microsoft.Extensions.Logging;
-
+	using NBLib.BuiltInTypes;
 	using NBLib.CodeFlow;
 	using NBLib.Logging;
 
@@ -68,7 +71,7 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 			var encodingRequest = binaryDecoder.DecodeEncodingRequest();
 			if (encodingRequest.ProtocolVersion != MessageProtocol.Version)
 			{
-				throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion} is not supported. Supported: {MessageProtocol.Version}.");
+				throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion.ToInvStr()} is not supported. Supported: {MessageProtocol.Version}.");
 			}
 			switch (encodingRequest.Encoding)
 			{
