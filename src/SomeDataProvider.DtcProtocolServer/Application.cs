@@ -12,6 +12,9 @@ namespace SomeDataProvider.DtcProtocolServer
 	using Microsoft.Extensions.Logging;
 
 	using NBLib.Cli;
+	using NBLib.TerminalGui;
+
+	using SomeDataProvider.DtcProtocolServer.Terminal;
 
 	[Subcommand(typeof(StartCommand))]
 	class Application : AbstractCommand, IAppLogLevelProvider
@@ -22,18 +25,18 @@ namespace SomeDataProvider.DtcProtocolServer
 		[Command("start", FullName = "Start command", Description = "Starts DTC protocol server.")]
 		class StartCommand : CommandWithLogger<StartCommand>
 		{
-			readonly IConsoleCommandsInterpreter _consoleCommandsInterpreter;
 			readonly ILoggerFactory _loggerFactory;
+			IGui _gui;
 
-			public StartCommand(IConsoleCommandsInterpreter consoleCommandsInterpreter, ILoggerFactory loggerFactory)
+			public StartCommand(IGui gui, ILoggerFactory loggerFactory)
 				: base(loggerFactory)
 			{
-				_consoleCommandsInterpreter = consoleCommandsInterpreter;
+				_gui = gui;
 				_loggerFactory = loggerFactory;
 			}
 
 			[Option("--port", Description = "Main server port. Default is 50001.")]
-			public int Port { get; set; } = 8000;
+			public int Port { get; set; } = 50001;
 
 			[Option("--history-port", Description = "History server port. Default is 50002.")]
 			public int HistoryPort { get; set; } = 50002;
@@ -45,18 +48,25 @@ namespace SomeDataProvider.DtcProtocolServer
 				{
 					try
 					{
-						var mainServer = new Main.Server(IPAddress.Any, Port, _loggerFactory);
-						L.LogInformation("Starting server...");
-						mainServer.Start();
-						_consoleCommandsInterpreter.OnQuitCommand += () =>
+						_gui.Start();
+						_gui.OnQuitCommand += () =>
 						{
 							cts.Cancel();
 						};
-						_consoleCommandsInterpreter.Start();
-						GetContext.CancellationToken.WaitHandle.WaitOne();
-						L.LogInformation("Stopping server...");
-						mainServer.Stop();
-						return Task.FromResult(0);
+						try
+						{
+							var mainServer = new Main.Server(IPAddress.Any, Port, _loggerFactory);
+							L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
+							mainServer.Start();
+							GetContext.CancellationToken.WaitHandle.WaitOne();
+							L.LogInformation("Stopping server...");
+							mainServer.Stop();
+							return Task.FromResult(0);
+						}
+						finally
+						{
+							_gui.Stop();
+						}
 					}
 					catch (Exception ex) when (!(ex is OperationCanceledException))
 					{

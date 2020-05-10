@@ -22,6 +22,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.CodeFlow", "..\..\..\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.DateTime", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj", "{31D9144B-E971-4230-8AFF-ED1366C987DE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.TerminalGui", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.TerminalGui\NBLib.TerminalGui.csproj", "{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -72,5 +74,9 @@ Global
 		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
