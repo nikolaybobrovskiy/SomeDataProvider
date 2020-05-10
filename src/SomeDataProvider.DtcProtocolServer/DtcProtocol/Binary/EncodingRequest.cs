@@ -1,11 +1,11 @@
-namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
+namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 {
 	using System.Runtime.InteropServices;
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-	struct EncodingResponse
+	struct EncodingRequest
 	{
 		public ushort Size;
 

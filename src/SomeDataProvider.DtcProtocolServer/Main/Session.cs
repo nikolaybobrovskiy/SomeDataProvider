@@ -1,7 +1,6 @@
 namespace SomeDataProvider.DtcProtocolServer.Main
 {
 	using System;
-	using System.Runtime.InteropServices;
 
 	using Microsoft.Extensions.Logging;
 
@@ -59,35 +58,28 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 
 		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)
 		{
-			var encodingRequest = decoder.DecodeEncodingRequest();
+			if (!(decoder is DtcProtocol.Binary.MessageDecoder binaryDecoder))
+			{
+				throw new InvalidOperationException("Encoding request must be sent using binary protocol.");
+			}
+			var encodingRequest = binaryDecoder.DecodeEncodingRequest();
 			if (encodingRequest.ProtocolVersion != MessageProtocol.Version)
 			{
 				throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion} is not supported. Supported: {MessageProtocol.Version}.");
 			}
-			MessageProtocol? newVersionProtocol = null;
 			switch (encodingRequest.Encoding)
 			{
 				case EncodingEnum.BinaryEncoding:
 					if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
-						newVersionProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
 					break;
 				default:
 					if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryWithVariableLengthStrings)
-						newVersionProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryWithVariableLengthStrings);
+						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryWithVariableLengthStrings);
 					break;
 			}
-			encoder.EncodeEncodingResponse(new EncodingResponse
-			{
-				Size = Convert.ToUInt16(Marshal.SizeOf(typeof(EncodingResponse))),
-				Type = MessageTypeEnum.EncodingResponse,
-				ProtocolVersion = encodingRequest.ProtocolVersion,
-				Encoding = _currentMessageProtocol.Encoding,
-			});
+			encoder.EncodeEncodingResponse(_currentMessageProtocol.Encoding);
 			Send(encoder.GetEncodedMessage());
-			if (newVersionProtocol != null)
-			{
-				_currentMessageProtocol = newVersionProtocol;
-			}
 		}
 	}
 }

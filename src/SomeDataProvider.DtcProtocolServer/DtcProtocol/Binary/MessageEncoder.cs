@@ -1,16 +1,25 @@
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 {
 	using System;
+	using System.Runtime.InteropServices;
 
 	using NBLib.BuiltInTypes;
+
+	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	class MessageEncoder : IMessageEncoder
 	{
 		protected byte[]? Bytes { get; set; }
 
-		public void EncodeEncodingResponse(in EncodingResponse encodingResponse)
+		public void EncodeEncodingResponse(EncodingEnum encoding)
 		{
-			Bytes = StructConverter.StructToByteArray(encodingResponse);
+			Bytes = StructConverter.StructToByteArray(new EncodingResponse
+			{
+				Size = Convert.ToUInt16(Marshal.SizeOf(typeof(EncodingResponse))),
+				Type = MessageTypeEnum.EncodingResponse,
+				ProtocolVersion = MessageProtocol.Version,
+				Encoding = encoding,
+			});
 		}
 
 		public byte[] GetEncodedMessage()
