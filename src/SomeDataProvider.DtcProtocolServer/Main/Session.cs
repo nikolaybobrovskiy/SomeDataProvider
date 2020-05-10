@@ -17,7 +17,7 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 
 	public class Session : TcpSession
 	{
-		private MessageProtocol? _currentMessageProtocol;
+		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
 
 		public Session(TcpServer server, ILoggerFactory loggerFactory)
 			: base(server)
@@ -33,7 +33,6 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 			{
 				L.LogOperation(() =>
 				{
-					_currentMessageProtocol = _currentMessageProtocol ?? MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
 					var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer, offset, size);
 					var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
 					using (new Finally(() => decoder.TryDispose()))
@@ -44,38 +43,8 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 						switch (messageType)
 						{
 							case MessageTypeEnum.EncodingRequest:
-								{
-									var encodingRequest = decoder.DecodeEncodingRequest();
-									if (encodingRequest.ProtocolVersion != MessageProtocol.Version)
-									{
-										throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion} is not supported. Supported: {MessageProtocol.Version}.");
-									}
-									MessageProtocol? newVersionProtocol = null;
-									switch (encodingRequest.Encoding)
-									{
-										case EncodingEnum.BinaryEncoding:
-											if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
-												newVersionProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
-											break;
-										default:
-											if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryWithVariableLengthStrings)
-												newVersionProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryWithVariableLengthStrings);
-											break;
-									}
-									encoder.EncodeEncodingResponse(new EncodingResponse
-									{
-										Size = Convert.ToUInt16(Marshal.SizeOf(typeof(EncodingResponse))),
-										Type = MessageTypeEnum.EncodingResponse,
-										ProtocolVersion = encodingRequest.ProtocolVersion,
-										Encoding = _currentMessageProtocol.Encoding,
-									});
-									Send(encoder.GetEncodedMessage());
-									if (newVersionProtocol != null)
-									{
-										_currentMessageProtocol = newVersionProtocol;
-									}
-									break;
-								}
+								ProcessEncodingRequest(decoder, encoder);
+								break;
 							default:
 								throw new NotSupportedException($"Message type is not supported: {messageType}.");
 						}
@@ -85,6 +54,39 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 			catch (Exception ex) when (!(ex is OperationCanceledException))
 			{
 				L.LogError(ex, "Error while processing request.");
+			}
+		}
+
+		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		{
+			var encodingRequest = decoder.DecodeEncodingRequest();
+			if (encodingRequest.ProtocolVersion != MessageProtocol.Version)
+			{
+				throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion} is not supported. Supported: {MessageProtocol.Version}.");
+			}
+			MessageProtocol? newVersionProtocol = null;
+			switch (encodingRequest.Encoding)
+			{
+				case EncodingEnum.BinaryEncoding:
+					if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
+						newVersionProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+					break;
+				default:
+					if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryWithVariableLengthStrings)
+						newVersionProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryWithVariableLengthStrings);
+					break;
+			}
+			encoder.EncodeEncodingResponse(new EncodingResponse
+			{
+				Size = Convert.ToUInt16(Marshal.SizeOf(typeof(EncodingResponse))),
+				Type = MessageTypeEnum.EncodingResponse,
+				ProtocolVersion = encodingRequest.ProtocolVersion,
+				Encoding = _currentMessageProtocol.Encoding,
+			});
+			Send(encoder.GetEncodedMessage());
+			if (newVersionProtocol != null)
+			{
+				_currentMessageProtocol = newVersionProtocol;
 			}
 		}
 	}
