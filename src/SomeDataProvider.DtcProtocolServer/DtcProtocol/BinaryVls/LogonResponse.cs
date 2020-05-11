@@ -40,7 +40,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 		public LogonResponse(LogonStatusEnum result)
 			: this()
 		{
-			BaseSize = Size = Convert.ToUInt16(Marshal.SizeOf(typeof(LogonResponse)));
+			BaseSize = Size = Convert.ToUInt16(Marshal.SizeOf(this));
 			ProtocolVersion = MessageProtocol.Version;
 			Type = MessageTypeEnum.LogonResponse;
 			Result = result;

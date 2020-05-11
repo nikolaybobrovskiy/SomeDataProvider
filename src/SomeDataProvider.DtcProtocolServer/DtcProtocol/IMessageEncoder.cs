@@ -11,6 +11,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText);
 
+		void EncodeHeartbeatMessage(uint numDroppedMessages);
+
 		byte[] GetEncodedMessage();
 	}
 

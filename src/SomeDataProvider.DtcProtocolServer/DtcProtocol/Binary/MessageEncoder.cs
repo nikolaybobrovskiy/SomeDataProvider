@@ -23,6 +23,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
+		public void EncodeHeartbeatMessage(uint numDroppedMessages)
+		{
+			Bytes = StructConverter.StructToBytesArray(new Heartbeat(0));
+		}
+
 		public byte[] GetEncodedMessage()
 		{
 			return Bytes ?? throw new InvalidOperationException("Message is not ready.");

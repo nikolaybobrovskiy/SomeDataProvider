@@ -4,6 +4,7 @@
 namespace SomeDataProvider.DtcProtocolServer.Main
 {
 	using System;
+	using System.Timers;
 
 	using Microsoft.Extensions.Logging;
 
@@ -20,7 +21,9 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 
 	public class Session : TcpSession
 	{
-		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+		// volatile - consumed by timer and can be changed by request thread.
+		volatile MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+		Timer? _timer;
 
 		public Session(TcpServer server, ILoggerFactory loggerFactory)
 			: base(server)
@@ -29,6 +32,12 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 		}
 
 		ILogger<Session> L { get; }
+
+		protected override void Dispose(bool disposingManagedResources)
+		{
+			if (!disposingManagedResources) return;
+			_timer?.Dispose();
+		}
 
 		protected override void OnReceived(byte[] buffer, long offset, long size)
 		{
@@ -51,6 +60,10 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 							case MessageTypeEnum.LogonRequest:
 								ProcessLogonRequest(decoder, encoder);
 								break;
+							case MessageTypeEnum.Heartbeat:
+								// TODO: Add Heartbeat detection logic.
+								// It is recommended that if there is a loss of HEARTBEAT messages from the other side, for twice the amount of the HeartbeatIntervalInSeconds time that it is safe to assume that the other side is no longer present and the network socket should be then gracefully closed.
+								break;
 							default:
 								throw new NotSupportedException($"Message type is not supported: {messageType}.");
 						}
@@ -67,9 +80,25 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 		{
 			var logonRequest = decoder.DecodeLogonRequest();
 			L.LogInformation("LogonInfo: {heartbeatIntervalInSeconds}, {clientName}, {hardwareIdentifier}", logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
+			_timer?.Dispose();
+			_timer = new Timer(logonRequest.HeartbeatIntervalInSeconds * 20000);
+			_timer.Elapsed += OnHeartbeatTimerElapsed;
+			_timer.Start();
 			// TODO: Save logonRequest.HeartbeatIntervalInSeconds and initiate heartbeat.
 			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.");
 			Send(encoder.GetEncodedMessage());
+		}
+
+		void OnHeartbeatTimerElapsed(object sender, ElapsedEventArgs e)
+		{
+			var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+			using (new Finally(() => encoder.TryDispose()))
+			{
+				encoder.EncodeHeartbeatMessage(0);
+				L.LogInformation("Sending hearbeat...");
+				Send(encoder.GetEncodedMessage());
+				L.LogInformation("Sent hearbeat.");
+			}
 		}
 
 		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)
