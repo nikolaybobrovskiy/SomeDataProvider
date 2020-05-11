@@ -2,8 +2,10 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 // ReSharper disable FieldCanBeMadeReadOnly.Global
+
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 {
+	using System;
 	using System.Runtime.InteropServices;
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
@@ -35,13 +37,19 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 		public byte UsesMultiplePositionsPerSymbolAndTradeAccount;
 		public byte MarketDataSupported;
 
-		public LogonResponse(LogonStatusEnum result, string resultText)
+		public LogonResponse(LogonStatusEnum result)
 			: this()
 		{
+			BaseSize = Size = Convert.ToUInt16(Marshal.SizeOf(typeof(LogonResponse)));
 			ProtocolVersion = MessageProtocol.Version;
 			Type = MessageTypeEnum.LogonResponse;
 			Result = result;
-			ResultText = ResultText.NewStringValue(resultText);
+		}
+
+		public void SetResultText(string? val, byte[] stringsBuffer)
+		{
+			ResultText = ResultText.CreateStringValue(val, stringsBuffer, Size);
+			Size += ResultText.Length;
 		}
 	}
 }

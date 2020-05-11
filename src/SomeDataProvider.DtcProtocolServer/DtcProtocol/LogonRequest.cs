@@ -5,11 +5,17 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
 	class LogonRequest
 	{
-		public LogonRequest(int heartbeatIntervalInSeconds)
+		public LogonRequest(int heartbeatIntervalInSeconds, string clientName, string hardwareIdentifier)
 		{
 			HeartbeatIntervalInSeconds = heartbeatIntervalInSeconds;
+			ClientName = clientName;
+			HardwareIdentifier = hardwareIdentifier;
 		}
 
 		public int HeartbeatIntervalInSeconds { get; }
+
+		public string ClientName { get; }
+
+		public string HardwareIdentifier { get; }
 	}
 }

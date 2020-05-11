@@ -25,34 +25,30 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 
 		public string GetStringValue(ReadOnlySpan<byte> buffer)
 		{
-			if (buffer.Length == 0)
+			if (buffer.Length <= 1)
 			{
 				return string.Empty;
 			}
-			return Encoding.ASCII.GetString(buffer.Slice(Offset, Length > MaxLength ? MaxLength : Length));
+			return Encoding.ASCII.GetString(buffer.Slice(Offset, Length > MaxLength ? MaxLength : Length - 1));
 		}
 
-		public VariableLengthStringField NewStringValue(string val)
+		public VariableLengthStringField CreateStringValue(string? val, byte[] stringsBuffer, ushort index)
 		{
-			// Ideally need to subtract prev value.
+			if (Offset != default || Length != default)
+			{
+				throw new InvalidOperationException($"{nameof(VariableLengthStringField)} can be set only once.");
+			}
 			if (val.IsEmpty())
 			{
-				if (Length == 0)
-				{
-					return this;
-				}
+				return this;
 			}
-			var length = Convert.ToUInt16(val.Length + 1);
-			if (Length != 0)
+			var result = new VariableLengthStringField(index, val.GetVlsFieldLength());
+			foreach (var c in Encoding.ASCII.GetBytes(val))
 			{
-				if (length == Length)
-				{
-					// Just replace buffer values.
-					return this;
-				}
-				// Remove from the buffer and add to the end.
+				stringsBuffer[index] = c;
+				index++;
 			}
-			return new VariableLengthStringField(0, length);
+			return result;
 		}
 	}
 }

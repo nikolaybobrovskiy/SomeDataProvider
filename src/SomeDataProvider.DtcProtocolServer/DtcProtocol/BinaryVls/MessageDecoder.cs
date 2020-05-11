@@ -14,8 +14,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 
 		public override DtcProtocol.LogonRequest DecodeLogonRequest()
 		{
-			var logonRequest = StructConverter.ByteArrayToStruct<LogonRequest>(Buffer, Offset);
-			return new DtcProtocol.LogonRequest(logonRequest.HeartbeatIntervalInSeconds);
+			var logonRequest = StructConverter.BytesArrayToStruct<LogonRequest>(Buffer, Offset);
+			return new DtcProtocol.LogonRequest(
+				logonRequest.HeartbeatIntervalInSeconds,
+				logonRequest.GetClientName(BufferSpan),
+				logonRequest.GetHardwareIdentifier(BufferSpan));
 		}
 
 		public new sealed class Factory : IMessageDecoderFactory

@@ -6,6 +6,7 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 	using System;
 
 	using Microsoft.Extensions.Logging;
+
 	using NBLib.BuiltInTypes;
 	using NBLib.CodeFlow;
 	using NBLib.Logging;
@@ -48,7 +49,7 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 								ProcessEncodingRequest(decoder, encoder);
 								break;
 							case MessageTypeEnum.LogonRequest:
-								decoder.DecodeLogonRequest();
+								ProcessLogonRequest(decoder, encoder);
 								break;
 							default:
 								throw new NotSupportedException($"Message type is not supported: {messageType}.");
@@ -60,6 +61,15 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 			{
 				L.LogError(ex, "Error while processing request.");
 			}
+		}
+
+		void ProcessLogonRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		{
+			var logonRequest = decoder.DecodeLogonRequest();
+			L.LogInformation("LogonInfo: {heartbeatIntervalInSeconds}, {clientName}, {hardwareIdentifier}", logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
+			// TODO: Save logonRequest.HeartbeatIntervalInSeconds and initiate heartbeat.
+			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.");
+			Send(encoder.GetEncodedMessage());
 		}
 
 		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)

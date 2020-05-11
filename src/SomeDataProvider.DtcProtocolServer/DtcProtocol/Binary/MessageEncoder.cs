@@ -15,7 +15,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public void EncodeEncodingResponse(EncodingEnum encoding)
 		{
-			Bytes = StructConverter.StructToByteArray(new EncodingResponse(encoding));
+			Bytes = StructConverter.StructToBytesArray(new EncodingResponse(encoding));
 		}
 
 		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText)

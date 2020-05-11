@@ -11,14 +11,17 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 	{
 		public override void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText)
 		{
-			Bytes = StructConverter.StructToByteArray(new LogonResponse(logonStatus, "Logon is successful."));
+			var logonResponse = new LogonResponse(logonStatus);
+			var bytes = new byte[logonResponse.BaseSize + resultText.GetVlsFieldLength()];
+			logonResponse.SetResultText(resultText, bytes);
+			Bytes = StructConverter.StructToBytesArray(logonResponse, bytes);
 		}
 
 		public new sealed class Factory : IMessageEncoderFactory
 		{
 			public IMessageEncoder CreateMessageEncoder()
 			{
-				return new Binary.MessageEncoder();
+				return new MessageEncoder();
 			}
 		}
 	}

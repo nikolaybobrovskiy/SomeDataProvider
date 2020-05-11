@@ -33,13 +33,13 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public virtual DtcProtocol.LogonRequest DecodeLogonRequest()
 		{
-			var logonRequest = StructConverter.ByteArrayToStruct<LogonRequest>(Buffer, Offset);
-			return new DtcProtocol.LogonRequest(logonRequest.HeartbeatIntervalInSeconds);
+			var logonRequest = StructConverter.BytesArrayToStruct<LogonRequest>(Buffer, Offset);
+			return new DtcProtocol.LogonRequest(logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
 		}
 
 		public EncodingRequest DecodeEncodingRequest()
 		{
-			return StructConverter.ByteArrayToStruct<EncodingRequest>(Buffer, Offset);
+			return StructConverter.BytesArrayToStruct<EncodingRequest>(Buffer, Offset);
 		}
 
 		public sealed class Factory : IMessageDecoderFactory

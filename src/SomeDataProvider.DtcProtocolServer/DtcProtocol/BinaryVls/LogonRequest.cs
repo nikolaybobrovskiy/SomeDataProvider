@@ -30,5 +30,10 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 		{
 			return ClientName.GetStringValue(buffer);
 		}
+
+		public string GetHardwareIdentifier(ReadOnlySpan<byte> buffer)
+		{
+			return HardwareIdentifier.GetStringValue(buffer);
+		}
 	}
 }
