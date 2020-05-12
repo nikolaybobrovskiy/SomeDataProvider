@@ -1,3 +1,6 @@
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
@@ -16,13 +19,15 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	class Session : TcpSession
 	{
+		readonly bool _onlyHistoryServer;
 		readonly object _singleWorkerLock = new object();
 		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
 		Timer? _timer;
 
-		public Session(TcpServer server, ILoggerFactory loggerFactory)
+		public Session(TcpServer server, bool onlyHistoryServer, ILoggerFactory loggerFactory)
 			: base(server)
 		{
+			_onlyHistoryServer = onlyHistoryServer;
 			L = loggerFactory.CreateLogger<Session>();
 		}
 
@@ -86,12 +91,13 @@ namespace SomeDataProvider.DtcProtocolServer
 			var logonRequest = decoder.DecodeLogonRequest();
 			L.LogInformation("LogonInfo: {heartbeatIntervalInSeconds}, {clientName}, {hardwareIdentifier}", logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
 			StartHeartbeatTimer(logonRequest.HeartbeatIntervalInSeconds * 20000);
-			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.");
+			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.", _onlyHistoryServer);
 			Send(encoder.GetEncodedMessage());
 		}
 
 		void StartHeartbeatTimer(int intervalMs)
 		{
+			if (_onlyHistoryServer) return;
 			StopHeartbeatTimer();
 			var t = new Timer(intervalMs);
 			t.Elapsed += OnHeartbeatTimerElapsed;
@@ -101,6 +107,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		void StopHeartbeatTimer()
 		{
+			if (_onlyHistoryServer) return;
 			var t = _timer;
 			t?.Stop();
 			t?.Dispose();

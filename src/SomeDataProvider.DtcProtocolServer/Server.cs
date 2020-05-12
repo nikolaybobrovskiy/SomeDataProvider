@@ -13,11 +13,13 @@ namespace SomeDataProvider.DtcProtocolServer
 	class Server : TcpServer
 	{
 		readonly ILoggerFactory _loggerFactory;
+		readonly bool _onlyHistoryServer;
 
-		public Server(IPAddress address, int port, ILoggerFactory loggerFactory)
+		public Server(IPAddress address, int port, bool onlyHistoryServer, ILoggerFactory loggerFactory)
 			: base(address, port)
 		{
 			_loggerFactory = loggerFactory;
+			_onlyHistoryServer = onlyHistoryServer;
 			L = loggerFactory.CreateLogger<Server>();
 		}
 
@@ -25,7 +27,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		protected override TcpSession CreateSession()
 		{
-			return new Session(this, _loggerFactory);
+			return new Session(this, _onlyHistoryServer, _loggerFactory);
 		}
 
 		protected override void OnStarted()

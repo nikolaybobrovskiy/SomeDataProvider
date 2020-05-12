@@ -9,7 +9,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 	{
 		void EncodeEncodingResponse(EncodingEnum encoding);
 
-		void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText);
+		void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection);
 
 		void EncodeHeartbeatMessage(uint numDroppedMessages);
 

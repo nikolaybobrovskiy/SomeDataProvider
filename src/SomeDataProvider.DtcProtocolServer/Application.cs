@@ -1,6 +1,8 @@
 // This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
+// ReSharper disable UnusedAutoPropertyAccessor.Local
+// ReSharper disable MemberCanBePrivate.Local
 #pragma warning disable CC0022 // Should dispose object
 namespace SomeDataProvider.DtcProtocolServer
 {
@@ -37,8 +39,11 @@ namespace SomeDataProvider.DtcProtocolServer
 				_loggerFactory = loggerFactory;
 			}
 
-			[Option("--port", Description = "Main server port. Default is 50001.")]
+			[Option("--port", Description = "Server port. Default is 50001.")]
 			public int Port { get; set; } = 50001;
+
+			[Option("--only-history", Description = "Enable only history server mode (enables compression, disables heartbeat, one connection per history request).")]
+			public bool OnlyHistoryServer { get; set; }
 
 			public override Task<int> OnExecuteAsync(CommandLineApplication app)
 			{
@@ -54,7 +59,7 @@ namespace SomeDataProvider.DtcProtocolServer
 						};
 						try
 						{
-							var mainServer = new Server(IPAddress.Any, Port, _loggerFactory);
+							var mainServer = new Server(IPAddress.Any, Port, OnlyHistoryServer, _loggerFactory);
 							L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
 							mainServer.Start();
 							GetContext.CancellationToken.WaitHandle.WaitOne();

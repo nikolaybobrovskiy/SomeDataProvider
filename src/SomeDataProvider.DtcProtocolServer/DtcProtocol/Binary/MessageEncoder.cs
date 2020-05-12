@@ -18,7 +18,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			Bytes = StructConverter.StructToBytesArray(new EncodingResponse(encoding));
 		}
 
-		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText)
+		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection)
 		{
 			throw new NotImplementedException();
 		}

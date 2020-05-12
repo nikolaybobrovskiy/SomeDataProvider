@@ -9,9 +9,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 
 	class MessageEncoder : Binary.MessageEncoder
 	{
-		public override void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText)
+		public override void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection)
 		{
-			var logonResponse = new LogonResponse(logonStatus);
+			var logonResponse = new LogonResponse(logonStatus)
+			{
+				OneHistoricalPriceDataRequestPerConnection = oneHistoricalPriceDataRequestPerConnection ? (byte)1 : (byte)0
+			};
 			var bytes = new byte[logonResponse.BaseSize + resultText.GetVlsFieldLength()];
 			logonResponse.SetResultText(resultText, bytes);
 			Bytes = StructConverter.StructToBytesArray(logonResponse, bytes);
