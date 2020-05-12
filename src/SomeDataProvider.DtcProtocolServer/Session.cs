@@ -110,6 +110,11 @@ namespace SomeDataProvider.DtcProtocolServer
 		{
 			L.LogOperation(() =>
 			{
+				if (IsDisposed || !IsConnected)
+				{
+					L.LogDebug("DisposedOrDisconnected");
+					return;
+				}
 				L.LogDebug("WaitingForLock");
 				lock (_singleWorkerLock)
 				{
