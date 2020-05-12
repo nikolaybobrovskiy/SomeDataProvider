@@ -1,7 +1,4 @@
-// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
-// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
-
-namespace SomeDataProvider.DtcProtocolServer.Main
+namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
 	using System.Timers;
@@ -17,12 +14,10 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
-	using Finally = NBLib.CodeFlow.Finally;
-
-	public class Session : TcpSession
+	class Session : TcpSession
 	{
-		// volatile - consumed by timer and can be changed by request thread.
-		volatile MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+		readonly object _singleWorkerLock = new object();
+		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
 		Timer? _timer;
 
 		public Session(TcpServer server, ILoggerFactory loggerFactory)
@@ -36,7 +31,12 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 		protected override void Dispose(bool disposingManagedResources)
 		{
 			if (!disposingManagedResources) return;
-			_timer?.Dispose();
+			StopHeartbeatTimer();
+		}
+
+		protected override void OnDisconnected()
+		{
+			StopHeartbeatTimer();
 		}
 
 		protected override void OnReceived(byte[] buffer, long offset, long size)
@@ -45,27 +45,32 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 			{
 				L.LogOperation(() =>
 				{
-					var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer, Convert.ToInt32(offset), Convert.ToInt32(size));
-					var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
-					using (new Finally(() => decoder.TryDispose()))
-					using (new Finally(() => encoder.TryDispose()))
+					L.LogDebug("WaitingForLock");
+					lock (_singleWorkerLock)
 					{
-						var messageType = decoder.DecodeMessageType();
-						L.LogInformation("RequestReceived: {requestType}", messageType);
-						switch (messageType)
+						L.LogDebug("LockAcquired");
+						var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer, Convert.ToInt32(offset), Convert.ToInt32(size));
+						var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+						using (new Finally(() => decoder.TryDispose()))
+						using (new Finally(() => encoder.TryDispose()))
 						{
-							case MessageTypeEnum.EncodingRequest:
-								ProcessEncodingRequest(decoder, encoder);
-								break;
-							case MessageTypeEnum.LogonRequest:
-								ProcessLogonRequest(decoder, encoder);
-								break;
-							case MessageTypeEnum.Heartbeat:
-								// TODO: Add Heartbeat detection logic.
-								// It is recommended that if there is a loss of HEARTBEAT messages from the other side, for twice the amount of the HeartbeatIntervalInSeconds time that it is safe to assume that the other side is no longer present and the network socket should be then gracefully closed.
-								break;
-							default:
-								throw new NotSupportedException($"Message type is not supported: {messageType}.");
+							var messageType = decoder.DecodeMessageType();
+							L.LogInformation("RequestReceived: {requestType}", messageType);
+							switch (messageType)
+							{
+								case MessageTypeEnum.EncodingRequest:
+									ProcessEncodingRequest(decoder, encoder);
+									break;
+								case MessageTypeEnum.LogonRequest:
+									ProcessLogonRequest(decoder, encoder);
+									break;
+								case MessageTypeEnum.Heartbeat:
+									// TODO: Add Heartbeat detection logic.
+									// It is recommended that if there is a loss of HEARTBEAT messages from the other side, for twice the amount of the HeartbeatIntervalInSeconds time that it is safe to assume that the other side is no longer present and the network socket should be then gracefully closed.
+									break;
+								default:
+									throw new NotSupportedException($"Message type is not supported: {messageType}.");
+							}
 						}
 					}
 				}, "ProcessRequest");
@@ -80,25 +85,45 @@ namespace SomeDataProvider.DtcProtocolServer.Main
 		{
 			var logonRequest = decoder.DecodeLogonRequest();
 			L.LogInformation("LogonInfo: {heartbeatIntervalInSeconds}, {clientName}, {hardwareIdentifier}", logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
-			_timer?.Dispose();
-			_timer = new Timer(logonRequest.HeartbeatIntervalInSeconds * 20000);
-			_timer.Elapsed += OnHeartbeatTimerElapsed;
-			_timer.Start();
-			// TODO: Save logonRequest.HeartbeatIntervalInSeconds and initiate heartbeat.
+			StartHeartbeatTimer(logonRequest.HeartbeatIntervalInSeconds * 20000);
 			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.");
 			Send(encoder.GetEncodedMessage());
 		}
 
+		void StartHeartbeatTimer(int intervalMs)
+		{
+			StopHeartbeatTimer();
+			var t = new Timer(intervalMs);
+			t.Elapsed += OnHeartbeatTimerElapsed;
+			t.Start();
+			_timer = t;
+		}
+
+		void StopHeartbeatTimer()
+		{
+			var t = _timer;
+			t?.Stop();
+			t?.Dispose();
+		}
+
 		void OnHeartbeatTimerElapsed(object sender, ElapsedEventArgs e)
 		{
-			var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
-			using (new Finally(() => encoder.TryDispose()))
+			L.LogOperation(() =>
 			{
-				encoder.EncodeHeartbeatMessage(0);
-				L.LogInformation("Sending hearbeat...");
-				Send(encoder.GetEncodedMessage());
-				L.LogInformation("Sent hearbeat.");
-			}
+				L.LogDebug("WaitingForLock");
+				lock (_singleWorkerLock)
+				{
+					L.LogDebug("LockAcquired");
+					var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+					using (new Finally(() => encoder.TryDispose()))
+					{
+						encoder.EncodeHeartbeatMessage(0);
+						L.LogInformation("Sending hearbeat...");
+						Send(encoder.GetEncodedMessage());
+						L.LogInformation("Sent hearbeat.");
+					}
+				}
+			}, "SendHeartbeat");
 		}
 
 		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)

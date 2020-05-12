@@ -31,4 +31,9 @@
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.TerminalGui\NBLib.TerminalGui.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="History" />
+    <Folder Include="Main" />
+  </ItemGroup>
+
 </Project>

@@ -40,9 +40,6 @@ namespace SomeDataProvider.DtcProtocolServer
 			[Option("--port", Description = "Main server port. Default is 50001.")]
 			public int Port { get; set; } = 50001;
 
-			[Option("--history-port", Description = "History server port. Default is 50002.")]
-			public int HistoryPort { get; set; } = 50002;
-
 			public override Task<int> OnExecuteAsync(CommandLineApplication app)
 			{
 				var cts = new CancellationTokenSource();
@@ -57,7 +54,7 @@ namespace SomeDataProvider.DtcProtocolServer
 						};
 						try
 						{
-							var mainServer = new Main.Server(IPAddress.Any, Port, _loggerFactory);
+							var mainServer = new Server(IPAddress.Any, Port, _loggerFactory);
 							L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
 							mainServer.Start();
 							GetContext.CancellationToken.WaitHandle.WaitOne();
