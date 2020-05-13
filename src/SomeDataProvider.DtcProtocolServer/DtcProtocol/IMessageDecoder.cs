@@ -10,6 +10,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		MessageTypeEnum DecodeMessageType();
 
 		LogonRequest DecodeLogonRequest();
+
+		HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest();
 	}
 
 	interface IMessageDecoderFactory

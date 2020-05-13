@@ -14,11 +14,21 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 
 		public override DtcProtocol.LogonRequest DecodeLogonRequest()
 		{
-			var logonRequest = StructConverter.BytesArrayToStruct<LogonRequest>(Buffer, Offset);
+			var r = StructConverter.BytesArrayToStruct<LogonRequest>(Buffer, Offset);
 			return new DtcProtocol.LogonRequest(
-				logonRequest.HeartbeatIntervalInSeconds,
-				logonRequest.GetClientName(BufferSpan),
-				logonRequest.GetHardwareIdentifier(BufferSpan));
+				r.HeartbeatIntervalInSeconds,
+				r.GetClientName(BufferSpan),
+				r.GetHardwareIdentifier(BufferSpan));
+		}
+
+		public override DtcProtocol.HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest()
+		{
+			var r = StructConverter.BytesArrayToStruct<HistoricalPriceDataRequest>(Buffer, Offset);
+			return new DtcProtocol.HistoricalPriceDataRequest(
+				r.RequestId,
+				r.GetSymbol(BufferSpan),
+				r.GetExchange(BufferSpan),
+				r.UseZLibCompression == 1);
 		}
 
 		public new sealed class Factory : IMessageDecoderFactory

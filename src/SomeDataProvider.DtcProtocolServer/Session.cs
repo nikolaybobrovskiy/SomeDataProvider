@@ -73,6 +73,9 @@ namespace SomeDataProvider.DtcProtocolServer
 									// TODO: Add Heartbeat detection logic.
 									// It is recommended that if there is a loss of HEARTBEAT messages from the other side, for twice the amount of the HeartbeatIntervalInSeconds time that it is safe to assume that the other side is no longer present and the network socket should be then gracefully closed.
 									break;
+								case MessageTypeEnum.HistoricalPriceDataRequest:
+									ProcessHistoricalPriceDataRequest(decoder, encoder);
+									break;
 								default:
 									throw new NotSupportedException($"Message type is not supported: {messageType}.");
 							}
@@ -86,6 +89,11 @@ namespace SomeDataProvider.DtcProtocolServer
 			}
 		}
 
+		void ProcessHistoricalPriceDataRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		{
+			var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
+		}
+
 		void ProcessLogonRequest(IMessageDecoder decoder, IMessageEncoder encoder)
 		{
 			var logonRequest = decoder.DecodeLogonRequest();
@@ -95,22 +103,30 @@ namespace SomeDataProvider.DtcProtocolServer
 			Send(encoder.GetEncodedMessage());
 		}
 
-		void StartHeartbeatTimer(int intervalMs)
+		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)
 		{
-			if (_onlyHistoryServer) return;
-			StopHeartbeatTimer();
-			var t = new Timer(intervalMs);
-			t.Elapsed += OnHeartbeatTimerElapsed;
-			t.Start();
-			_timer = t;
-		}
-
-		void StopHeartbeatTimer()
-		{
-			if (_onlyHistoryServer) return;
-			var t = _timer;
-			t?.Stop();
-			t?.Dispose();
+			if (!(decoder is DtcProtocol.Binary.MessageDecoder binaryDecoder))
+			{
+				throw new InvalidOperationException("Encoding request must be sent using binary protocol.");
+			}
+			var encodingRequest = binaryDecoder.DecodeEncodingRequest();
+			if (encodingRequest.ProtocolVersion != MessageProtocol.Version)
+			{
+				throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion.ToInvStr()} is not supported. Supported: {MessageProtocol.Version}.");
+			}
+			switch (encodingRequest.Encoding)
+			{
+				case EncodingEnum.BinaryEncoding:
+					if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
+						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+					break;
+				default:
+					if (_currentMessageProtocol.Encoding != MessageProtocol.PreferredEncoding)
+						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
+					break;
+			}
+			encoder.EncodeEncodingResponse(_currentMessageProtocol.Encoding);
+			Send(encoder.GetEncodedMessage());
 		}
 
 		void OnHeartbeatTimerElapsed(object sender, ElapsedEventArgs e)
@@ -138,30 +154,22 @@ namespace SomeDataProvider.DtcProtocolServer
 			}, "SendHeartbeat");
 		}
 
-		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		void StartHeartbeatTimer(int intervalMs)
 		{
-			if (!(decoder is DtcProtocol.Binary.MessageDecoder binaryDecoder))
-			{
-				throw new InvalidOperationException("Encoding request must be sent using binary protocol.");
-			}
-			var encodingRequest = binaryDecoder.DecodeEncodingRequest();
-			if (encodingRequest.ProtocolVersion != MessageProtocol.Version)
-			{
-				throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion.ToInvStr()} is not supported. Supported: {MessageProtocol.Version}.");
-			}
-			switch (encodingRequest.Encoding)
-			{
-				case EncodingEnum.BinaryEncoding:
-					if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
-						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
-					break;
-				default:
-					if (_currentMessageProtocol.Encoding != MessageProtocol.PreferredEncoding)
-						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
-					break;
-			}
-			encoder.EncodeEncodingResponse(_currentMessageProtocol.Encoding);
-			Send(encoder.GetEncodedMessage());
+			if (_onlyHistoryServer) return;
+			StopHeartbeatTimer();
+			var t = new Timer(intervalMs);
+			t.Elapsed += OnHeartbeatTimerElapsed;
+			t.Start();
+			_timer = t;
+		}
+
+		void StopHeartbeatTimer()
+		{
+			if (_onlyHistoryServer) return;
+			var t = _timer;
+			t?.Stop();
+			t?.Dispose();
 		}
 	}
 }

@@ -33,8 +33,13 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public virtual DtcProtocol.LogonRequest DecodeLogonRequest()
 		{
-			var logonRequest = StructConverter.BytesArrayToStruct<LogonRequest>(Buffer, Offset);
-			return new DtcProtocol.LogonRequest(logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
+			var r = StructConverter.BytesArrayToStruct<LogonRequest>(Buffer, Offset);
+			return new DtcProtocol.LogonRequest(r.HeartbeatIntervalInSeconds, r.ClientName, r.HardwareIdentifier);
+		}
+
+		public virtual DtcProtocol.HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest()
+		{
+			throw new NotImplementedException();
 		}
 
 		public EncodingRequest DecodeEncodingRequest()
