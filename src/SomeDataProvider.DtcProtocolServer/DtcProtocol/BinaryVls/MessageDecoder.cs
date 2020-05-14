@@ -28,6 +28,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 				r.RequestId,
 				r.GetSymbol(BufferSpan),
 				r.GetExchange(BufferSpan),
+				r.RecordInterval,
 				r.UseZLibCompression == 1);
 		}
 
