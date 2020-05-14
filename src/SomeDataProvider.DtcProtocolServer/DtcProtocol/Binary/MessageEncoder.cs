@@ -28,6 +28,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			Bytes = StructConverter.StructToBytesArray(new Heartbeat(0));
 		}
 
+		public virtual void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText)
+		{
+			throw new NotImplementedException();
+		}
+
 		public byte[] GetEncodedMessage()
 		{
 			return Bytes ?? throw new InvalidOperationException("Message is not ready.");

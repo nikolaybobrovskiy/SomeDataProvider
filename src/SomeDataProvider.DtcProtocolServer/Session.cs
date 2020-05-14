@@ -92,6 +92,9 @@ namespace SomeDataProvider.DtcProtocolServer
 		void ProcessHistoricalPriceDataRequest(IMessageDecoder decoder, IMessageEncoder encoder)
 		{
 			var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
+			L.LogInformation("RequestedHistory: {requestId}, {exchange}, {symbol}", historicalPriceDataRequest.RequestId, historicalPriceDataRequest.Exchange, historicalPriceDataRequest.Symbol);
+			encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, "No symbol found.");
+			Send(encoder.GetEncodedMessage());
 		}
 
 		void ProcessLogonRequest(IMessageDecoder decoder, IMessageEncoder encoder)

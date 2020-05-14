@@ -20,6 +20,14 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			Bytes = StructConverter.StructToBytesArray(logonResponse, bytes);
 		}
 
+		public override void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText)
+		{
+			var historicalPriceDataReject = new HistoricalPriceDataReject(requestId, rejectReasonCode);
+			var bytes = new byte[historicalPriceDataReject.BaseSize + rejectText.GetVlsFieldLength()];
+			historicalPriceDataReject.SetRejectText(rejectText, bytes);
+			Bytes = StructConverter.StructToBytesArray(historicalPriceDataReject, bytes);
+		}
+
 		public new sealed class Factory : IMessageEncoderFactory
 		{
 			public IMessageEncoder CreateMessageEncoder()

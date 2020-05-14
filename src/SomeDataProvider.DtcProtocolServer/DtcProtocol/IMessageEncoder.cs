@@ -13,6 +13,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeHeartbeatMessage(uint numDroppedMessages);
 
+		void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText);
+
 		byte[] GetEncodedMessage();
 	}
 
