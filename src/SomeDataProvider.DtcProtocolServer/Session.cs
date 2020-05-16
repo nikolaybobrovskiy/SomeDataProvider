@@ -79,6 +79,9 @@ namespace SomeDataProvider.DtcProtocolServer
 								case MessageTypeEnum.MarketDataRequest:
 									ProcessMarketDataRequest(decoder, encoder);
 									break;
+								case MessageTypeEnum.SecurityDefinitionForSymbolRequest:
+									ProcessSecurityDefinitionForSymbolRequest(decoder, encoder);
+									break;
 								default:
 									throw new NotSupportedException($"Message type is not supported: {messageType}.");
 							}
@@ -90,6 +93,11 @@ namespace SomeDataProvider.DtcProtocolServer
 			{
 				L.LogError(ex, "Error while processing request.");
 			}
+		}
+
+		void ProcessSecurityDefinitionForSymbolRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		{
+			throw new NotImplementedException();
 		}
 
 		void ProcessMarketDataRequest(IMessageDecoder decoder, IMessageEncoder encoder)
@@ -116,6 +124,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			var logonRequest = decoder.DecodeLogonRequest();
 			L.LogInformation("LogonInfo: {heartbeatIntervalInSeconds}, {clientName}, {hardwareIdentifier}", logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
 			StartHeartbeatTimer(logonRequest.HeartbeatIntervalInSeconds * 1000);
+			L.LogInformation("Answer: LogonSuccess");
 			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.", _onlyHistoryServer);
 			Send(encoder.GetEncodedMessage());
 		}

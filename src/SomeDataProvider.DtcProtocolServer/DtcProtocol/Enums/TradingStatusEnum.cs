@@ -1,6 +1,6 @@
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums
 {
-	enum TradingStatusEnum
+	enum TradingStatusEnum : sbyte
 	{
 		TradingStatusUnknown = 0,
 		TradingStatusPreOpen = 1,

@@ -62,12 +62,17 @@ namespace SomeDataProvider.DtcProtocolServer
 				services.AddSingleton<IGui>(_ => _gui = new Gui());
 			}
 
-			protected override void ConfigureLogger(LoggerConfiguration serilogCfg)
+			protected override void ConfigureLogger(Application app, LoggerConfiguration serilogCfg)
 			{
 				serilogCfg.WriteTo.Console(
 					outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}{OperationStartEnd:l}{Duration:l} {Message}{NewLine}{Exception}",
 					theme: ConsoleLogTheme.Default,
 					outputStreamSelector: () => _gui != null ? _consoleLogStreamWriter : null);
+				if (app.LogToLocalSeq)
+				{
+					serilogCfg.WriteTo.Logger(cfg => cfg
+						.WriteTo.Seq("http://localhost:5341", batchPostingLimit: 300));
+				}
 			}
 		}
 	}

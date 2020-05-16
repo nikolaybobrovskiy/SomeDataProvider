@@ -3,6 +3,7 @@
 
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 // ReSharper disable MemberCanBePrivate.Local
+
 #pragma warning disable CC0022 // Should dispose object
 namespace SomeDataProvider.DtcProtocolServer
 {
@@ -25,6 +26,9 @@ namespace SomeDataProvider.DtcProtocolServer
 	{
 		[Option("--log-level", Description = "Log level (verbose/debug/information/warning/error/critical). Default = information.")]
 		public AppLogLevel? LogLevel { get; set; }
+
+		[Option("--log-to-local-seq", Description = "Log to local Seq endpoint.")]
+		public bool LogToLocalSeq { get; set; }
 
 		[Command("start", FullName = "Start command", Description = "Starts DTC protocol server.")]
 		class StartCommand : CommandWithLogger<StartCommand>

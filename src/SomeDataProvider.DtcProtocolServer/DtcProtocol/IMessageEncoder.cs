@@ -21,6 +21,10 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeMarketDataSnapshot(uint symbolId, TradingStatusEnum tradingStatus, DateTime lastTradeDateTime);
 
+		void EncodeSecurityDefinitionReject(int requestId, string rejectText);
+
+		void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string symbol, string exchange, SecurityTypeEnum securityType, string description, PriceDisplayFormatEnum priceDisplayFormat, string currency, byte isDelayed);
+
 		byte[] GetEncodedMessage();
 	}
 

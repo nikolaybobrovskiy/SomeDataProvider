@@ -3,7 +3,7 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums
 {
-	public enum TradeModeEnum
+	enum TradeModeEnum
 	{
 		TradeModeUnset = 0,
 		TradeModeDemo = 1,

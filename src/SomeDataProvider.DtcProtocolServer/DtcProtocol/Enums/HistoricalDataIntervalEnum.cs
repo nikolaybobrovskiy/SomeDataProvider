@@ -1,6 +1,6 @@
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums
 {
-	public enum HistoricalDataIntervalEnum
+	enum HistoricalDataIntervalEnum
 	{
 		IntervalTick = 0,
 		Interval1Second = 1,

@@ -36,6 +36,29 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			Bytes = StructConverter.StructToBytesArray(marketDataReject, bytes);
 		}
 
+		public override void EncodeSecurityDefinitionReject(int requestId, string rejectText)
+		{
+			var securityDefinitionReject = new SecurityDefinitionReject(requestId);
+			var bytes = new byte[securityDefinitionReject.BaseSize + rejectText.GetVlsFieldLength()];
+			securityDefinitionReject.SetRejectText(rejectText, bytes);
+			Bytes = StructConverter.StructToBytesArray(securityDefinitionReject, bytes);
+		}
+
+		public override void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string symbol, string exchange, SecurityTypeEnum securityType, string description, PriceDisplayFormatEnum priceDisplayFormat, string currency, byte isDelayed)
+		{
+			var securityDefinitionResponse = new SecurityDefinitionResponse(requestId, isFinalMessage ? (byte)1 : (byte)0);
+			var bytes = new byte[securityDefinitionResponse.BaseSize
+				+ symbol.GetVlsFieldLength()
+				+ exchange.GetVlsFieldLength()
+				+ description.GetVlsFieldLength()
+				+ currency.GetVlsFieldLength()];
+			securityDefinitionResponse.SetSymbol(symbol, bytes);
+			securityDefinitionResponse.SetExchange(exchange, bytes);
+			securityDefinitionResponse.SetDescription(description, bytes);
+			securityDefinitionResponse.SetCurrency(currency, bytes);
+			Bytes = StructConverter.StructToBytesArray(securityDefinitionResponse, bytes);
+		}
+
 		public new sealed class Factory : IMessageEncoderFactory
 		{
 			public IMessageEncoder CreateMessageEncoder()

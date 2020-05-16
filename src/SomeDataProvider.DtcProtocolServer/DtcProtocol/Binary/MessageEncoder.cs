@@ -49,6 +49,16 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			});
 		}
 
+		public virtual void EncodeSecurityDefinitionReject(int requestId, string rejectText)
+		{
+			throw new NotImplementedException();
+		}
+
+		public virtual void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string symbol, string exchange, SecurityTypeEnum securityType, string description, PriceDisplayFormatEnum priceDisplayFormat, string currency, byte isDelayed)
+		{
+			throw new NotImplementedException();
+		}
+
 		public byte[] GetEncodedMessage()
 		{
 			return Bytes ?? throw new InvalidOperationException("Message is not ready.");
