@@ -26,7 +26,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 		public EncodingResponse(EncodingEnum encoding)
 			: this()
 		{
-			Size = Convert.ToUInt16(Marshal.SizeOf(typeof(EncodingResponse)));
+			Size = Convert.ToUInt16(Marshal.SizeOf(this));
 			Type = MessageTypeEnum.EncodingResponse;
 			ProtocolType = "DTC";
 			Encoding = encoding;

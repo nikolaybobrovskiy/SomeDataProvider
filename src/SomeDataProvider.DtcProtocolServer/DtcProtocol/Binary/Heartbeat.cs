@@ -17,6 +17,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			: this()
 		{
 			Size = Convert.ToUInt16(Marshal.SizeOf(this));
+			Type = MessageTypeEnum.Heartbeat;
 			NumDroppedMessages = numDroppedMessages;
 		}
 	}

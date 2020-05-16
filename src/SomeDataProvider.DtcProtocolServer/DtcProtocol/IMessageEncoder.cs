@@ -3,6 +3,8 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
+	using System;
+
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	interface IMessageEncoder
@@ -16,6 +18,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText);
 
 		void EncodeMarketDataReject(uint symbolId, string rejectText);
+
+		void EncodeMarketDataSnapshot(uint symbolId, TradingStatusEnum tradingStatus, DateTime lastTradeDateTime);
 
 		byte[] GetEncodedMessage();
 	}

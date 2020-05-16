@@ -20,9 +20,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Exceptions", "..\..\.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.CodeFlow", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj", "{B4E430FF-3824-4BF6-9760-175D3278BD7D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.DateTime", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj", "{31D9144B-E971-4230-8AFF-ED1366C987DE}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.TerminalGui", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.TerminalGui\NBLib.TerminalGui.csproj", "{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.DateTime", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj", "{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -70,13 +70,13 @@ Global
 		{B4E430FF-3824-4BF6-9760-175D3278BD7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B4E430FF-3824-4BF6-9760-175D3278BD7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B4E430FF-3824-4BF6-9760-175D3278BD7D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{31D9144B-E971-4230-8AFF-ED1366C987DE}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7AD3D69E-AA95-4452-A0F0-A35AF0C3754E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

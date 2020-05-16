@@ -6,6 +6,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 	using System;
 
 	using NBLib.BuiltInTypes;
+	using NBLib.DateTime;
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
@@ -36,6 +37,16 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 		public virtual void EncodeMarketDataReject(uint symbolId, string rejectText)
 		{
 			throw new NotImplementedException();
+		}
+
+		public void EncodeMarketDataSnapshot(uint symbolId, TradingStatusEnum tradingStatus, DateTime lastTradeDateTime)
+		{
+			Bytes = StructConverter.StructToBytesArray(new MarketDataSnapshot(
+				symbolId,
+				tradingStatus)
+			{
+				LastTradeDateTime = lastTradeDateTime.ToUnixTimeStamp(),
+			});
 		}
 
 		public byte[] GetEncodedMessage()

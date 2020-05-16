@@ -96,7 +96,9 @@ namespace SomeDataProvider.DtcProtocolServer
 		{
 			var marketDataRequest = decoder.DecodeMarketDataRequest();
 			L.LogInformation("MarketDataRequest: {marketDataRequest}", marketDataRequest);
-			encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Real-time market data is not supported for {marketDataRequest.Symbol}.");
+			//encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Symbol is unknown: {marketDataRequest.Symbol}.");
+			L.LogInformation("Answer: MarketDataSnapshot");
+			encoder.EncodeMarketDataSnapshot(marketDataRequest.SymbolId, TradingStatusEnum.TradingStatusUnknown, DateTime.Now);
 			Send(encoder.GetEncodedMessage());
 		}
 
@@ -104,6 +106,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		{
 			var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
 			L.LogInformation("RequestedHistory: {requestId}, {exchange}, {symbol}, {recordInterval}", historicalPriceDataRequest.RequestId, historicalPriceDataRequest.Exchange, historicalPriceDataRequest.Symbol, historicalPriceDataRequest.RecordInterval);
+			L.LogInformation("Answer: HistoricalPriceDataReject");
 			encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, "No symbol found.");
 			Send(encoder.GetEncodedMessage());
 		}
