@@ -43,6 +43,10 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			BaseSize = Size = Convert.ToUInt16(Marshal.SizeOf(this));
 			ProtocolVersion = MessageProtocol.Version;
 			Type = MessageTypeEnum.LogonResponse;
+			HistoricalPriceDataSupported = 1;
+			ResubscribeWhenMarketDataFeedAvailable = 1;
+			MarketDataSupported = 1;
+			SecurityDefinitionsSupported = 1;
 			Result = result;
 		}
 

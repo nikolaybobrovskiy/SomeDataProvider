@@ -3,8 +3,6 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 {
-	using NBLib.BuiltInTypes;
-
 	class MessageDecoder : Binary.MessageDecoder
 	{
 		MessageDecoder(byte[] buffer, int offset, int size)
@@ -14,7 +12,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 
 		public override DtcProtocol.LogonRequest DecodeLogonRequest()
 		{
-			var r = StructConverter.BytesArrayToStruct<LogonRequest>(Buffer, Offset);
+			var r = GetRequest<LogonRequest>();
 			return new DtcProtocol.LogonRequest(
 				r.HeartbeatIntervalInSeconds,
 				r.GetClientName(BufferSpan),
@@ -23,13 +21,24 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 
 		public override DtcProtocol.HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest()
 		{
-			var r = StructConverter.BytesArrayToStruct<HistoricalPriceDataRequest>(Buffer, Offset);
+			var r = GetRequest<HistoricalPriceDataRequest>();
 			return new DtcProtocol.HistoricalPriceDataRequest(
 				r.RequestId,
 				r.GetSymbol(BufferSpan),
 				r.GetExchange(BufferSpan),
 				r.RecordInterval,
 				r.UseZLibCompression == 1);
+		}
+
+		public override DtcProtocol.MarketDataRequest DecodeMarketDataRequest()
+		{
+			var r = GetRequest<MarketDataRequest>();
+			return new DtcProtocol.MarketDataRequest(
+				r.RequestAction,
+				r.SymbolId,
+				r.GetSymbol(BufferSpan),
+				r.GetExchange(BufferSpan),
+				r.IntervalForSnapshotUpdatesInMilliseconds);
 		}
 
 		public new sealed class Factory : IMessageDecoderFactory

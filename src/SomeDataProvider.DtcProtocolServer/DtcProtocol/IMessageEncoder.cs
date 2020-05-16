@@ -15,6 +15,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText);
 
+		void EncodeMarketDataReject(uint symbolId, string rejectText);
+
 		byte[] GetEncodedMessage();
 	}
 

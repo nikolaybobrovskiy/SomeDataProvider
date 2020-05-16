@@ -25,7 +25,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 
 		public string GetStringValue(ReadOnlySpan<byte> buffer)
 		{
-			if (buffer.Length <= 1)
+			if (Length <= 1)
 			{
 				return string.Empty;
 			}

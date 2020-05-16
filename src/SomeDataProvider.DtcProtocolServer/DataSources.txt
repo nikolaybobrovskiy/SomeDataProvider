@@ -1,0 +1,2 @@
+https://stackoverflow.com/questions/10040954/alternative-to-google-finance-api
+https://towardsdatascience.com/best-5-free-stock-market-apis-in-2019-ad91dddec984

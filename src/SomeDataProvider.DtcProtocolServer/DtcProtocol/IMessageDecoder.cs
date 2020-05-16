@@ -12,6 +12,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		LogonRequest DecodeLogonRequest();
 
 		HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest();
+
+		MarketDataRequest DecodeMarketDataRequest();
 	}
 
 	interface IMessageDecoderFactory

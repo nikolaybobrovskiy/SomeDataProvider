@@ -76,6 +76,9 @@ namespace SomeDataProvider.DtcProtocolServer
 								case MessageTypeEnum.HistoricalPriceDataRequest:
 									ProcessHistoricalPriceDataRequest(decoder, encoder);
 									break;
+								case MessageTypeEnum.MarketDataRequest:
+									ProcessMarketDataRequest(decoder, encoder);
+									break;
 								default:
 									throw new NotSupportedException($"Message type is not supported: {messageType}.");
 							}
@@ -87,6 +90,14 @@ namespace SomeDataProvider.DtcProtocolServer
 			{
 				L.LogError(ex, "Error while processing request.");
 			}
+		}
+
+		void ProcessMarketDataRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		{
+			var marketDataRequest = decoder.DecodeMarketDataRequest();
+			L.LogInformation("MarketDataRequest: {marketDataRequest}", marketDataRequest);
+			encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Real-time market data is not supported for {marketDataRequest.Symbol}.");
+			Send(encoder.GetEncodedMessage());
 		}
 
 		void ProcessHistoricalPriceDataRequest(IMessageDecoder decoder, IMessageEncoder encoder)
@@ -101,7 +112,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		{
 			var logonRequest = decoder.DecodeLogonRequest();
 			L.LogInformation("LogonInfo: {heartbeatIntervalInSeconds}, {clientName}, {hardwareIdentifier}", logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
-			StartHeartbeatTimer(logonRequest.HeartbeatIntervalInSeconds * 20000);
+			StartHeartbeatTimer(logonRequest.HeartbeatIntervalInSeconds * 1000);
 			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.", _onlyHistoryServer);
 			Send(encoder.GetEncodedMessage());
 		}
@@ -119,15 +130,16 @@ namespace SomeDataProvider.DtcProtocolServer
 			}
 			switch (encodingRequest.Encoding)
 			{
-				case EncodingEnum.BinaryEncoding:
-					if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
-						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
-					break;
+				//// case EncodingEnum.BinaryEncoding:
+				//// 	if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
+				//// 		_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
+				//// 	break;
 				default:
 					if (_currentMessageProtocol.Encoding != MessageProtocol.PreferredEncoding)
 						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
 					break;
 			}
+			L.LogInformation("ChosenEncoding: {chosenEncoding}", _currentMessageProtocol.Encoding);
 			encoder.EncodeEncodingResponse(_currentMessageProtocol.Encoding);
 			Send(encoder.GetEncodedMessage());
 		}
@@ -164,6 +176,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			var t = new Timer(intervalMs);
 			t.Elapsed += OnHeartbeatTimerElapsed;
 			t.Start();
+			L.LogInformation("HearbeatTimerStarted({intervalMs})", intervalMs);
 			_timer = t;
 		}
 
@@ -172,6 +185,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			if (_onlyHistoryServer) return;
 			var t = _timer;
 			t?.Stop();
+			L.LogInformation("HearbeatTimerStopped");
 			t?.Dispose();
 		}
 	}

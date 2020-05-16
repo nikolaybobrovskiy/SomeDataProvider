@@ -28,6 +28,14 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			Bytes = StructConverter.StructToBytesArray(historicalPriceDataReject, bytes);
 		}
 
+		public override void EncodeMarketDataReject(uint symbolId, string rejectText)
+		{
+			var marketDataReject = new MarketDataReject(symbolId);
+			var bytes = new byte[marketDataReject.BaseSize + rejectText.GetVlsFieldLength()];
+			marketDataReject.SetRejectText(rejectText, bytes);
+			Bytes = StructConverter.StructToBytesArray(marketDataReject, bytes);
+		}
+
 		public new sealed class Factory : IMessageEncoderFactory
 		{
 			public IMessageEncoder CreateMessageEncoder()

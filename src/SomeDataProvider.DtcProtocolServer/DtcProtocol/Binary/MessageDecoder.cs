@@ -33,7 +33,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public virtual DtcProtocol.LogonRequest DecodeLogonRequest()
 		{
-			var r = StructConverter.BytesArrayToStruct<LogonRequest>(Buffer, Offset);
+			var r = GetRequest<LogonRequest>();
 			return new DtcProtocol.LogonRequest(r.HeartbeatIntervalInSeconds, r.ClientName, r.HardwareIdentifier);
 		}
 
@@ -42,9 +42,21 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
+		// ReSharper disable once RedundantNameQualifier
+		public virtual DtcProtocol.MarketDataRequest DecodeMarketDataRequest()
+		{
+			throw new NotImplementedException();
+		}
+
 		public EncodingRequest DecodeEncodingRequest()
 		{
-			return StructConverter.BytesArrayToStruct<EncodingRequest>(Buffer, Offset);
+			return GetRequest<EncodingRequest>();
+		}
+
+		protected T GetRequest<T>()
+			where T : struct
+		{
+			return StructConverter.BytesArrayToStruct<T>(Buffer, Offset);
 		}
 
 		public sealed class Factory : IMessageDecoderFactory

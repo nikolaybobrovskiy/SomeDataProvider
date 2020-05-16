@@ -33,6 +33,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
+		public virtual void EncodeMarketDataReject(uint symbolId, string rejectText)
+		{
+			throw new NotImplementedException();
+		}
+
 		public byte[] GetEncodedMessage()
 		{
 			return Bytes ?? throw new InvalidOperationException("Message is not ready.");
