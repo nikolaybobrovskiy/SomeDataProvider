@@ -26,6 +26,7 @@ namespace SomeDataProvider.DtcProtocolServer
 	{
 		readonly bool _onlyHistoryServer;
 		readonly ISymbolsStore _symbolsStore;
+		readonly ISymbolHistoryStoreInstanceFactory _symbolHistoryStoreInstanceFactory;
 		readonly object _singleWorkerLock = new object();
 #pragma warning disable CC0033 // Dispose Fields Properly: disposed in Dispose() override.
 		readonly CancellationTokenSource _cts = new CancellationTokenSource();
@@ -33,12 +34,18 @@ namespace SomeDataProvider.DtcProtocolServer
 		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
 		Timer? _timer;
 
-		public Session(TcpServer server, bool onlyHistoryServer, ISymbolsStore symbolsStore, ILoggerFactory loggerFactory)
+		public Session(
+			TcpServer server,
+			bool onlyHistoryServer,
+			ISymbolsStore symbolsStore,
+			ISymbolHistoryStoreInstanceFactory symbolHistoryStoreInstanceFactory,
+			ILoggerFactory loggerFactory)
 			: base(server)
 		{
 			_currentMessageProtocol.MessageStreamer.MessageBytesReceived += OnMessageReceived;
 			_onlyHistoryServer = onlyHistoryServer;
 			_symbolsStore = symbolsStore;
+			_symbolHistoryStoreInstanceFactory = symbolHistoryStoreInstanceFactory;
 			L = loggerFactory.CreateLogger<Session>();
 		}
 
@@ -205,11 +212,67 @@ namespace SomeDataProvider.DtcProtocolServer
 			}
 			else
 			{
-				var noRecordsToReturn = true;
-				// Get history
-				encoder.EncodeHistoricalPriceDataResponseHeader(requestId, historicalPriceDataRequest.RecordInterval, false, noRecordsToReturn, 1);
+				var historyInterval = historicalPriceDataRequest.RecordInterval switch
+				{
+					HistoricalDataIntervalEnum.IntervalTick => HistoryInterval.Tick,
+					var x when x < HistoricalDataIntervalEnum.Interval1Day => HistoryInterval.Intraday,
+					_ => HistoryInterval.Daily
+				};
+				using var s = _symbolHistoryStoreInstanceFactory.CreateSymbolHistoryStoreInstance(symbol, historyInterval);
+				var headerSent = false;
+				string? continuationToken = null;
+				do
+				{
+					L.LogOperation(() =>
+					{
+						var r = s.Store.GetSymbolHistoryAsync(
+							symbol,
+							historyInterval,
+							historicalPriceDataRequest.StartDateTime,
+							historicalPriceDataRequest.EndDateTime,
+							100,
+							continuationToken,
+							ct).GetAwaiter().GetResult();
+						continuationToken = r.ContinuationToken;
+						L.LogDebug("ContinuationToken: {continuationToken}", continuationToken);
+						if (!headerSent)
+						{
+							var noRecordsToReturn = r.Records.Count == 0;
+							L.LogInformation("SendHeader({recordsExist})", !noRecordsToReturn);
+							// TODO: ZLibCompression if client requests.
+							encoder.EncodeHistoricalPriceDataResponseHeader(requestId, historicalPriceDataRequest.RecordInterval, false, noRecordsToReturn, 1);
+							Send(encoder.GetEncodedMessage());
+						}
+						// ReSharper disable once InconsistentlySynchronizedField
+						var historyRecordsEncoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+						try
+						{
+							var recIndex = 0;
+							var recsCount = r.Records.Count;
+							L.LogInformation("EncodeAndSendRecords({recordsCount})", recsCount);
+							foreach (var rec in r.Records)
+							{
+								historyRecordsEncoder.EncodeHistoricalPriceDataRecordResponse(
+									requestId,
+									rec.TimeStamp,
+									rec.OpenPrice,
+									rec.HighPrice,
+									rec.LowPrice,
+									rec.LastPrice,
+									rec.Volume,
+									0, 0, 0, continuationToken == null && recIndex == recsCount - 1);
+								recIndex++;
+							}
+							Send(historyRecordsEncoder.GetEncodedMessage());
+						}
+						finally
+						{
+							historyRecordsEncoder.TryDispose();
+						}
+					}, "DownloadAndSendHistoryDataBatch");
+				}
+				while (continuationToken != null);
 			}
-			Send(encoder.GetEncodedMessage());
 		}
 
 		void ProcessLogonRequest(IMessageDecoder decoder, IMessageEncoder encoder)

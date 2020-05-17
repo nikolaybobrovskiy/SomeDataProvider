@@ -3,11 +3,12 @@
 
 namespace SomeDataProvider.DataStorage.Definitions
 {
+	using System;
 	using System.Threading;
 	using System.Threading.Tasks;
 
-	public interface ISymbolsStore
+	public interface ISymbolHistoryStore
 	{
-		Task<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken = default);
+		Task<GetSymbolHistoryResult> GetSymbolHistoryAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, string? continuationToken, CancellationToken cancellationToken = default);
 	}
 }

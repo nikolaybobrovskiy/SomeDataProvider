@@ -19,5 +19,10 @@
     </PackageReference>
     <PackageReference Include="codecracker.CSharp" Version="1.1.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj" />
+    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />
+  </ItemGroup>
   
 </Project>

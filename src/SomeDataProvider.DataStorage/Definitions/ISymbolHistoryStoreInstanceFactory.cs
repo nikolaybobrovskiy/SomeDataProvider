@@ -3,11 +3,8 @@
 
 namespace SomeDataProvider.DataStorage.Definitions
 {
-	using System.Threading;
-	using System.Threading.Tasks;
-
-	public interface ISymbolsStore
+	public interface ISymbolHistoryStoreInstanceFactory
 	{
-		Task<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken = default);
+		ISymbolHistoryStoreInstance CreateSymbolHistoryStoreInstance(ISymbol symbol, HistoryInterval historyInterval);
 	}
 }

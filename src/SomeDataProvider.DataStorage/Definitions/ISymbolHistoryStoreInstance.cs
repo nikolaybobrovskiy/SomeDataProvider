@@ -3,11 +3,11 @@
 
 namespace SomeDataProvider.DataStorage.Definitions
 {
-	using System.Threading;
-	using System.Threading.Tasks;
+	using System;
 
-	public interface ISymbolsStore
+	// It can dispose Store or not dispose if single instance is used.
+	public interface ISymbolHistoryStoreInstance : IDisposable
 	{
-		Task<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken = default);
+		ISymbolHistoryStore Store { get; }
 	}
 }

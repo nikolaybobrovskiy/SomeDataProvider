@@ -1,3 +1,6 @@
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 namespace SomeDataProvider.DataStorage.InMem
 {
 	using System.Threading;
@@ -18,6 +21,7 @@ namespace SomeDataProvider.DataStorage.InMem
 						Category = "Central Banks Rates",
 						NumberOfDecimals = 2,
 						DataService = DataService.TextFile,
+						DataServiceSettings = "FillDailyGaps=true;"
 					});
 			}
 			return Task.FromResult((ISymbol?)null);
@@ -49,7 +53,11 @@ namespace SomeDataProvider.DataStorage.InMem
 
 			public bool IsDelayed { get; set; }
 
+			public bool IsDiscontinued { get; set; }
+
 			public DataService DataService { get; set; }
+
+			public string? DataServiceSettings { get; set; }
 			// ReSharper restore UnusedAutoPropertyAccessor.Local
 		}
 	}
