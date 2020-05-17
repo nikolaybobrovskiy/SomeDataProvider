@@ -44,7 +44,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			Bytes = StructConverter.StructToBytesArray(securityDefinitionReject, bytes);
 		}
 
-		public override void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string symbol, string exchange, SecurityTypeEnum securityType, string description, PriceDisplayFormatEnum priceDisplayFormat, string currency, byte isDelayed)
+		public override void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string? symbol, string? exchange, SecurityTypeEnum securityType, string? description, PriceDisplayFormatEnum priceDisplayFormat, string? currency, bool isDelayed)
 		{
 			var securityDefinitionResponse = new SecurityDefinitionResponse(requestId, isFinalMessage ? (byte)1 : (byte)0);
 			var bytes = new byte[securityDefinitionResponse.BaseSize
@@ -56,6 +56,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			securityDefinitionResponse.SetExchange(exchange, bytes);
 			securityDefinitionResponse.SetDescription(description, bytes);
 			securityDefinitionResponse.SetCurrency(currency, bytes);
+			securityDefinitionResponse.IsDelayed = isDelayed ? (byte)1 : (byte)0;
 			Bytes = StructConverter.StructToBytesArray(securityDefinitionResponse, bytes);
 		}
 

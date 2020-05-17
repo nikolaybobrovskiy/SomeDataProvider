@@ -11,24 +11,16 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 	class MessageDecoder : IMessageDecoder
 	{
-		protected MessageDecoder(byte[] buffer, int offset, int size)
+		protected MessageDecoder(Memory<byte> buffer)
 		{
 			Buffer = buffer;
-			Offset = offset;
-			Size = size;
 		}
 
-		protected ReadOnlySpan<byte> BufferSpan => Buffer.AsSpan(Offset, Size);
-
-		protected byte[] Buffer { get; }
-
-		protected int Offset { get; }
-
-		protected int Size { get; }
+		protected Memory<byte> Buffer { get; }
 
 		public MessageTypeEnum DecodeMessageType()
 		{
-			return (MessageTypeEnum)BitConverter.ToUInt16(BufferSpan.Slice(2, 2));
+			return (MessageTypeEnum)BitConverter.ToUInt16(Buffer.Span.Slice(2, 2));
 		}
 
 		public virtual DtcProtocol.LogonRequest DecodeLogonRequest()
@@ -48,6 +40,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
+		// ReSharper disable once RedundantNameQualifier
+		public virtual DtcProtocol.SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest()
+		{
+			throw new NotImplementedException();
+		}
+
 		public EncodingRequest DecodeEncodingRequest()
 		{
 			return GetRequest<EncodingRequest>();
@@ -56,14 +54,14 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 		protected T GetRequest<T>()
 			where T : struct
 		{
-			return StructConverter.BytesArrayToStruct<T>(Buffer, Offset);
+			return Buffer.ToStruct<T>();
 		}
 
 		public sealed class Factory : IMessageDecoderFactory
 		{
-			public IMessageDecoder CreateMessageDecoder(byte[] buffer, int offset, int size)
+			public IMessageDecoder CreateMessageDecoder(Memory<byte> buffer)
 			{
-				return new MessageDecoder(buffer, offset, size);
+				return new MessageDecoder(buffer);
 			}
 		}
 	}

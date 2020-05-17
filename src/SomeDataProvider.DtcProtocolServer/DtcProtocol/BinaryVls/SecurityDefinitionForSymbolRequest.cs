@@ -3,6 +3,7 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 {
+	using System;
 	using System.Runtime.InteropServices;
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
@@ -16,5 +17,15 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 		public readonly int RequestId;
 		public readonly VariableLengthStringField Symbol;
 		public readonly VariableLengthStringField Exchange;
+
+		public string GetSymbol(ReadOnlySpan<byte> buffer)
+		{
+			return Symbol.GetStringValue(buffer);
+		}
+
+		public string GetExchange(ReadOnlySpan<byte> buffer)
+		{
+			return Exchange.GetStringValue(buffer);
+		}
 	}
 }

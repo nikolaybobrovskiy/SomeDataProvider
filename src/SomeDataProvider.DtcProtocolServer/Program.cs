@@ -17,6 +17,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	using Serilog;
 
+	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DtcProtocolServer.Terminal;
 
 	class Program
@@ -60,6 +61,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			{
 				base.ConfigureServices(services);
 				services.AddSingleton<IGui>(_ => _gui = new Gui());
+				services.AddSingleton<ISymbolsStore, DataStorage.InMem.SymbolsStore>();
 			}
 
 			protected override void ConfigureLogger(Application app, LoggerConfiguration serilogCfg)

@@ -2,6 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 // ReSharper disable FieldCanBeMadeReadOnly.Global
+
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 {
 	using System;
@@ -42,6 +43,23 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			Type = MessageTypeEnum.MarketDataSnapshot;
 			SymbolId = symbolId;
 			TradingStatus = tradingStatus;
+
+			SessionSettlementPrice = double.MaxValue;
+			SessionOpenPrice = double.MaxValue;
+			SessionHighPrice = double.MaxValue;
+			SessionLowPrice = double.MaxValue;
+			SessionVolume = double.MaxValue;
+			SessionNumTrades = uint.MaxValue;
+
+			OpenInterest = uint.MaxValue;
+
+			BidPrice = double.MaxValue;
+			AskPrice = double.MaxValue;
+			AskQuantity = double.MaxValue;
+			BidQuantity = double.MaxValue;
+
+			LastTradePrice = double.MaxValue;
+			LastTradeVolume = double.MaxValue;
 		}
 	}
 }

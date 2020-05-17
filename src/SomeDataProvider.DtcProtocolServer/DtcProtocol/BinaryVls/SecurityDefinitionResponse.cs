@@ -58,6 +58,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			IsFinalMessage = isFinalMessage;
 			FloatToIntPriceMultiplier = 1;
 			IntToFloatPriceDivisor = 1;
+			DisplayPriceMultiplier = 1;
 		}
 
 		public void SetSymbol(string? val, byte[] stringsBuffer)

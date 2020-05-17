@@ -3,10 +3,12 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 {
+	using System;
+
 	class MessageDecoder : Binary.MessageDecoder
 	{
-		MessageDecoder(byte[] buffer, int offset, int size)
-			: base(buffer, offset, size)
+		MessageDecoder(Memory<byte> buffer)
+			: base(buffer)
 		{
 		}
 
@@ -15,8 +17,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			var r = GetRequest<LogonRequest>();
 			return new DtcProtocol.LogonRequest(
 				r.HeartbeatIntervalInSeconds,
-				r.GetClientName(BufferSpan),
-				r.GetHardwareIdentifier(BufferSpan));
+				r.GetClientName(Buffer.Span),
+				r.GetHardwareIdentifier(Buffer.Span));
 		}
 
 		public override DtcProtocol.HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest()
@@ -24,8 +26,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			var r = GetRequest<HistoricalPriceDataRequest>();
 			return new DtcProtocol.HistoricalPriceDataRequest(
 				r.RequestId,
-				r.GetSymbol(BufferSpan),
-				r.GetExchange(BufferSpan),
+				r.GetSymbol(Buffer.Span),
+				r.GetExchange(Buffer.Span),
 				r.RecordInterval,
 				r.UseZLibCompression == 1);
 		}
@@ -36,16 +38,25 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			return new DtcProtocol.MarketDataRequest(
 				r.RequestAction,
 				r.SymbolId,
-				r.GetSymbol(BufferSpan),
-				r.GetExchange(BufferSpan),
+				r.GetSymbol(Buffer.Span),
+				r.GetExchange(Buffer.Span),
 				r.IntervalForSnapshotUpdatesInMilliseconds);
+		}
+
+		public override DtcProtocol.SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest()
+		{
+			var r = GetRequest<SecurityDefinitionForSymbolRequest>();
+			return new DtcProtocol.SecurityDefinitionForSymbolRequest(
+				r.RequestId,
+				r.GetSymbol(Buffer.Span),
+				r.GetExchange(Buffer.Span));
 		}
 
 		public new sealed class Factory : IMessageDecoderFactory
 		{
-			public IMessageDecoder CreateMessageDecoder(byte[] buffer, int offset, int size)
+			public IMessageDecoder CreateMessageDecoder(Memory<byte> buffer)
 			{
-				return new MessageDecoder(buffer, offset, size);
+				return new MessageDecoder(buffer);
 			}
 		}
 	}

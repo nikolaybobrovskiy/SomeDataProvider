@@ -12,7 +12,30 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 	class MessageEncoder : IMessageEncoder
 	{
-		protected byte[]? Bytes { get; set; }
+		byte[]? _bytes;
+
+		protected byte[]? Bytes
+		{
+			get => _bytes;
+			set
+			{
+				if (value == null || value.Length == 0)
+				{
+					return;
+				}
+				if (_bytes?.Length > 0)
+				{
+					var newArr = new byte[_bytes.Length + value.Length];
+					Array.Copy(_bytes, newArr, _bytes.Length);
+					Array.Copy(value, 0, newArr, _bytes.Length, value.Length);
+					_bytes = newArr;
+				}
+				else
+				{
+					_bytes = value;
+				}
+			}
+		}
 
 		public void EncodeEncodingResponse(EncodingEnum encoding)
 		{
@@ -54,7 +77,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
-		public virtual void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string symbol, string exchange, SecurityTypeEnum securityType, string description, PriceDisplayFormatEnum priceDisplayFormat, string currency, byte isDelayed)
+		public virtual void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string? symbol, string? exchange, SecurityTypeEnum securityType, string? description, PriceDisplayFormatEnum priceDisplayFormat, string? currency, bool isDelayed)
 		{
 			throw new NotImplementedException();
 		}

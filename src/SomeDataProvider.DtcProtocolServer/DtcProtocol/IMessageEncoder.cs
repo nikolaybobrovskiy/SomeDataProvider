@@ -23,7 +23,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeSecurityDefinitionReject(int requestId, string rejectText);
 
-		void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string symbol, string exchange, SecurityTypeEnum securityType, string description, PriceDisplayFormatEnum priceDisplayFormat, string currency, byte isDelayed);
+		void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string? symbol, string? exchange, SecurityTypeEnum securityType, string? description, PriceDisplayFormatEnum priceDisplayFormat, string? currency, bool isDelayed);
 
 		byte[] GetEncodedMessage();
 	}
@@ -31,5 +31,13 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 	interface IMessageEncoderFactory
 	{
 		IMessageEncoder CreateMessageEncoder();
+	}
+
+	static class MessageEncoderDefinitions
+	{
+		public static void EncodeNoSecurityDefinitionsFound(this IMessageEncoder encoder, int requestId)
+		{
+			encoder.EncodeSecurityDefinitionResponse(requestId, true, string.Empty, string.Empty, SecurityTypeEnum.SecurityTypeUnset, string.Empty, PriceDisplayFormatEnum.PriceDisplayFormatUnset, string.Empty, false);
+		}
 	}
 }

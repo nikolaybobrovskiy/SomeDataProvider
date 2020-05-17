@@ -3,6 +3,8 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
+	using System;
+
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	interface IMessageDecoder
@@ -14,10 +16,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest();
 
 		MarketDataRequest DecodeMarketDataRequest();
+
+		SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest();
 	}
 
 	interface IMessageDecoderFactory
 	{
-		IMessageDecoder CreateMessageDecoder(byte[] buffer, int offset, int size);
+		IMessageDecoder CreateMessageDecoder(Memory<byte> buffer);
 	}
 }

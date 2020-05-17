@@ -19,6 +19,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	using NBLib.Cli;
 
+	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DtcProtocolServer.Terminal;
 
 	[Subcommand(typeof(StartCommand))]
@@ -34,12 +35,14 @@ namespace SomeDataProvider.DtcProtocolServer
 		class StartCommand : CommandWithLogger<StartCommand>
 		{
 			readonly ILoggerFactory _loggerFactory;
+			readonly ISymbolsStore _symbolsStore;
 			IGui _gui;
 
-			public StartCommand(IGui gui, ILoggerFactory loggerFactory)
+			public StartCommand(IGui gui, ISymbolsStore symbolsStore, ILoggerFactory loggerFactory)
 				: base(loggerFactory)
 			{
 				_gui = gui;
+				_symbolsStore = symbolsStore;
 				_loggerFactory = loggerFactory;
 			}
 
@@ -63,7 +66,7 @@ namespace SomeDataProvider.DtcProtocolServer
 						};
 						try
 						{
-							var mainServer = new Server(IPAddress.Any, Port, OnlyHistoryServer, _loggerFactory);
+							var mainServer = new Server(IPAddress.Any, Port, OnlyHistoryServer, _symbolsStore, _loggerFactory);
 							L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
 							mainServer.Start();
 							GetContext.CancellationToken.WaitHandle.WaitOne();
