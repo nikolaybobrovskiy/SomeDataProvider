@@ -5,6 +5,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 {
 	using System;
 
+	using NBLib.DateTime;
+
 	class MessageDecoder : Binary.MessageDecoder
 	{
 		MessageDecoder(Memory<byte> buffer)
@@ -29,6 +31,9 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 				r.GetSymbol(Buffer.Span),
 				r.GetExchange(Buffer.Span),
 				r.RecordInterval,
+				Convert.ToDouble(r.StartDateTime).UnixTimeStampToDateTimeUtc(),
+				Convert.ToDouble(r.EndDateTime).UnixTimeStampToDateTimeUtc(),
+				r.MaxDaysToReturn,
 				r.UseZLibCompression == 1);
 		}
 

@@ -193,10 +193,22 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		void ProcessHistoricalPriceDataRequest(IMessageDecoder decoder, IMessageEncoder encoder)
 		{
+			var ct = GetContext.CancellationToken;
 			var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
-			L.LogInformation("RequestedHistory: {requestId}, {exchange}, {symbol}, {recordInterval}", historicalPriceDataRequest.RequestId, historicalPriceDataRequest.Exchange, historicalPriceDataRequest.Symbol, historicalPriceDataRequest.RecordInterval);
-			L.LogInformation("Answer: HistoricalPriceDataReject");
-			encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, "No symbol found.");
+			var requestId = historicalPriceDataRequest.RequestId;
+			L.LogInformation("RequestedHistory: {historicalPriceDataRequest}", historicalPriceDataRequest);
+			var symbol = _symbolsStore.GetSymbolAsync(historicalPriceDataRequest.Symbol, ct).GetAwaiter().GetResult();
+			if (symbol == null)
+			{
+				L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
+				encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, "No symbol found.");
+			}
+			else
+			{
+				var noRecordsToReturn = true;
+				// Get history
+				encoder.EncodeHistoricalPriceDataResponseHeader(requestId, historicalPriceDataRequest.RecordInterval, false, noRecordsToReturn, 1);
+			}
 			Send(encoder.GetEncodedMessage());
 		}
 

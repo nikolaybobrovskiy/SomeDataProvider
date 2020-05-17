@@ -25,6 +25,10 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string? symbol, string? exchange, SecurityTypeEnum securityType, string? description, PriceDisplayFormatEnum priceDisplayFormat, string? currency, bool isDelayed);
 
+		void EncodeHistoricalPriceDataResponseHeader(int requestId, HistoricalDataIntervalEnum recordInterval, bool useZLibCompression, bool noRecordsToReturn, float intToFloatPriceDivisor);
+
+		void EncodeHistoricalPriceDataRecordResponse(int requestId, DateTime startDateTime, double openPrice, double highPrice, double lowPrice, double lastPrice, double volume, uint openInterestOrNumTrades, double bidVolume, double askVolume, bool isFinalRecord);
+
 		byte[] GetEncodedMessage();
 	}
 
@@ -33,11 +37,16 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		IMessageEncoder CreateMessageEncoder();
 	}
 
-	static class MessageEncoderDefinitions
+	static class MessageEncoderExtensions
 	{
 		public static void EncodeNoSecurityDefinitionsFound(this IMessageEncoder encoder, int requestId)
 		{
 			encoder.EncodeSecurityDefinitionResponse(requestId, true, string.Empty, string.Empty, SecurityTypeEnum.SecurityTypeUnset, string.Empty, PriceDisplayFormatEnum.PriceDisplayFormatUnset, string.Empty, false);
+		}
+
+		public static void EncodeHistoricalPriceDataRecordResponse(this IMessageEncoder encoder, int requestId, DateTime startDateTime, double lastPrice, bool isFinalRecord)
+		{
+			encoder.EncodeHistoricalPriceDataRecordResponse(requestId, startDateTime, 0, 0, 0, lastPrice, 0, 0, 0, 0, isFinalRecord);
 		}
 	}
 }

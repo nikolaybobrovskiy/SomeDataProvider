@@ -82,6 +82,34 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
+		public void EncodeHistoricalPriceDataResponseHeader(int requestId, HistoricalDataIntervalEnum recordInterval, bool useZLibCompression, bool noRecordsToReturn, float intToFloatPriceDivisor)
+		{
+			Bytes = StructConverter.StructToBytesArray(new HistoricalPriceDataResponseHeader(
+				requestId,
+				recordInterval,
+				useZLibCompression ? (byte)1 : (byte)0,
+				noRecordsToReturn ? (byte)1 : (byte)0,
+				intToFloatPriceDivisor));
+		}
+
+		public void EncodeHistoricalPriceDataRecordResponse(int requestId, DateTime startDateTime, double openPrice, double highPrice, double lowPrice, double lastPrice, double volume, uint openInterestOrNumTrades, double bidVolume, double askVolume, bool isFinalRecord)
+		{
+			Bytes = StructConverter.StructToBytesArray(new HistoricalPriceDataRecordResponse(
+				requestId,
+				Convert.ToInt64(startDateTime.ToUnixTimeStamp()),
+				lastPrice,
+				isFinalRecord ? (byte)1 : (byte)0)
+			{
+				OpenPrice = openPrice,
+				HighPrice = highPrice,
+				LowPrice = lowPrice,
+				Volume = volume,
+				OpenInterestOrNumTrades = openInterestOrNumTrades,
+				BidVolume = bidVolume,
+				AskVolume = askVolume,
+			});
+		}
+
 		public byte[] GetEncodedMessage()
 		{
 			return Bytes ?? throw new InvalidOperationException("Message is not ready.");

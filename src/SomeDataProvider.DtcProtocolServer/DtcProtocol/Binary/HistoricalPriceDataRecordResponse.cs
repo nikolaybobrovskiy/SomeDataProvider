@@ -11,26 +11,31 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	[StructLayout(LayoutKind.Sequential, Pack = 8, CharSet = CharSet.Ansi)]
-	struct HistoricalPriceDataResponseHeader
+	struct HistoricalPriceDataRecordResponse
 	{
 		public ushort Size;
 		public MessageTypeEnum Type;
 		public int RequestId;
-		public HistoricalDataIntervalEnum RecordInterval;
-		public byte UseZLibCompression;
-		public byte NoRecordsToReturn;
-		public float IntToFloatPriceDivisor;
+		public long StartDateTime; // t_DateTime
+		public double OpenPrice;
+		public double HighPrice;
+		public double LowPrice;
+		public double LastPrice;
+		public double Volume;
+		public uint OpenInterestOrNumTrades;
+		public double BidVolume;
+		public double AskVolume;
+		public byte IsFinalRecord;
 
-		public HistoricalPriceDataResponseHeader(int requestId, HistoricalDataIntervalEnum recordInterval, byte useZLibCompression, byte noRecordsToReturn, float intToFloatPriceDivisor)
+		public HistoricalPriceDataRecordResponse(int requestId, long startDateTime, double lastPrice, byte isFinalRecord)
 			: this()
 		{
 			Size = Convert.ToUInt16(Marshal.SizeOf(this));
-			Type = MessageTypeEnum.HistoricalPriceDataResponseHeader;
+			Type = MessageTypeEnum.HistoricalPriceDataRecordResponse;
 			RequestId = requestId;
-			RecordInterval = recordInterval;
-			UseZLibCompression = useZLibCompression;
-			NoRecordsToReturn = noRecordsToReturn;
-			IntToFloatPriceDivisor = intToFloatPriceDivisor;
+			StartDateTime = startDateTime;
+			LastPrice = lastPrice;
+			IsFinalRecord = isFinalRecord;
 		}
 	}
 }

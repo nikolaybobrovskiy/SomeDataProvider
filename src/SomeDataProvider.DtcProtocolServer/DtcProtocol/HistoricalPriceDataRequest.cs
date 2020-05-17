@@ -3,16 +3,21 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
+	using System;
+
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	class HistoricalPriceDataRequest
 	{
-		public HistoricalPriceDataRequest(int requestId, string symbol, string exchange, HistoricalDataIntervalEnum recordInterval, bool useZLibCompression)
+		public HistoricalPriceDataRequest(int requestId, string symbol, string exchange, HistoricalDataIntervalEnum recordInterval, DateTime startDateTime, DateTime endDateTime, uint maxDaysToReturn, bool useZLibCompression)
 		{
 			RequestId = requestId;
 			Symbol = symbol;
 			Exchange = exchange;
 			UseZLibCompression = useZLibCompression;
+			StartDateTime = startDateTime;
+			EndDateTime = endDateTime;
+			MaxDaysToReturn = maxDaysToReturn;
 			RecordInterval = recordInterval;
 		}
 
@@ -24,6 +29,17 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		public HistoricalDataIntervalEnum RecordInterval { get; }
 
+		public DateTime StartDateTime { get; }
+
+		public DateTime EndDateTime { get; }
+
+		public uint MaxDaysToReturn { get; }
+
 		public bool UseZLibCompression { get; }
+
+		public override string ToString()
+		{
+			return $"{RequestId}/{Symbol}/{Exchange}/{RecordInterval}/{StartDateTime:o}/{EndDateTime:o}/{MaxDaysToReturn}/{UseZLibCompression}";
+		}
 	}
 }
