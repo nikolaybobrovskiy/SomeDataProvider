@@ -14,10 +14,12 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	using NBLib.BuiltInTypes;
 	using NBLib.Cli;
+	using NBLib.Configuration;
 
 	using Serilog;
 
 	using SomeDataProvider.DataStorage.Definitions;
+	using SomeDataProvider.DataStorage.HistoryStores;
 	using SomeDataProvider.DtcProtocolServer.Terminal;
 
 	class Program
@@ -62,6 +64,11 @@ namespace SomeDataProvider.DtcProtocolServer
 				base.ConfigureServices(services);
 				services.AddSingleton<IGui>(_ => _gui = new Gui());
 				services.AddSingleton<ISymbolsStore, DataStorage.InMem.SymbolsStore>();
+				services.AddSingleton<ISymbolHistoryStoreInstanceFactory, SymbolHistoryStoreInstanceFactory>();
+				services.Configure<SymbolHistoryTextFileStore.Options>((provider, opts) =>
+				{
+					opts.FolderPath = @"i:\Projects\SomeDataProvider\data";
+				});
 			}
 
 			protected override void ConfigureLogger(Application app, LoggerConfiguration serilogCfg)

@@ -13,6 +13,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 	using System.Threading.Tasks;
 
 	using Microsoft.Extensions.Logging;
+	using Microsoft.Extensions.Options;
 
 	using NBLib.Logging;
 
@@ -23,9 +24,9 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 		const string DailyDateTimeFormat = "yyyy-MM-dd";
 		readonly string _folderPath;
 
-		public SymbolHistoryTextFileStore(string folderPath, ILoggerFactory loggerFactory)
+		public SymbolHistoryTextFileStore(IOptions<Options> opts, ILoggerFactory loggerFactory)
 		{
-			_folderPath = folderPath;
+			_folderPath = opts.Value.FolderPath ?? Directory.GetCurrentDirectory();
 			L = loggerFactory.CreateLogger<SymbolHistoryTextFileStore>();
 		}
 
@@ -38,6 +39,10 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 				if (continuationToken != null)
 				{
 					start = DateTime.Parse(continuationToken, CultureInfo.InvariantCulture);
+				}
+				if (end == DateTime.MinValue)
+				{
+					end = DateTime.Today.ToUniversalTime();
 				}
 				var filePath = Path.Combine(_folderPath, $"{symbol.Code}-{historyInterval}.csv");
 				if (!File.Exists(filePath))
@@ -80,11 +85,18 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 				{
 					var firstDate = ParseDateTimeFromLine(lines[1], historyInterval);
 					var lastDate = ParseDateTimeFromLine(lines[^1], historyInterval);
-					records.Add(LineToRecord(firstDate, lines[1]));
+					if (lastDate < end)
+					{
+						lastDate = end;
+					}
+					if (firstDate >= start && firstDate <= end)
+					{
+						records.Add(LineToRecord(firstDate, lines[1]));
+					}
 					var lineIndex = 2;
 					for (var currSequentialDate = firstDate.AddDays(1); currSequentialDate <= lastDate; currSequentialDate = currSequentialDate.AddDays(1))
 					{
-						var currLine = lines[lineIndex];
+						var currLine = lineIndex < ln ? lines[lineIndex] : lines[lineIndex - 1];
 						var currLineDate = ParseDateTimeFromLine(currLine, historyInterval);
 						if (currSequentialDate == currLineDate)
 						{
@@ -92,7 +104,10 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 							{
 								records.Add(LineToRecord(currLineDate, currLine));
 							}
-							lineIndex++;
+							if (lineIndex < ln)
+							{
+								lineIndex++;
+							}
 						}
 						else
 						{
@@ -133,8 +148,13 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 		static DateTime ParseDateTimeFromLine(string line, HistoryInterval historyInterval)
 		{
 			if (historyInterval == HistoryInterval.Daily)
-				return DateTime.ParseExact(line.AsSpan().Slice(0, 10), DailyDateTimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+				return DateTime.ParseExact(line.AsSpan().Slice(0, 10), DailyDateTimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal).ToUniversalTime();
 			throw new NotImplementedException($"History interval '{historyInterval}' is not implemented for text file.");
+		}
+
+		public class Options
+		{
+			public string? FolderPath { get; set; }
 		}
 	}
 }

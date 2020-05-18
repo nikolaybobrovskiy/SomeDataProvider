@@ -26,6 +26,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.DateTime", "..\..\..\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage", "SomeDataProvider.DataStorage\SomeDataProvider.DataStorage.csproj", "{11BE7962-2457-4D94-80B0-9214DCDA79BC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Configuration", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Configuration\NBLib.Configuration.csproj", "{B9E37BC7-26F4-4358-80ED-57B0A7459031}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -84,5 +86,9 @@ Global
 		{11BE7962-2457-4D94-80B0-9214DCDA79BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{11BE7962-2457-4D94-80B0-9214DCDA79BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{11BE7962-2457-4D94-80B0-9214DCDA79BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9E37BC7-26F4-4358-80ED-57B0A7459031}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9E37BC7-26F4-4358-80ED-57B0A7459031}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9E37BC7-26F4-4358-80ED-57B0A7459031}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9E37BC7-26F4-4358-80ED-57B0A7459031}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

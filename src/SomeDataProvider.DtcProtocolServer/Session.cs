@@ -24,6 +24,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	class Session : TcpSession
 	{
+		const int HistoryDownloadBatchSize = 1000;
 		readonly bool _onlyHistoryServer;
 		readonly ISymbolsStore _symbolsStore;
 		readonly ISymbolHistoryStoreInstanceFactory _symbolHistoryStoreInstanceFactory;
@@ -225,12 +226,13 @@ namespace SomeDataProvider.DtcProtocolServer
 				{
 					L.LogOperation(() =>
 					{
+						// ReSharper disable once AccessToDisposedClosure
 						var r = s.Store.GetSymbolHistoryAsync(
 							symbol,
 							historyInterval,
 							historicalPriceDataRequest.StartDateTime,
 							historicalPriceDataRequest.EndDateTime,
-							100,
+							HistoryDownloadBatchSize,
 							continuationToken,
 							ct).GetAwaiter().GetResult();
 						continuationToken = r.ContinuationToken;

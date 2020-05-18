@@ -36,13 +36,19 @@ namespace SomeDataProvider.DtcProtocolServer
 		{
 			readonly ILoggerFactory _loggerFactory;
 			readonly ISymbolsStore _symbolsStore;
+			readonly ISymbolHistoryStoreInstanceFactory _historyStoreInstanceFactory;
 			IGui _gui;
 
-			public StartCommand(IGui gui, ISymbolsStore symbolsStore, ILoggerFactory loggerFactory)
+			public StartCommand(
+				IGui gui,
+				ISymbolsStore symbolsStore,
+				ISymbolHistoryStoreInstanceFactory historyStoreInstanceFactory,
+				ILoggerFactory loggerFactory)
 				: base(loggerFactory)
 			{
 				_gui = gui;
 				_symbolsStore = symbolsStore;
+				_historyStoreInstanceFactory = historyStoreInstanceFactory;
 				_loggerFactory = loggerFactory;
 			}
 
@@ -66,7 +72,13 @@ namespace SomeDataProvider.DtcProtocolServer
 						};
 						try
 						{
-							var mainServer = new Server(IPAddress.Any, Port, OnlyHistoryServer, _symbolsStore, _loggerFactory);
+							var mainServer = new Server(
+								IPAddress.Any,
+								Port,
+								OnlyHistoryServer,
+								_symbolsStore,
+								_historyStoreInstanceFactory,
+								_loggerFactory);
 							L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
 							mainServer.Start();
 							GetContext.CancellationToken.WaitHandle.WaitOne();
