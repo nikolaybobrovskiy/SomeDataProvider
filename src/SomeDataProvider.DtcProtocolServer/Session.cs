@@ -24,7 +24,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	class Session : TcpSession
 	{
-		const int HistoryDownloadBatchSize = 1000;
+		const int HistoryDownloadBatchSize = 922; // 85000 - goes to LOH, need less. 88 bytes per record.
 		readonly bool _onlyHistoryServer;
 		readonly ISymbolsStore _symbolsStore;
 		readonly ISymbolHistoryStoreInstanceFactory _symbolHistoryStoreInstanceFactory;
