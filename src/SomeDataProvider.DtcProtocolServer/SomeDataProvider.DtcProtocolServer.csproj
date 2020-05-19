@@ -32,13 +32,24 @@
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Configuration\NBLib.Configuration.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.TerminalGui\NBLib.TerminalGui.csproj" />
     <ProjectReference Include="..\SomeDataProvider.DataStorage\SomeDataProvider.DataStorage.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="History" />
     <Folder Include="Main" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Terminal\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="Terminal\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Terminal\**" />
   </ItemGroup>
 
 </Project>
