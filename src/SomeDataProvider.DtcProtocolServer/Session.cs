@@ -138,6 +138,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			catch (Exception ex)
 			{
 				L.LogError(ex, "Error while processing request.");
+				// TODO: Need to answer smth?
 			}
 		}
 

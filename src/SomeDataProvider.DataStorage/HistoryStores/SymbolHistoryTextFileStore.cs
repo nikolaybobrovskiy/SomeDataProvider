@@ -80,7 +80,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 							break;
 					}
 				}
-				var records = new List<SymbolHistoryRecord>(ln - 1);
+				var records = new List<SymbolHistoryRecord>(ln);
 				if (fillGaps)
 				{
 					var firstDate = ParseDateTimeFromLine(lines[1], historyInterval);

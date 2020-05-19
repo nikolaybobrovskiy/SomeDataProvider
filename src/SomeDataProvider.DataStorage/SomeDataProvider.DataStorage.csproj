@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="*" />
+    <PackageReference Include="Newtonsoft.Json" Version="*" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.113">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -23,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />
+    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Tasks\NBLib.Tasks.csproj" />
   </ItemGroup>
   
 </Project>

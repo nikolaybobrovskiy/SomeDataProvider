@@ -3,6 +3,7 @@
 
 namespace SomeDataProvider.DataStorage.InMem
 {
+	using System;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -10,19 +11,33 @@ namespace SomeDataProvider.DataStorage.InMem
 
 	public class SymbolsStore : ISymbolsStore
 	{
+		const char DataSourceSymbolSeparator = '-';
+
 		public Task<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken)
 		{
 			switch (code)
 			{
-				case "cbr-KeyRate":
+				case var _ when code == $"{DataSources.CentralBankOfRussia}{DataSourceSymbolSeparator}KeyRate":
 					return Task.FromResult((ISymbol?)new Symbol(code)
 					{
 						Description = "CBR Key Rate",
-						Category = "Central Banks Rates",
+						Category = SymbolCategories.CentralBanksRates,
 						NumberOfDecimals = 2,
 						DataService = DataService.TextFile,
-						DataServiceSettings = "FillDailyGaps=true;"
+						DataServiceSettings = "FillDailyGaps=true;",
 					});
+				case var _ when code.StartsWith($"{DataSources.StatBureau}{DataSourceSymbolSeparator}{DataSources.StatBureauInflationPrefix}.", StringComparison.Ordinal):
+					{
+						var country = code.GetStatBureauInflationCountry();
+						var periodicity = code.GetStatBureauInflationPeriodicity();
+						return Task.FromResult((ISymbol?)new Symbol(code)
+						{
+							Description = $"Inflation {country} ({(periodicity == 'm' ? "m/m" : "y/y")})",
+							Category = SymbolCategories.MacroeconomicsInflation,
+							NumberOfDecimals = 2,
+							DataService = DataService.StatBureau,
+						});
+					}
 			}
 			return Task.FromResult((ISymbol?)null);
 		}
