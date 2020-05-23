@@ -4,9 +4,12 @@
 namespace SomeDataProvider.DataStorage.HistoryStores
 {
 	using System;
+	using System.Collections.Concurrent;
 
 	using Microsoft.Extensions.Logging;
 	using Microsoft.Extensions.Options;
+
+	using NBLib.BuiltInTypes;
 
 	using SomeDataProvider.DataStorage.Definitions;
 
@@ -15,6 +18,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 		readonly IOptions<SymbolHistoryTextFileStore.Options> _textFileStoreOpts;
 		readonly ILoggerFactory _loggerFactory;
 		readonly object _singletonStoresLock = new object();
+		readonly ConcurrentDictionary<Fred.ServiceApiKey, SymbolHistoryFredStore> _fredStores = new ConcurrentDictionary<Fred.ServiceApiKey, SymbolHistoryFredStore>();
 		SymbolHistoryTextFileStore? _textFileStore;
 		SymbolHistoryStatBureauStore? _statBureauStore;
 
@@ -34,6 +38,8 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 					return GetTextFileStoreInstance();
 				case DataService.StatBureau:
 					return GetStatBureauStoreInstance();
+				case DataService.Fred:
+					return GetFredStoreInstance();
 				default:
 					throw new NotImplementedException($"Store instance creation in not implemented: {symbol.DataService}.");
 			}
@@ -42,6 +48,18 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 		public void Dispose()
 		{
 			_statBureauStore?.Dispose();
+			foreach (var keyValuePair in _fredStores)
+			{
+				keyValuePair.Value.Dispose();
+			}
+		}
+
+		ISymbolHistoryStoreInstance GetFredStoreInstance()
+		{
+			// TODO: Need to take key from user context.
+			var apiKey = (Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459"!;
+			var store = _fredStores.GetOrAddDisposable(apiKey, k => new SymbolHistoryFredStore(k));
+			return new SymbolHistoryStoreSingletonInstance(store);
 		}
 
 		ISymbolHistoryStoreInstance GetStatBureauStoreInstance()

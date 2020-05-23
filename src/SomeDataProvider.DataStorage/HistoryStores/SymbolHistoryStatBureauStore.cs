@@ -14,6 +14,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 
 	using Microsoft.Extensions.Logging;
 
+	using NBLib.HttpClient;
 	using NBLib.Logging;
 	using NBLib.Tasks;
 
@@ -23,9 +24,6 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DataStorage.InMem;
 
-	// symbol.Code:
-	// stb-infl.m.Russia
-	// stb-infl.y.Russia
 	public class SymbolHistoryStatBureauStore : ISymbolHistoryStore, IDisposable
 	{
 		const string MonthValueFormat = "yyyy-MM-dd";
@@ -57,16 +55,9 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 				using var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"get-data-json?country={country}");
 				using var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
 				JToken? responseBody = null;
-				if (response.Content.Headers.ContentType?.MediaType.ToLowerInvariant().EndsWith("/json") == true)
+				if (response.IsJson())
 				{
-					var responseStream = LiveStream.Start(async s =>
-					{
-						// ReSharper disable once AccessToDisposedClosure
-						await response.Content.CopyToAsync(s).ConfigureAwait(false);
-					});
-					using var w = new StreamReader(responseStream, Encoding.UTF8, false, 1024, true);
-					using var jr = new JsonTextReader(w);
-					responseBody = await JToken.ReadFromAsync(jr, cancellationToken);
+					responseBody = await response.GetJsonAsync(cancellationToken: cancellationToken);
 				}
 				if (!response.IsSuccessStatusCode)
 				{

@@ -7,39 +7,72 @@ namespace SomeDataProvider.DataStorage.InMem
 	using System.Threading;
 	using System.Threading.Tasks;
 
+	using NBLib.Enum;
+
 	using SomeDataProvider.DataStorage.Definitions;
 
-	public class SymbolsStore : ISymbolsStore
+	// TODO: Cache.
+	public class SymbolsStore : ISymbolsStore, IDisposable
 	{
 		const char DataSourceSymbolSeparator = '-';
+		readonly Fred.Service _fredService;
 
-		public Task<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken)
+		public SymbolsStore()
+		{
+			// TODO: From secret.
+			_fredService = new Fred.Service((Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459"!);
+		}
+
+		public void Dispose()
+		{
+			_fredService.Dispose();
+		}
+
+		public async Task<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken = default)
 		{
 			switch (code)
 			{
 				case var _ when code == $"{DataSources.CentralBankOfRussia}{DataSourceSymbolSeparator}KeyRate":
-					return Task.FromResult((ISymbol?)new Symbol(code)
+					return new Symbol(code)
 					{
 						Description = "CBR Key Rate",
 						Category = SymbolCategories.CentralBanksRates,
 						NumberOfDecimals = 2,
 						DataService = DataService.TextFile,
 						DataServiceSettings = "FillDailyGaps=true;",
-					});
+					};
+				// stb-infl.m.Russia
+				// stb-infl.y.Russia
 				case var _ when code.StartsWith($"{DataSources.StatBureau}{DataSourceSymbolSeparator}{DataSources.StatBureauInflationPrefix}.", StringComparison.Ordinal):
 					{
 						var country = code.GetStatBureauInflationCountry();
 						var periodicity = code.GetStatBureauInflationPeriodicity();
-						return Task.FromResult((ISymbol?)new Symbol(code)
+						return new Symbol(code)
 						{
 							Description = $"Inflation {country} ({(periodicity == 'm' ? "m/m" : "y/y")})",
-							Category = SymbolCategories.MacroeconomicsInflation,
+							Category = SymbolCategories.EconomicsInflation,
 							NumberOfDecimals = 2,
 							DataService = DataService.StatBureau,
-						});
+						};
+					}
+				// fred-<seriesId>[.<units>]
+				// Example: fred-RUSCPIALLMINMEI.pc1
+				case var _ when code.StartsWith($"{DataSources.Fred}{DataSourceSymbolSeparator}", StringComparison.Ordinal):
+					{
+						var fredSymbol = code.GetFredSymbol();
+						var seriesInfo = await _fredService.GetSeriesInfoAsync(fredSymbol.SeriesId, cancellationToken);
+						if (seriesInfo == null) return null;
+						return new Symbol(code)
+						{
+							Description = $"{seriesInfo.Title} ({seriesInfo.UnitsShort}/{seriesInfo.FrequencyShort}/{seriesInfo.SeasonalAdjustmentShort})"
+								+ (fredSymbol.Units != Fred.DataValueTransformation.NoTransformation ? $" {fredSymbol.Units.GetDescription()}" : string.Empty),
+							Category = SymbolCategories.Economics,
+							DataService = DataService.Fred,
+							NumberOfDecimals = 2,
+						};
 					}
 			}
-			return Task.FromResult((ISymbol?)null);
+			return default;
 		}
 
 		class Symbol : ISymbol
