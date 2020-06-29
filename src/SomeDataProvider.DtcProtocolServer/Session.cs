@@ -222,7 +222,7 @@ namespace SomeDataProvider.DtcProtocolServer
 				};
 				using var s = _symbolHistoryStoreInstanceFactory.CreateSymbolHistoryStoreInstance(symbol, historyInterval);
 				var headerSent = false;
-				string? continuationToken = null;
+				ContinuationToken? continuationToken = null;
 				do
 				{
 					L.LogOperation(() =>

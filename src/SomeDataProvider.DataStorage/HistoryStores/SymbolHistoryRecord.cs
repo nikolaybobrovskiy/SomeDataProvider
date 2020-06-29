@@ -1,13 +1,21 @@
 // This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
-namespace SomeDataProvider.DataStorage.Definitions
+namespace SomeDataProvider.DataStorage.HistoryStores
 {
 	using System;
 
-	public sealed class SymbolHistoryRecord
+	using SomeDataProvider.DataStorage.Definitions;
+
+	public sealed class SymbolHistoryRecord : ISymbolHistoryRecord
 	{
-		public SymbolHistoryRecord(DateTime timeStamp, double openPrice, double highPrice, double lowPrice, double lastPrice, double volume)
+		public SymbolHistoryRecord(
+			DateTime timeStamp,
+			double openPrice,
+			double highPrice,
+			double lowPrice,
+			double lastPrice,
+			double volume)
 		{
 			TimeStamp = timeStamp;
 			OpenPrice = openPrice;

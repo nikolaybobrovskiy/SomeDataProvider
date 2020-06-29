@@ -12,7 +12,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 			Store = store;
 		}
 
-		public ISymbolHistoryStore Store { get; set; }
+		public ISymbolHistoryStore Store { get; }
 
 		public void Dispose()
 		{

@@ -6,25 +6,22 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 	using System;
 	using System.Collections.Generic;
 	using System.Globalization;
-	using System.IO;
 	using System.Net.Http;
-	using System.Text;
 	using System.Threading;
 	using System.Threading.Tasks;
 
 	using Microsoft.Extensions.Logging;
 
+	using NBLib.DateTime;
 	using NBLib.HttpClient;
 	using NBLib.Logging;
-	using NBLib.Tasks;
 
-	using Newtonsoft.Json;
 	using Newtonsoft.Json.Linq;
 
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DataStorage.InMem;
 
-	public class SymbolHistoryStatBureauStore : ISymbolHistoryStore, IDisposable
+	public class SymbolHistoryStatBureauStore : ICacheableSymbolHistoryStore, IDisposable
 	{
 		const string MonthValueFormat = "yyyy-MM-dd";
 		const string Url = "https://www.statbureau.org/";
@@ -38,18 +35,16 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 
 		ILogger<SymbolHistoryTextFileStore> L { get; }
 
-		public async Task<GetSymbolHistoryResult> GetSymbolHistoryAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, string? continuationToken, CancellationToken cancellationToken = default)
+		public async Task<SymbolHistoryResponse> GetSymbolHistoryAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, ContinuationToken? continuationToken, CancellationToken cancellationToken = default)
 		{
 			return await L.LogOperationAsync(async () =>
 			{
 				if (continuationToken != null)
-				{
 					start = DateTime.Parse(continuationToken, CultureInfo.InvariantCulture);
-				}
+
 				if (end == DateTime.MinValue)
-				{
 					end = DateTime.Today.ToUniversalTime();
-				}
+
 				var country = symbol.Code.GetStatBureauInflationCountry().ToLowerInvariant();
 				var periodicity = symbol.Code.GetStatBureauInflationPeriodicity();
 				using var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"get-data-json?country={country}");
@@ -82,7 +77,8 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 					{
 						if (prevMonth != DateTime.MinValue)
 						{
-							if (prevMonth.AddMonths(1) != month) throw new InvalidOperationException($"Values should go strictly month after month, but service returned: {prevMonth:MonthValueFormat} => {month:MonthValueFormat}.");
+							if (prevMonth.AddMonths(1) != month)
+								throw new InvalidOperationException($"Values should go strictly month after month, but service returned: {prevMonth:MonthValueFormat} => {month:MonthValueFormat}.");
 						}
 					}
 					prevMonth = month;
@@ -95,9 +91,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 						if (i + 11 >= ln) continue;
 						double yearChange = 1;
 						for (var j = 0; j <= 11; j++)
-						{
 							yearChange *= 1 + rawValues[j + i] / 100;
-						}
 						v = (yearChange - 1) * 100;
 					}
 					records.Add(new SymbolHistoryRecord(
@@ -111,16 +105,28 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 						0));
 					if (records.Count >= limit)
 					{
-						return new GetSymbolHistoryResult(records, records[^1].TimeStamp.ToString("o", CultureInfo.InvariantCulture));
+						return new SymbolHistoryResponse(
+							records,
+							(ContinuationToken)records[^1].TimeStamp.ToIsoString());
 					}
 				}
-				return new GetSymbolHistoryResult(records, null);
+				return new SymbolHistoryResponse(records, default);
 			}, "GetSymbolHistory({symbol},{historyInterval},{limit})", symbol.Code, historyInterval, limit);
+		}
+
+		public Task<ETag> GetActualETag(ISymbol symbol, HistoryInterval historyInterval, CancellationToken cancellationToken = default)
+		{
+			return Task.FromResult(GetActualETag());
 		}
 
 		public void Dispose()
 		{
 			_httpClient.Dispose();
+		}
+
+		static ETag GetActualETag()
+		{
+			return (ETag)DateTime.UtcNow.RoundUp(TimeSpan.FromHours(12)).ToIsoString();
 		}
 	}
 }

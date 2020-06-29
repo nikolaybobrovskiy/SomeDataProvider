@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj" />
+    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj" />
+    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Enum\NBLib.Enum.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.HttpClient\NBLib.HttpClient.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />

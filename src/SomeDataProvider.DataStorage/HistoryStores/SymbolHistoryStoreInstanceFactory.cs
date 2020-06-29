@@ -16,6 +16,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 	public class SymbolHistoryStoreInstanceFactory : ISymbolHistoryStoreInstanceFactory, IDisposable
 	{
 		readonly IOptions<SymbolHistoryTextFileStore.Options> _textFileStoreOpts;
+		readonly ISymbolHistoryStoreCache _cache;
 		readonly ILoggerFactory _loggerFactory;
 		readonly object _singletonStoresLock = new object();
 		readonly ConcurrentDictionary<Fred.ServiceApiKey, SymbolHistoryFredStore> _fredStores = new ConcurrentDictionary<Fred.ServiceApiKey, SymbolHistoryFredStore>();
@@ -24,9 +25,11 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 
 		public SymbolHistoryStoreInstanceFactory(
 			IOptions<SymbolHistoryTextFileStore.Options> textFileStoreOpts,
+			ISymbolHistoryStoreCache cache,
 			ILoggerFactory loggerFactory)
 		{
 			_textFileStoreOpts = textFileStoreOpts;
+			_cache = cache;
 			_loggerFactory = loggerFactory;
 		}
 
@@ -59,20 +62,20 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 			// TODO: Need to take key from user context.
 			var apiKey = (Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459"!;
 			var store = _fredStores.GetOrAddDisposable(apiKey, k => new SymbolHistoryFredStore(k));
-			return new SymbolHistoryStoreSingletonInstance(store);
+			return new SymbolHistoryStoreSingletonInstanceWithCaching(store, _cache);
 		}
 
 		ISymbolHistoryStoreInstance GetStatBureauStoreInstance()
 		{
 			if (_statBureauStore != null)
-				return new SymbolHistoryStoreSingletonInstance(_statBureauStore);
+				return new SymbolHistoryStoreSingletonInstanceWithCaching(_statBureauStore, _cache);
 			lock (_singletonStoresLock)
 			{
 				if (_statBureauStore == null)
 				{
 					_statBureauStore = new SymbolHistoryStatBureauStore(_loggerFactory);
 				}
-				return new SymbolHistoryStoreSingletonInstance(_statBureauStore);
+				return new SymbolHistoryStoreSingletonInstanceWithCaching(_statBureauStore, _cache);
 			}
 		}
 
