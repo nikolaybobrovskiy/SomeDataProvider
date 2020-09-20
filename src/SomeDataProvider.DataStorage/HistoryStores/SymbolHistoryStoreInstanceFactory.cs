@@ -12,6 +12,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 	using NBLib.BuiltInTypes;
 
 	using SomeDataProvider.DataStorage.Definitions;
+	using SomeDataProvider.DataStorage.HistoryStores.Providers;
 
 	public class SymbolHistoryStoreInstanceFactory : ISymbolHistoryStoreInstanceFactory, IDisposable
 	{

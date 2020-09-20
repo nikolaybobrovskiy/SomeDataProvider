@@ -19,6 +19,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DataStorage.HistoryStores;
+	using SomeDataProvider.DataStorage.HistoryStores.Providers;
 	using SomeDataProvider.DataStorage.Xpo;
 
 	class Program
