@@ -60,22 +60,22 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 		ISymbolHistoryStoreInstance GetFredStoreInstance()
 		{
 			// TODO: Need to take key from user context.
-			var apiKey = (Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459"!;
+			var apiKey = (Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459";
 			var store = _fredStores.GetOrAddDisposable(apiKey, k => new SymbolHistoryFredStore(k));
-			return new SymbolHistoryStoreSingletonInstanceWithCaching(store, _cache);
+			return new SymbolHistoryStoreSingletonInstanceWithCaching(store, _cache, _loggerFactory);
 		}
 
 		ISymbolHistoryStoreInstance GetStatBureauStoreInstance()
 		{
 			if (_statBureauStore != null)
-				return new SymbolHistoryStoreSingletonInstanceWithCaching(_statBureauStore, _cache);
+				return new SymbolHistoryStoreSingletonInstanceWithCaching(_statBureauStore, _cache, _loggerFactory);
 			lock (_singletonStoresLock)
 			{
 				if (_statBureauStore == null)
 				{
 					_statBureauStore = new SymbolHistoryStatBureauStore(_loggerFactory);
 				}
-				return new SymbolHistoryStoreSingletonInstanceWithCaching(_statBureauStore, _cache);
+				return new SymbolHistoryStoreSingletonInstanceWithCaching(_statBureauStore, _cache, _loggerFactory);
 			}
 		}
 

@@ -16,7 +16,7 @@
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="*" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="*" />
-    <PackageReference Include="NetCoreServer" Version="3.0.12" />
+    <PackageReference Include="NetCoreServer" Version="3.0.20" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.113">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Configuration\NBLib.Configuration.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />
+    <ProjectReference Include="..\SomeDataProvider.DataStorage.Xpo\SomeDataProvider.DataStorage.Xpo.csproj" />
     <ProjectReference Include="..\SomeDataProvider.DataStorage\SomeDataProvider.DataStorage.csproj" />
   </ItemGroup>
 

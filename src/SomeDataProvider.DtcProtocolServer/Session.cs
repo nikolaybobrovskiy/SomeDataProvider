@@ -34,6 +34,7 @@ namespace SomeDataProvider.DtcProtocolServer
 #pragma warning restore CC0033 // Dispose Fields Properly
 		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
 		Timer? _timer;
+		long _requestId;
 
 		public Session(
 			TcpServer server,
@@ -88,6 +89,8 @@ namespace SomeDataProvider.DtcProtocolServer
 		{
 			try
 			{
+				Interlocked.Increment(ref _requestId);
+				using var tcpRequestIdContext = RunContext.WithValue("TcpRequestId", _requestId);
 				L.LogOperation(() =>
 				{
 					L.LogDebug("WaitingForLock");

@@ -60,7 +60,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 		static ETag GetActualETag()
 		{
 			// TODO: ETag will be last release date.
-			return (ETag)DateTime.UtcNow.RoundUp(TimeSpan.FromHours(12)).ToIsoString();
+			return (ETag)DateTime.UtcNow.RoundUp(TimeSpan.FromHours(2)).ToIsoString();
 		}
 	}
 }

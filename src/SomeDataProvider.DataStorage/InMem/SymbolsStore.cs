@@ -57,6 +57,15 @@ namespace SomeDataProvider.DataStorage.InMem
 					}
 				// fred-<seriesId>[.<units>]
 				// Example: fred-RUSCPIALLMINMEI.pc1
+				// units:
+				//   chg = Change
+				//   ch1 = Change from Year Ago
+				//   pch = Percent Change
+				//   pc1 = Percent Change from Year Ago
+				//   pca = Compounded Annual Rate of Change
+				//   cch = Continuously Compounded Rate of Change
+				//   cca = Continuously Compounded Annual Rate of Change
+				//   log = Natural Log
 				case var _ when code.StartsWith($"{DataSources.Fred}{DataSourceSymbolSeparator}", StringComparison.Ordinal):
 					{
 						var fredSymbol = code.GetFredSymbol();
@@ -107,6 +116,11 @@ namespace SomeDataProvider.DataStorage.InMem
 
 			public string? DataServiceSettings { get; set; }
 			// ReSharper restore UnusedAutoPropertyAccessor.Local
+
+			public override string ToString()
+			{
+				return Code;
+			}
 		}
 	}
 }

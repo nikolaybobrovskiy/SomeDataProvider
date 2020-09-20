@@ -126,7 +126,7 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 
 		static ETag GetActualETag()
 		{
-			return (ETag)DateTime.UtcNow.RoundUp(TimeSpan.FromHours(12)).ToIsoString();
+			return (ETag)DateTime.UtcNow.RoundUp(TimeSpan.FromHours(1)).ToIsoString();
 		}
 	}
 }

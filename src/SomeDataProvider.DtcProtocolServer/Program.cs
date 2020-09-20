@@ -5,10 +5,12 @@
 
 namespace SomeDataProvider.DtcProtocolServer
 {
+	using System;
 	using System.Context;
 	using System.Threading.Tasks;
 
 	using Microsoft.Extensions.DependencyInjection;
+	using Microsoft.Extensions.Logging;
 
 	using NBLib.Cli;
 	using NBLib.Configuration;
@@ -17,6 +19,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DataStorage.HistoryStores;
+	using SomeDataProvider.DataStorage.Xpo;
 
 	class Program
 	{
@@ -40,6 +43,7 @@ namespace SomeDataProvider.DtcProtocolServer
 				base.ConfigureServices(services);
 				services.AddSingleton<ISymbolsStore, DataStorage.InMem.SymbolsStore>();
 				services.AddSingleton<ISymbolHistoryStoreInstanceFactory, SymbolHistoryStoreInstanceFactory>();
+				services.AddSingleton(CreateSymbolHistoryStoreCache);
 				services.Configure<SymbolHistoryTextFileStore.Options>((provider, opts) =>
 				{
 					// TODO: Implement via JSON file.
@@ -57,6 +61,14 @@ namespace SomeDataProvider.DtcProtocolServer
 					serilogCfg.WriteTo.Logger(cfg => cfg
 						.WriteTo.Seq("http://localhost:5341", batchPostingLimit: 300));
 				}
+			}
+
+			static ISymbolHistoryStoreCache CreateSymbolHistoryStoreCache(IServiceProvider serviceProvider)
+			{
+				return null;
+				// var result = new SymbolHistoryStoreXpoCache("HistoryDataCache.db", serviceProvider.GetRequiredService<ILoggerFactory>());
+				// result.InitAsync().GetAwaiter().GetResult();
+				// return result;
 			}
 		}
 	}

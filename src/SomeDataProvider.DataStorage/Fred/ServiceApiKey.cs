@@ -4,5 +4,9 @@ namespace SomeDataProvider.DataStorage.Fred
 
 	public sealed class ServiceApiKey : StringValue<ServiceApiKey>
 	{
+		public static explicit operator ServiceApiKey(string str)
+		{
+			return new ServiceApiKey { Value = str };
+		}
 	}
 }

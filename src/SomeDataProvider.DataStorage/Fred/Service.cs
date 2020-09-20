@@ -36,7 +36,7 @@ namespace SomeDataProvider.DataStorage.Fred
 
 		public async Task<SeriesInfo?> GetSeriesInfoAsync(string seriesId, CancellationToken cancellationToken = default)
 		{
-			var jsonResponse = await _httpClient.GetJsonAsync($"series?series_id={seriesId}&api_key={_apiKey}&file_type=json", cancellationToken).ConfigureAwait(false);
+			var jsonResponse = await _httpClient.GetJsonAsync($"series?series_id={seriesId}&api_key={_apiKey}&file_type=json", cancellationToken);
 			if (jsonResponse["seriess"] is JArray series && series.Count > 0)
 			{
 				return series[0].ToObject<SeriesInfo>();
@@ -84,7 +84,7 @@ namespace SomeDataProvider.DataStorage.Fred
 			}
 
 			var uri = $"series/observations?series_id={seriesId}&api_key={_apiKey}&file_type=json{unitsQueryParam}{startQueryParam}{endQueryParam}{offsetQueryParam}{limitQueryParam}";
-			var jsonResponse = await _httpClient.GetJsonAsync(uri, cancellationToken).ConfigureAwait(false);
+			var jsonResponse = await _httpClient.GetJsonAsync(uri, cancellationToken);
 			if (jsonResponse is JObject jObj)
 			{
 				return jObj.ToObject<ObservationsData>();

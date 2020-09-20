@@ -1,22 +1,31 @@
 namespace SomeDataProvider.DataStorage.Definitions
 {
 	using System;
+	using System.Collections.Generic;
 	using System.Threading;
 	using System.Threading.Tasks;
 
 	public interface ISymbolHistoryStoreCache : ISymbolHistoryStore
 	{
-		Task<ISymbolHistoryStoreCacheEntry?> GetSymbolHistoryStoreCacheEntry(ISymbol symbol, CancellationToken cancellationToken = default);
+		Task<ISymbolHistoryStoreCacheEntry?> GetSymbolHistoryStoreCacheEntryAsync(ISymbol symbol, HistoryInterval historyInterval, CancellationToken cancellationToken = default);
+
+		Task<ISymbolHistoryStoreCacheEntry> GetOrCreateSymbolHistoryStoreCacheEntryAsync(ISymbol symbol, HistoryInterval historyInterval, CancellationToken cancellationToken = default);
+
+		Task<int> GetSymbolHistoryStoreCacheEntriesCountAsync(CancellationToken cancellationToken = default);
 	}
 
 	public interface ISymbolHistoryStoreCacheEntry
 	{
-		public DateTime CachedPeriodStart { get; } // As requested.
+		DateTime CachedPeriodStart { get; } // As requested.
 
-		public DateTime CachedPeriodEnd { get; } // As requested, can be infinity.
+		DateTime CachedPeriodEnd { get; } // As requested, can be infinity.
 
-		public ETag ETag { get; } // Like last update/release date. Cannot be null. Otherwise cache has no sense.
+		ETag ETag { get; } // Like last update/release date. Cannot be null. Otherwise cache has no sense.
 
-		public DateTime RevisablePeriodStart { get; } // If ETag changes then this period must be subtracted from CachePeriodEnd.
+		DateTime RevisablePeriodStart { get; } // If ETag changes then this period must be subtracted from CachePeriodEnd.
+
+		Task UpdateEtagAsync(ETag eTag, CancellationToken cancellationToken = default);
+
+		Task SaveRecordsAsync(IReadOnlyCollection<ISymbolHistoryRecord> records, CancellationToken cancellationToken = default);
 	}
 }
