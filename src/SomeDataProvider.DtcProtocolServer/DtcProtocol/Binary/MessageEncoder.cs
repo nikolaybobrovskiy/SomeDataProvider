@@ -10,6 +10,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
+	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
+
 	class MessageEncoder : IMessageEncoder
 	{
 		byte[]? _bytes;
@@ -77,7 +79,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
-		public virtual void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string? symbol, string? exchange, SecurityTypeEnum securityType, string? description, PriceDisplayFormatEnum priceDisplayFormat, string? currency, bool isDelayed)
+		public virtual void EncodeSecurityDefinitionResponse(EncodeSecurityDefinitionResponseArgs args)
 		{
 			throw new NotImplementedException();
 		}

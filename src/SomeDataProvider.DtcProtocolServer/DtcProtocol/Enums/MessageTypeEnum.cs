@@ -3,6 +3,7 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums
 {
+	// https://www.sierrachart.com/index.php?page=doc/DTCMessages_All.php
 	enum MessageTypeEnum : ushort
 	{
 		LogonRequest = 1,

@@ -1,6 +1,7 @@
 // This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
+#pragma warning disable CC0022
 namespace SomeDataProvider.DataStorage.Xpo.Entities
 {
 	using System;
@@ -15,7 +16,7 @@ namespace SomeDataProvider.DataStorage.Xpo.Entities
 
 	class SymbolHistoryStoreCacheEntry : XPLiteObject, ISymbolHistoryStoreCacheEntry
 	{
-		string _symbolCode = "";
+		string _symbolCode = string.Empty;
 		HistoryInterval _historyInterval;
 		DateTime _cachedPeriodStart;
 		DateTime _cachedPeriodEnd;
@@ -68,9 +69,18 @@ namespace SomeDataProvider.DataStorage.Xpo.Entities
 			set => SetPropertyValue(nameof(RevisablePeriodStart), ref _revisablePeriodStart, value);
 		}
 
-		public Task UpdateEtagAsync(ETag eTag, CancellationToken cancellationToken = default)
+		internal SymbolHistoryStoreXpoCache? Store { private get; set; }
+
+		public async Task UpdateEtagAsync(ETag eTag, CancellationToken cancellationToken = default)
 		{
-			throw new NotImplementedException();
+			using var session = new UnitOfWork(Store!.DataLayer);
+			var entry = await session.GetObjectByKeyAsync<SymbolHistoryStoreCacheEntry>(Id, cancellationToken);
+			if (entry == null)
+			{
+				throw new InvalidOperationException($"Entry (Id = {Id}) not found.");
+			}
+			entry.ETag = eTag;
+			await session.CommitChangesAsync(cancellationToken);
 		}
 
 		public Task SaveRecordsAsync(IReadOnlyCollection<ISymbolHistoryRecord> records, CancellationToken cancellationToken = default)

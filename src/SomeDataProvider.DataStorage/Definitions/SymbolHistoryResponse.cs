@@ -8,16 +8,16 @@ namespace SomeDataProvider.DataStorage.Definitions
 
 	public sealed class SymbolHistoryResponse
 	{
-		public static readonly SymbolHistoryResponse Empty = new SymbolHistoryResponse(Array.Empty<ISymbolHistoryRecord>(), default);
+		public static readonly SymbolHistoryResponse Empty = new(Array.Empty<ISymbolHistoryRecord>(), default);
 
-		public SymbolHistoryResponse(IReadOnlyCollection<ISymbolHistoryRecord> records, ContinuationToken? continuationToken)
+		public SymbolHistoryResponse(IReadOnlyCollection<ISymbolHistoryRecord> records, bool hasMore)
 		{
 			Records = records;
-			ContinuationToken = continuationToken;
+			HasMore = hasMore;
 		}
 
 		public IReadOnlyCollection<ISymbolHistoryRecord> Records { get; }
 
-		public ContinuationToken? ContinuationToken { get; }
+		public bool HasMore { get; }
 	}
 }

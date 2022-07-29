@@ -6,5 +6,7 @@ namespace SomeDataProvider.DataStorage.Definitions
 	public interface ICacheableSymbolHistoryStore : ISymbolHistoryStore
 	{
 		Task<ETag> GetActualETag(ISymbol symbol, HistoryInterval historyInterval, CancellationToken cancellationToken = default);
+
+		// GetRevisablePeriodStart
 	}
 }

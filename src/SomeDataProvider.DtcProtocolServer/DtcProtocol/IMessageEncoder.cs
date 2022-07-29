@@ -5,7 +5,10 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
 	using System;
 
+	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
+
+	// https://www.sierrachart.com/index.php?page=doc/DTCMessageDocumentation.php
 
 	interface IMessageEncoder
 	{
@@ -23,13 +26,41 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeSecurityDefinitionReject(int requestId, string rejectText);
 
-		void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string? symbol, string? exchange, SecurityTypeEnum securityType, string? description, PriceDisplayFormatEnum priceDisplayFormat, string? currency, bool isDelayed);
+		void EncodeSecurityDefinitionResponse(EncodeSecurityDefinitionResponseArgs args);
 
 		void EncodeHistoricalPriceDataResponseHeader(int requestId, HistoricalDataIntervalEnum recordInterval, bool useZLibCompression, bool noRecordsToReturn, float intToFloatPriceDivisor);
 
 		void EncodeHistoricalPriceDataRecordResponse(int requestId, DateTime startDateTime, double openPrice, double highPrice, double lowPrice, double lastPrice, double volume, uint openInterestOrNumTrades, double bidVolume, double askVolume, bool isFinalRecord);
 
 		byte[] GetEncodedMessage();
+
+		readonly ref struct EncodeSecurityDefinitionResponseArgs
+		{
+			public EncodeSecurityDefinitionResponseArgs(int requestId, ISymbol symbol, bool isFinalMessage = false)
+			{
+				RequestId = requestId;
+				IsFinalMessage = isFinalMessage;
+				Symbol = symbol.Code;
+				Exchange = symbol.Exchange;
+				SecurityType = (SecurityTypeEnum)symbol.Type;
+				Description = symbol.Description;
+				PriceDisplayFormat = (PriceDisplayFormatEnum)symbol.NumberOfDecimals;
+				Currency = symbol.Currency;
+				IsDelayed = symbol.IsDelayed;
+				MinPriceIncrement = symbol.MinPriceIncrement;
+			}
+
+			public int RequestId { get; init; }
+			public bool IsFinalMessage { get; init; }
+			public string? Symbol { get; init; }
+			public string? Exchange { get; init; }
+			public SecurityTypeEnum SecurityType { get; init; }
+			public string? Description { get; init; }
+			public PriceDisplayFormatEnum PriceDisplayFormat { get; init; }
+			public float MinPriceIncrement { get; init; }
+			public string? Currency { get; init; }
+			public bool IsDelayed { get; init; }
+		}
 	}
 
 	interface IMessageEncoderFactory
@@ -41,7 +72,17 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 	{
 		public static void EncodeNoSecurityDefinitionsFound(this IMessageEncoder encoder, int requestId)
 		{
-			encoder.EncodeSecurityDefinitionResponse(requestId, true, string.Empty, string.Empty, SecurityTypeEnum.SecurityTypeUnset, string.Empty, PriceDisplayFormatEnum.PriceDisplayFormatUnset, string.Empty, false);
+			encoder.EncodeSecurityDefinitionResponse(new IMessageEncoder.EncodeSecurityDefinitionResponseArgs
+			{
+				RequestId = requestId,
+				IsFinalMessage = true,
+				Symbol = string.Empty,
+				Exchange = string.Empty,
+				SecurityType = SecurityTypeEnum.SecurityTypeUnset,
+				Description = string.Empty,
+				PriceDisplayFormat = PriceDisplayFormatEnum.PriceDisplayFormatUnset,
+				Currency = string.Empty
+			});
 		}
 
 		public static void EncodeHistoricalPriceDataRecordResponse(this IMessageEncoder encoder, int requestId, DateTime startDateTime, double lastPrice, bool isFinalRecord)

@@ -7,6 +7,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
+	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
+
 	class MessageEncoder : Binary.MessageEncoder
 	{
 		public override void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection)
@@ -44,19 +46,22 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			Bytes = StructConverter.StructToBytesArray(securityDefinitionReject, bytes);
 		}
 
-		public override void EncodeSecurityDefinitionResponse(int requestId, bool isFinalMessage, string? symbol, string? exchange, SecurityTypeEnum securityType, string? description, PriceDisplayFormatEnum priceDisplayFormat, string? currency, bool isDelayed)
+		public override void EncodeSecurityDefinitionResponse(EncodeSecurityDefinitionResponseArgs args)
 		{
-			var securityDefinitionResponse = new SecurityDefinitionResponse(requestId, isFinalMessage ? (byte)1 : (byte)0);
+			var securityDefinitionResponse = new SecurityDefinitionResponse(args.RequestId, args.IsFinalMessage ? (byte)1 : (byte)0);
 			var bytes = new byte[securityDefinitionResponse.BaseSize
-				+ symbol.GetVlsFieldLength()
-				+ exchange.GetVlsFieldLength()
-				+ description.GetVlsFieldLength()
-				+ currency.GetVlsFieldLength()];
-			securityDefinitionResponse.SetSymbol(symbol, bytes);
-			securityDefinitionResponse.SetExchange(exchange, bytes);
-			securityDefinitionResponse.SetDescription(description, bytes);
-			securityDefinitionResponse.SetCurrency(currency, bytes);
-			securityDefinitionResponse.IsDelayed = isDelayed ? (byte)1 : (byte)0;
+				+ args.Symbol.GetVlsFieldLength()
+				+ args.Exchange.GetVlsFieldLength()
+				+ args.Description.GetVlsFieldLength()
+				+ args.Currency.GetVlsFieldLength()];
+			securityDefinitionResponse.PriceDisplayFormat = args.PriceDisplayFormat;
+			securityDefinitionResponse.SetSymbol(args.Symbol, bytes);
+			securityDefinitionResponse.SetExchange(args.Exchange, bytes);
+			securityDefinitionResponse.SetDescription(args.Description, bytes);
+			securityDefinitionResponse.SetCurrency(args.Currency, bytes);
+			securityDefinitionResponse.IsDelayed = args.IsDelayed ? (byte)1 : (byte)0;
+			securityDefinitionResponse.PriceDisplayFormat = args.PriceDisplayFormat;
+			securityDefinitionResponse.MinPriceIncrement = args.MinPriceIncrement;
 			Bytes = StructConverter.StructToBytesArray(securityDefinitionResponse, bytes);
 		}
 

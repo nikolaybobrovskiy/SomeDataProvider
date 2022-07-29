@@ -7,6 +7,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
+	// https://www.sierrachart.com/index.php?page=doc/DTCMessageDocumentation.php
+
 	interface IMessageDecoder
 	{
 		MessageTypeEnum DecodeMessageType();

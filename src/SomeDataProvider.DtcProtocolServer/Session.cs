@@ -5,13 +5,16 @@ namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
 	using System.Context;
+	using System.Net.Sockets;
 	using System.Threading;
+	using System.Threading.Tasks;
 	using System.Timers;
 
 	using Microsoft.Extensions.Logging;
 
 	using NBLib.BuiltInTypes;
 	using NBLib.CodeFlow;
+	using NBLib.Exceptions;
 	using NBLib.Logging;
 
 	using NetCoreServer;
@@ -20,34 +23,36 @@ namespace SomeDataProvider.DtcProtocolServer
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
+	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
 	using Timer = System.Timers.Timer;
+
+	// TcpSession.SendAsync is thread-safe, so use it instead of Send() and own synchronization for heartbeat timer.
 
 	class Session : TcpSession
 	{
 		const int HistoryDownloadBatchSize = 922; // 85000 - goes to LOH, need less. 88 bytes per record.
+
 		readonly bool _onlyHistoryServer;
 		readonly ISymbolsStore _symbolsStore;
-		readonly ISymbolHistoryStoreInstanceFactory _symbolHistoryStoreInstanceFactory;
-		readonly object _singleWorkerLock = new object();
-#pragma warning disable CC0033 // Dispose Fields Properly: disposed in Dispose() override.
-		readonly CancellationTokenSource _cts = new CancellationTokenSource();
-#pragma warning restore CC0033 // Dispose Fields Properly
-		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
-		Timer? _timer;
+		readonly ISymbolHistoryStoreProvider _symbolHistoryStoreProvider;
+		readonly CancellationTokenSource _disconnectTokenSource = new ();
+		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
+		Timer? _heartbeatTimer;
 		long _requestId;
+		int _processingReceivedCounter;
 
 		public Session(
-			TcpServer server,
+			Server server,
 			bool onlyHistoryServer,
 			ISymbolsStore symbolsStore,
-			ISymbolHistoryStoreInstanceFactory symbolHistoryStoreInstanceFactory,
+			ISymbolHistoryStoreProvider symbolHistoryStoreProvider,
 			ILoggerFactory loggerFactory)
 			: base(server)
 		{
 			_currentMessageProtocol.MessageStreamer.MessageBytesReceived += OnMessageReceived;
 			_onlyHistoryServer = onlyHistoryServer;
 			_symbolsStore = symbolsStore;
-			_symbolHistoryStoreInstanceFactory = symbolHistoryStoreInstanceFactory;
+			_symbolHistoryStoreProvider = symbolHistoryStoreProvider;
 			L = loggerFactory.CreateLogger<Session>();
 		}
 
@@ -57,50 +62,64 @@ namespace SomeDataProvider.DtcProtocolServer
 		{
 			if (!disposingManagedResources) return;
 			StopHeartbeatTimer();
-			lock (_singleWorkerLock)
-			{
-				_currentMessageProtocol.MessageStreamer.MessageBytesReceived -= OnMessageReceived;
-				_currentMessageProtocol.Dispose();
-			}
-			_cts.Dispose();
+			_currentMessageProtocol.MessageStreamer.MessageBytesReceived -= OnMessageReceived;
+			_currentMessageProtocol.Dispose();
+			_disconnectTokenSource.Dispose();
 		}
 
 		protected override void OnSent(long sent, long pending)
 		{
-			L.LogDebug("Sent: {sent}/{pending}", sent, pending);
+			L.LogDebug("BytesSent: {sent}/{pending}", sent, pending);
 		}
 
 		protected override void OnDisconnected()
 		{
 			StopHeartbeatTimer();
-			_cts.Cancel();
+			_disconnectTokenSource.Cancel();
 		}
 
 		protected override void OnReceived(byte[] buffer, long offset, long size)
 		{
-			L.LogDebug("BytesReceived: {bytesReceived}", size);
-			lock (_singleWorkerLock)
+			L.LogDebug("BytesReceived: {bytesReceived}/{offset}", size, offset);
+			if (Interlocked.CompareExchange(ref _processingReceivedCounter, 1, 0) > 0)
+				throw new InvalidOperationException("Parallel call of OnReceived() is not allowed.");
+			try
 			{
 				_currentMessageProtocol.MessageStreamer.PutReceivedBytes(buffer.AsMemory(Convert.ToInt32(offset), Convert.ToInt32(size)));
 			}
+			finally
+			{
+				Interlocked.Decrement(ref _processingReceivedCounter);
+			}
+		}
+
+		protected override void OnError(SocketError error)
+		{
+			base.OnError(error);
+			L.LogError($"Socket error: {error}");
 		}
 
 		void OnMessageReceived(Memory<byte> buffer)
 		{
-			try
+#pragma warning disable CS4014
+			ProcessMessageAsync(buffer);
+#pragma warning restore CS4014
+		}
+
+		async Task ProcessMessageAsync(Memory<byte> buffer)
+		{
+			Interlocked.Increment(ref _requestId);
+			using var tcpRequestIdContext = RunContext.WithValue("TcpRequestId", _requestId);
+			using (RunContext.WithCancel(_disconnectTokenSource.Token, "ClientDisconnected", CancellationReason.OperationAborted))
 			{
-				Interlocked.Increment(ref _requestId);
-				using var tcpRequestIdContext = RunContext.WithValue("TcpRequestId", _requestId);
-				L.LogOperation(() =>
+				try
 				{
-					L.LogDebug("WaitingForLock");
-					L.LogDebug("LockAcquired");
-					using (RunContext.WithCancel(_cts.Token, "Disconnected.", CancellationReason.OperationAborted))
+					((Server)Server).AddRequestProcessing();
+					await L.LogOperationAsync(async () =>
 					{
-						// ReSharper disable InconsistentlySynchronizedField
+						var ct = GetContext.CancellationToken;
 						var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer);
 						var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
-						// ReSharper restore InconsistentlySynchronizedField
 						using (new Finally(() => decoder.TryDispose()))
 						using (new Finally(() => encoder.TryDispose()))
 						{
@@ -119,72 +138,67 @@ namespace SomeDataProvider.DtcProtocolServer
 									// It is recommended that if there is a loss of HEARTBEAT messages from the other side, for twice the amount of the HeartbeatIntervalInSeconds time that it is safe to assume that the other side is no longer present and the network socket should be then gracefully closed.
 									break;
 								case MessageTypeEnum.HistoricalPriceDataRequest:
-									ProcessHistoricalPriceDataRequest(decoder, encoder);
+									await ProcessHistoricalPriceDataRequestAsync(decoder, encoder, ct);
 									break;
 								case MessageTypeEnum.MarketDataRequest:
-									ProcessMarketDataRequest(decoder, encoder);
+									await ProcessMarketDataRequestAsync(decoder, encoder, ct);
 									break;
 								case MessageTypeEnum.SecurityDefinitionForSymbolRequest:
-									ProcessSecurityDefinitionForSymbolRequest(decoder, encoder);
+									await ProcessSecurityDefinitionForSymbolRequestAsync(decoder, encoder, ct);
 									break;
 								default:
-									throw new NotSupportedException($"Message type is not supported: {messageType}.");
+									L.LogWarning($"Message type is not supported: {messageType}.");
+									break;
+								//// throw new NotSupportedException($"Message type is not supported: {messageType}.");
 							}
 						}
-					}
-				}, "ProcessRequest");
-			}
-			catch (OperationCanceledException ex)
-			{
-				L.LogWarning(ex, $"Request execution was interrupted: {GetContext.GetCancellationContext(ex.CancellationToken).ReasonDescription.IfEmpty("Unknown cancellation.")}");
-			}
-			catch (Exception ex)
-			{
-				L.LogError(ex, "Error while processing request.");
-				// TODO: Need to answer smth?
+					}, "ProcessRequest");
+				}
+				catch (Exception ex) when (ex.IsExplainedCancellation())
+				{
+					L.LogException(ex, LogLevel.Warning, "Request execution was interrupted.");
+				}
+				catch (Exception ex)
+				{
+					L.LogException(ex, "Error while processing request.");
+					// TODO: Need to answer smth?
+				}
+				finally
+				{
+					((Server)Server).RemoveRequestProcessing();
+				}
 			}
 		}
 
-		void ProcessSecurityDefinitionForSymbolRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		async Task ProcessSecurityDefinitionForSymbolRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 		{
-			var ct = GetContext.CancellationToken;
 			var securityDefinitionRequest = decoder.DecodeSecurityDefinitionForSymbolRequest();
 			var requestId = securityDefinitionRequest.RequestId;
 			L.LogInformation("SecurityDefinitionForSymbolRequest: {securityDefinitionRequest}", securityDefinitionRequest);
-			var symbol = _symbolsStore.GetSymbolAsync(securityDefinitionRequest.Symbol, ct).GetAwaiter().GetResult();
+			var symbol = await _symbolsStore.GetSymbolAsync(securityDefinitionRequest.Symbol, ct);
 			if (symbol == null)
 			{
 				L.LogInformation("Answer: SecurityDefinitionReject: NoSymbol");
 				encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol is unknown: {securityDefinitionRequest.Symbol}.");
-				////encoder.EncodeNoSecurityDefinitionsFound(requestId);
+				//// encoder.EncodeNoSecurityDefinitionsFound(requestId);
 			}
 			else
 			{
 				L.LogInformation("Answer: SecurityDefinitionResponse");
-				encoder.EncodeSecurityDefinitionResponse(
-					requestId,
-					true,
-					symbol.Code,
-					symbol.Exchange,
-					(SecurityTypeEnum)symbol.Type,
-					symbol.Description,
-					(PriceDisplayFormatEnum)symbol.NumberOfDecimals,
-					symbol.Currency,
-					symbol.IsDelayed);
+				encoder.EncodeSecurityDefinitionResponse(new EncodeSecurityDefinitionResponseArgs(requestId, symbol, true));
 			}
-			Send(encoder.GetEncodedMessage());
+			SendAsync(encoder.GetEncodedMessage());
 		}
 
-		void ProcessMarketDataRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		async Task ProcessMarketDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 		{
-			var ct = GetContext.CancellationToken;
 			var marketDataRequest = decoder.DecodeMarketDataRequest();
 			L.LogInformation("MarketDataRequest: {marketDataRequest}", marketDataRequest);
 			if (marketDataRequest.RequestAction != RequestActionEnum.Subscribe)
 			{
 				throw new NotSupportedException($"MarketDataRequestAction '{marketDataRequest.RequestAction}' is not supported.");
 			}
-			var symbol = _symbolsStore.GetSymbolAsync(marketDataRequest.Symbol, ct).GetAwaiter().GetResult();
+			var symbol = await _symbolsStore.GetSymbolAsync(marketDataRequest.Symbol, ct);
 			if (symbol == null)
 			{
 				L.LogInformation("Answer: MarketDataReject: NoSymbol");
@@ -200,16 +214,15 @@ namespace SomeDataProvider.DtcProtocolServer
 				L.LogInformation("Answer: MarketDataSnapshot");
 				encoder.EncodeMarketDataSnapshot(marketDataRequest.SymbolId, TradingStatusEnum.TradingStatusUnknown, DateTime.Now);
 			}
-			Send(encoder.GetEncodedMessage());
+			SendAsync(encoder.GetEncodedMessage());
 		}
 
-		void ProcessHistoricalPriceDataRequest(IMessageDecoder decoder, IMessageEncoder encoder)
+		async Task ProcessHistoricalPriceDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 		{
-			var ct = GetContext.CancellationToken;
 			var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
 			var requestId = historicalPriceDataRequest.RequestId;
 			L.LogInformation("RequestedHistory: {historicalPriceDataRequest}", historicalPriceDataRequest);
-			var symbol = _symbolsStore.GetSymbolAsync(historicalPriceDataRequest.Symbol, ct).GetAwaiter().GetResult();
+			var symbol = await _symbolsStore.GetSymbolAsync(historicalPriceDataRequest.Symbol, ct);
 			if (symbol == null)
 			{
 				L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
@@ -220,34 +233,34 @@ namespace SomeDataProvider.DtcProtocolServer
 				var historyInterval = historicalPriceDataRequest.RecordInterval switch
 				{
 					HistoricalDataIntervalEnum.IntervalTick => HistoryInterval.Tick,
-					var x when x < HistoricalDataIntervalEnum.Interval1Day => HistoryInterval.Intraday,
+					< HistoricalDataIntervalEnum.Interval1Day => HistoryInterval.Intraday,
 					_ => HistoryInterval.Daily
 				};
-				using var s = _symbolHistoryStoreInstanceFactory.CreateSymbolHistoryStoreInstance(symbol, historyInterval);
+				var store = await _symbolHistoryStoreProvider.GetSymbolHistoryStoreAsync(symbol, historyInterval, ct);
 				var headerSent = false;
-				ContinuationToken? continuationToken = null;
+				var hasMore = false;
+				using var reader = await store.CreateSymbolHistoryReaderAsync(
+					symbol,
+					historyInterval,
+					historicalPriceDataRequest.StartDateTime,
+					historicalPriceDataRequest.EndDateTime,
+					HistoryDownloadBatchSize,
+					ct);
 				do
 				{
-					L.LogOperation(() =>
+					await L.LogOperationAsync(async () =>
 					{
 						// ReSharper disable once AccessToDisposedClosure
-						var r = s.Store.GetSymbolHistoryAsync(
-							symbol,
-							historyInterval,
-							historicalPriceDataRequest.StartDateTime,
-							historicalPriceDataRequest.EndDateTime,
-							HistoryDownloadBatchSize,
-							continuationToken,
-							ct).GetAwaiter().GetResult();
-						continuationToken = r.ContinuationToken;
-						L.LogDebug("ContinuationToken: {continuationToken}", continuationToken);
+						var r = await reader.ReadSymbolHistoryAsync(ct);
+						hasMore = r.HasMore;
+						L.LogDebug("HasMore: {hasMore}", hasMore);
 						if (!headerSent)
 						{
 							var noRecordsToReturn = r.Records.Count == 0;
 							L.LogInformation("SendHeader({recordsExist})", !noRecordsToReturn);
 							// TODO: ZLibCompression if client requests.
 							encoder.EncodeHistoricalPriceDataResponseHeader(requestId, historicalPriceDataRequest.RecordInterval, false, noRecordsToReturn, 1);
-							Send(encoder.GetEncodedMessage());
+							SendAsync(encoder.GetEncodedMessage());
 						}
 						// ReSharper disable once InconsistentlySynchronizedField
 						var historyRecordsEncoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
@@ -266,18 +279,19 @@ namespace SomeDataProvider.DtcProtocolServer
 									rec.LowPrice,
 									rec.LastPrice,
 									rec.Volume,
-									0, 0, 0, continuationToken == null && recIndex == recsCount - 1);
+									0, 0, 0, !hasMore && recIndex == recsCount - 1);
 								recIndex++;
 							}
-							Send(historyRecordsEncoder.GetEncodedMessage());
+							SendAsync(historyRecordsEncoder.GetEncodedMessage());
 						}
 						finally
 						{
-							historyRecordsEncoder.TryDispose();
+							await historyRecordsEncoder.TryDisposeAsync();
 						}
 					}, "DownloadAndSendHistoryDataBatch");
 				}
-				while (continuationToken != null);
+				// ReSharper disable once LoopVariableIsNeverChangedInsideLoop
+				while (hasMore);
 			}
 		}
 
@@ -288,7 +302,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			StartHeartbeatTimer(logonRequest.HeartbeatIntervalInSeconds * 1000);
 			L.LogInformation("Answer: LogonSuccess");
 			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.", _onlyHistoryServer);
-			Send(encoder.GetEncodedMessage());
+			SendAsync(encoder.GetEncodedMessage());
 		}
 
 		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)
@@ -304,17 +318,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			}
 			switch (encodingRequest.Encoding)
 			{
-				//// case EncodingEnum.BinaryEncoding:
-				//// 	if (_currentMessageProtocol.Encoding != EncodingEnum.BinaryEncoding)
-				//// 	{
-				////        _currentMessageProtocol.MessageStreamer.MessageBytesReceived -= OnMessageReceived;
-				//// 		_currentMessageProtocol.Dispose();
-				//// 		_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryEncoding);
-				////        _currentMessageProtocol.MessageStreamer.MessageBytesReceived += OnMessageReceived;
-				//// 	}
-				//// 	break;
 				default:
-					// ReSharper disable InconsistentlySynchronizedField
 					if (_currentMessageProtocol.Encoding != MessageProtocol.PreferredEncoding)
 					{
 						_currentMessageProtocol.MessageStreamer.MessageBytesReceived -= OnMessageReceived;
@@ -322,17 +326,14 @@ namespace SomeDataProvider.DtcProtocolServer
 						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
 						_currentMessageProtocol.MessageStreamer.MessageBytesReceived += OnMessageReceived;
 					}
-					// ReSharper restore InconsistentlySynchronizedField
 					break;
 			}
-			// ReSharper disable InconsistentlySynchronizedField
 			L.LogInformation("ChosenEncoding: {chosenEncoding}", _currentMessageProtocol.Encoding);
 			encoder.EncodeEncodingResponse(_currentMessageProtocol.Encoding);
-			// ReSharper restore InconsistentlySynchronizedField
-			Send(encoder.GetEncodedMessage());
+			SendAsync(encoder.GetEncodedMessage());
 		}
 
-		void OnHeartbeatTimerElapsed(object sender, ElapsedEventArgs e)
+		void OnHeartbeatTimerElapsed(object? sender, ElapsedEventArgs e)
 		{
 			L.LogOperation(() =>
 			{
@@ -341,18 +342,13 @@ namespace SomeDataProvider.DtcProtocolServer
 					L.LogDebug("DisposedOrDisconnected");
 					return;
 				}
-				L.LogDebug("WaitingForLock");
-				lock (_singleWorkerLock)
+				var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+				using (new Finally(() => encoder.TryDispose()))
 				{
-					L.LogDebug("LockAcquired");
-					var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
-					using (new Finally(() => encoder.TryDispose()))
-					{
-						encoder.EncodeHeartbeatMessage(0);
-						L.LogInformation("Sending hearbeat...");
-						Send(encoder.GetEncodedMessage());
-						L.LogInformation("Sent hearbeat.");
-					}
+					encoder.EncodeHeartbeatMessage(0);
+					L.LogInformation("Sending hearbeat...");
+					SendAsync(encoder.GetEncodedMessage());
+					L.LogInformation("Sent hearbeat.");
 				}
 			}, "SendHeartbeat");
 		}
@@ -365,16 +361,19 @@ namespace SomeDataProvider.DtcProtocolServer
 			t.Elapsed += OnHeartbeatTimerElapsed;
 			t.Start();
 			L.LogInformation("HearbeatTimerStarted({intervalMs})", intervalMs);
-			_timer = t;
+			_heartbeatTimer = t;
 		}
 
 		void StopHeartbeatTimer()
 		{
 			if (_onlyHistoryServer) return;
-			var t = _timer;
-			t?.Stop();
+			var t = _heartbeatTimer;
+			if (t == null) return;
+			_heartbeatTimer = null;
+			t.Stop();
+			t.Elapsed -= OnHeartbeatTimerElapsed;
 			L.LogInformation("HearbeatTimerStopped");
-			t?.Dispose();
+			t.Dispose();
 		}
 	}
 }

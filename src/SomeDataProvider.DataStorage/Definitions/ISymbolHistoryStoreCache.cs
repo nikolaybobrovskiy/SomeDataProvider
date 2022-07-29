@@ -1,3 +1,6 @@
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 namespace SomeDataProvider.DataStorage.Definitions
 {
 	using System;
@@ -11,6 +14,7 @@ namespace SomeDataProvider.DataStorage.Definitions
 
 		Task<ISymbolHistoryStoreCacheEntry> GetOrCreateSymbolHistoryStoreCacheEntryAsync(ISymbol symbol, HistoryInterval historyInterval, CancellationToken cancellationToken = default);
 
+		// TODO: Why is it needed?
 		Task<int> GetSymbolHistoryStoreCacheEntriesCountAsync(CancellationToken cancellationToken = default);
 	}
 

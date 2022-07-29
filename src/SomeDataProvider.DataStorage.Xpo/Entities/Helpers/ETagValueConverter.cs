@@ -11,6 +11,8 @@ namespace SomeDataProvider.DataStorage.Xpo.Entities.Helpers
 
 	class ETagValueConverter : ValueConverter
 	{
+		public override Type StorageType => typeof(string);
+
 		public override object ConvertToStorageType(object value)
 		{
 			return value is ETag etag ? etag.Value : null!;
@@ -20,7 +22,5 @@ namespace SomeDataProvider.DataStorage.Xpo.Entities.Helpers
 		{
 			return value is string strVal ? (ETag)strVal : ETag.Empty;
 		}
-
-		public override Type StorageType => typeof(string);
 	}
 }

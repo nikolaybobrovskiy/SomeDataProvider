@@ -7,10 +7,10 @@ namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
 	using System.Context;
+	using System.Diagnostics;
 	using System.Threading.Tasks;
 
 	using Microsoft.Extensions.DependencyInjection;
-	using Microsoft.Extensions.Logging;
 
 	using NBLib.Cli;
 	using NBLib.Configuration;
@@ -20,12 +20,12 @@ namespace SomeDataProvider.DtcProtocolServer
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DataStorage.HistoryStores;
 	using SomeDataProvider.DataStorage.HistoryStores.Providers;
-	using SomeDataProvider.DataStorage.Xpo;
 
 	class Program
 	{
 		static async Task<int> Main(string[] args)
 		{
+			GetContext.Current = new ContextAsyncLocalResolver { Value = GetContext.Root.WithValue(GetContext.ProcessIdProperty, Process.GetCurrentProcess().Id) };
 			var appBuilder = new AppBuilder();
 			using var appCtx = appBuilder.Build();
 			var app = appCtx.CommandLineApplication;
@@ -43,9 +43,9 @@ namespace SomeDataProvider.DtcProtocolServer
 			{
 				base.ConfigureServices(services);
 				services.AddSingleton<ISymbolsStore, DataStorage.InMem.SymbolsStore>();
-				services.AddSingleton<ISymbolHistoryStoreInstanceFactory, SymbolHistoryStoreInstanceFactory>();
+				services.AddSingleton<ISymbolHistoryStoreProvider, SymbolHistoryStoreProvider>();
 				services.AddSingleton(CreateSymbolHistoryStoreCache);
-				services.Configure<SymbolHistoryTextFileStore.Options>((provider, opts) =>
+				services.Configure<SymbolHistoryTextFileStore.Options>((_, opts) =>
 				{
 					// TODO: Implement via JSON file.
 					opts.FolderPath = @"i:\Projects\SomeDataProvider\data";

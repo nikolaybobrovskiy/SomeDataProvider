@@ -4,6 +4,7 @@
 namespace SomeDataProvider.DataStorage.Xpo.Test
 {
 	using System;
+	using System.Context;
 	using System.IO;
 	using System.Threading.Tasks;
 
@@ -29,7 +30,7 @@ namespace SomeDataProvider.DataStorage.Xpo.Test
 		const string TestDatabasePath = "c:\\temp\\SomeDataProviderTestData.db";
 
 		static readonly ILoggerFactory LoggerFactory = ConfigureLogger(new LoggerFactory());
-		static readonly Lazy<ILogger<SymbolHistoryStoreXpoCacheTests>> LazyLogger = new Lazy<ILogger<SymbolHistoryStoreXpoCacheTests>>(() => LoggerFactory.CreateLogger<SymbolHistoryStoreXpoCacheTests>(), true);
+		static readonly Lazy<ILogger<SymbolHistoryStoreXpoCacheTests>> LazyLogger = new(() => LoggerFactory.CreateLogger<SymbolHistoryStoreXpoCacheTests>(), true);
 
 		static LoggerExtensions.OperationLogger? currentTestContext;
 
@@ -38,6 +39,7 @@ namespace SomeDataProvider.DataStorage.Xpo.Test
 		[OneTimeSetUp]
 		public void OneTimeSetUp()
 		{
+			GetContext.Current = new ContextAsyncLocalResolver() { Value = GetContext.Root };
 		}
 
 		[OneTimeTearDown]
@@ -70,7 +72,7 @@ namespace SomeDataProvider.DataStorage.Xpo.Test
 		[Test]
 		public async Task TestSymbolHistoryStoreCacheEntryGetAndCreate()
 		{
-			using SymbolsStore store = new SymbolsStore();
+			using SymbolsStore store = new SymbolsStore(LoggerFactory);
 			ISymbol symbol = (await store.GetSymbolAsync("fred-RUSCPIALLMINMEI.pc1"))!;
 
 			File.Delete(TestDatabasePath);
@@ -97,7 +99,6 @@ namespace SomeDataProvider.DataStorage.Xpo.Test
 			serilogCfg
 				.MinimumLevel.Is(LogEventLevel.Verbose)
 				.Enrich.FromLogContext()
-				.Enrich.WithProcessId()
 				.Enrich.WithThreadId()
 				.Enrich.With<SystemContextEnricher>()
 				.Enrich.With<SequentialIdEnricher>()
@@ -111,7 +112,6 @@ namespace SomeDataProvider.DataStorage.Xpo.Test
 			NBLib.Logging.Xpo.XpoLogger.LogStackTraceForSessionEvent = true;
 			DevExpress.Xpo.Logger.LogManager.IncludeStackTrace = true;
 			DevExpress.Xpo.Logger.LogManager.SetTransport(xpoLogger);
-
 			return loggerFactory;
 		}
 	}

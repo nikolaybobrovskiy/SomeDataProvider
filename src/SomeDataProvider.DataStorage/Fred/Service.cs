@@ -6,13 +6,16 @@ namespace SomeDataProvider.DataStorage.Fred
 	using System.Threading;
 	using System.Threading.Tasks;
 
+	using Microsoft.Extensions.Logging;
+
 	using NBLib.Enum;
 	using NBLib.HttpClient;
+	using NBLib.Logging;
 
 	using Newtonsoft.Json.Linq;
 
 	// https://fred.stlouisfed.org/docs/api/fred/
-	public class Service : IDisposable
+	public sealed class Service : IDisposable
 	{
 		internal const string DateFormat = "yyyy-MM-dd";
 		const string ApiUrl = "https://api.stlouisfed.org/fred/";
@@ -20,27 +23,28 @@ namespace SomeDataProvider.DataStorage.Fred
 
 		readonly HttpClient _httpClient;
 		readonly bool _disposeClient;
+		readonly ILogger<Service> _logger;
 
-		public Service(ServiceApiKey apiKey)
+		public Service(ServiceApiKey apiKey, ILoggerFactory loggerFactory)
 		{
 			_apiKey = apiKey;
 			_httpClient = new HttpClient { BaseAddress = new Uri(ApiUrl) };
 			_disposeClient = true;
+			_logger = loggerFactory.CreateLogger<Service>();
 		}
 
-		public Service(HttpClient httpClient, ServiceApiKey apiKey)
+		public Service(HttpClient httpClient, ServiceApiKey apiKey, ILoggerFactory loggerFactory)
 		{
 			_httpClient = httpClient;
 			_apiKey = apiKey;
+			_logger = loggerFactory.CreateLogger<Service>();
 		}
 
 		public async Task<SeriesInfo?> GetSeriesInfoAsync(string seriesId, CancellationToken cancellationToken = default)
 		{
 			var jsonResponse = await _httpClient.GetJsonAsync($"series?series_id={seriesId}&api_key={_apiKey}&file_type=json", cancellationToken);
 			if (jsonResponse["seriess"] is JArray series && series.Count > 0)
-			{
 				return series[0].ToObject<SeriesInfo>();
-			}
 			return null;
 		}
 
@@ -53,43 +57,30 @@ namespace SomeDataProvider.DataStorage.Fred
 			int limit = 0,
 			CancellationToken cancellationToken = default)
 		{
-			var unitsQueryParam = string.Empty;
-			if (transformation != DataValueTransformation.NoTransformation)
+			return await _logger.LogOperationAsync(async () =>
 			{
-				unitsQueryParam = $"&units={transformation.GetStringValue()}";
-			}
+				var unitsQueryParam = string.Empty;
+				if (transformation != DataValueTransformation.NoTransformation)
+					unitsQueryParam = $"&units={transformation.GetStringValue()}";
 
-			var limitQueryParam = string.Empty;
-			if (limit > 0)
-			{
-				limitQueryParam = $"&limit={limit}";
-			}
+				var limitQueryParam = string.Empty;
+				if (limit > 0) limitQueryParam = $"&limit={limit}";
 
-			var offsetQueryParam = string.Empty;
-			if (offset > 0)
-			{
-				offsetQueryParam = $"&offset={offset}";
-			}
+				var offsetQueryParam = string.Empty;
+				if (offset > 0) offsetQueryParam = $"&offset={offset}";
 
-			var startQueryParam = string.Empty;
-			if (start != default)
-			{
-				startQueryParam = $"&observation_start={start.ToString(DateFormat, CultureInfo.InvariantCulture)}";
-			}
+				var startQueryParam = string.Empty;
+				if (start != default) startQueryParam = $"&observation_start={start.ToString(DateFormat, CultureInfo.InvariantCulture)}";
 
-			var endQueryParam = string.Empty;
-			if (end != default)
-			{
-				endQueryParam = $"&observation_end={end.ToString(DateFormat, CultureInfo.InvariantCulture)}";
-			}
+				var endQueryParam = string.Empty;
+				if (end != default) endQueryParam = $"&observation_end={end.ToString(DateFormat, CultureInfo.InvariantCulture)}";
 
-			var uri = $"series/observations?series_id={seriesId}&api_key={_apiKey}&file_type=json{unitsQueryParam}{startQueryParam}{endQueryParam}{offsetQueryParam}{limitQueryParam}";
-			var jsonResponse = await _httpClient.GetJsonAsync(uri, cancellationToken);
-			if (jsonResponse is JObject jObj)
-			{
-				return jObj.ToObject<ObservationsData>();
-			}
-			return null;
+				var uri = $"series/observations?series_id={seriesId}&api_key={_apiKey}&file_type=json{unitsQueryParam}{startQueryParam}{endQueryParam}{offsetQueryParam}{limitQueryParam}";
+				var jsonResponse = await _httpClient.GetJsonAsync(uri, cancellationToken);
+				if (jsonResponse is JObject jObj)
+					return jObj.ToObject<ObservationsData>();
+				return null;
+			}, "GetObservations({seriesId},{start},{end},{transformation},{offset},{limit})", seriesId, start, end, transformation, offset, limit);
 		}
 
 		public void Dispose()

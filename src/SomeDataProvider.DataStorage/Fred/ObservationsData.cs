@@ -65,7 +65,7 @@ namespace SomeDataProvider.DataStorage.Fred
 				throw new NotSupportedException();
 			}
 
-			public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+			public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
 			{
 				if (reader.Value == null) return default(DateTime);
 

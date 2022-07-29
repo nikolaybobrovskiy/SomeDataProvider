@@ -17,6 +17,8 @@ namespace SomeDataProvider.DataStorage.Definitions
 
 		int NumberOfDecimals { get; }
 
+		float MinPriceIncrement { get; }
+
 		string? Currency { get; }
 
 		bool IsRealTime { get; }

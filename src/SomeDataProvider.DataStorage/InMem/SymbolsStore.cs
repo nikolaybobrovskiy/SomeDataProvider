@@ -7,20 +7,25 @@ namespace SomeDataProvider.DataStorage.InMem
 	using System.Threading;
 	using System.Threading.Tasks;
 
+	using Microsoft.Extensions.Logging;
+
 	using NBLib.Enum;
 
 	using SomeDataProvider.DataStorage.Definitions;
 
+	// How to populate symbols list from server.
+	// https://www.sierrachart.com/index.php?page=doc/DTC_TestClient.php#PopulatingSymbolList
+
 	// TODO: Cache.
-	public class SymbolsStore : ISymbolsStore, IDisposable
+	public sealed class SymbolsStore : ISymbolsStore, IDisposable
 	{
 		const char DataSourceSymbolSeparator = '-';
 		readonly Fred.Service _fredService;
 
-		public SymbolsStore()
+		public SymbolsStore(ILoggerFactory loggerFactory)
 		{
 			// TODO: From secret.
-			_fredService = new Fred.Service((Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459"!);
+			_fredService = new Fred.Service((Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", loggerFactory);
 		}
 
 		public void Dispose()
@@ -58,6 +63,7 @@ namespace SomeDataProvider.DataStorage.InMem
 				// fred-<seriesId>[.<units>]
 				// Example: fred-RUSCPIALLMINMEI.pc1
 				// units:
+				//   lin = Levels (No transformation)
 				//   chg = Change
 				//   ch1 = Change from Year Ago
 				//   pch = Percent Change
@@ -78,6 +84,7 @@ namespace SomeDataProvider.DataStorage.InMem
 							Category = SymbolCategories.Economics,
 							DataService = DataService.Fred,
 							NumberOfDecimals = 2,
+							MinPriceIncrement = 0.01F,
 						};
 					}
 			}
@@ -103,6 +110,8 @@ namespace SomeDataProvider.DataStorage.InMem
 			public string? Category { get; set; }
 
 			public int NumberOfDecimals { get; set; }
+
+			public float MinPriceIncrement { get; set; }
 
 			public string? Currency { get; set; }
 

@@ -18,8 +18,11 @@ namespace SomeDataProvider.DtcProtocolServer
 	using Microsoft.Extensions.Logging;
 
 	using NBLib.Cli;
+	using NBLib.Exceptions;
 
 	using SomeDataProvider.DataStorage.Definitions;
+
+	// How to set up Sierra Chart for custom data provider: https://www.sierrachart.com/index.php?page=doc/DTC_TestClient.php
 
 	[Subcommand(typeof(StartCommand))]
 	class Application : AbstractCommand, IAppLogLevelProvider
@@ -35,16 +38,16 @@ namespace SomeDataProvider.DtcProtocolServer
 		{
 			readonly ILoggerFactory _loggerFactory;
 			readonly ISymbolsStore _symbolsStore;
-			readonly ISymbolHistoryStoreInstanceFactory _historyStoreInstanceFactory;
+			readonly ISymbolHistoryStoreProvider _historyStoreProvider;
 
 			public StartCommand(
 				ISymbolsStore symbolsStore,
-				ISymbolHistoryStoreInstanceFactory historyStoreInstanceFactory,
+				ISymbolHistoryStoreProvider historyStoreProvider,
 				ILoggerFactory loggerFactory)
 				: base(loggerFactory)
 			{
 				_symbolsStore = symbolsStore;
-				_historyStoreInstanceFactory = historyStoreInstanceFactory;
+				_historyStoreProvider = historyStoreProvider;
 				_loggerFactory = loggerFactory;
 			}
 
@@ -56,31 +59,32 @@ namespace SomeDataProvider.DtcProtocolServer
 
 			public override Task<int> OnExecuteAsync(CommandLineApplication app)
 			{
-				var cts = new CancellationTokenSource();
-				using (RunContext.WithCancel(cts.Token, "Program exit requested.", CancellationReason.ApplicationExit))
+				var applicationExitTokenSource = new CancellationTokenSource();
+				using (RunContext.WithCancel(applicationExitTokenSource.Token, "ProgramExitRequested", CancellationReason.ApplicationExit))
 				{
+					var ct = GetContext.CancellationToken; 
 					try
 					{
 						Console.CancelKeyPress += (_, cancelKeyPressArgs) =>
 						{
 							cancelKeyPressArgs.Cancel = true;
-							cts.Cancel();
+							applicationExitTokenSource.Cancel();
 						};
 						var mainServer = new Server(
 							IPAddress.Any,
 							Port,
 							OnlyHistoryServer,
 							_symbolsStore,
-							_historyStoreInstanceFactory,
+							_historyStoreProvider,
 							_loggerFactory);
 						L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
 						mainServer.Start();
-						GetContext.CancellationToken.WaitHandle.WaitOne();
+						ct.WaitHandle.WaitOne();
 						L.LogInformation("Stopping server...");
 						mainServer.Stop();
 						return Task.FromResult(0);
 					}
-					catch (Exception ex) when (!(ex is OperationCanceledException))
+					catch (Exception ex) when (!ex.IsExplainedCancellation())
 					{
 						L.LogCritical(ex, ex.Message);
 						return Task.FromResult(-1);

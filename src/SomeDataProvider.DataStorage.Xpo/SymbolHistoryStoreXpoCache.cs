@@ -19,28 +19,32 @@ namespace SomeDataProvider.DataStorage.Xpo
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DataStorage.Xpo.Entities;
 
+	// We'll return XPO entity instance which will be invalidated, because session is disposed at the end of method. Should not be a problem.
 	public class SymbolHistoryStoreXpoCache : ISymbolHistoryStoreCache
 	{
-		readonly IDataLayer _dataLayer;
+		readonly ILoggerFactory _loggerFactory;
 		readonly ILogger<SymbolHistoryStoreXpoCache> _logger;
 
 		public SymbolHistoryStoreXpoCache(IDataLayer dataLayer, ILoggerFactory loggerFactory)
 		{
-			_dataLayer = dataLayer;
+			_loggerFactory = loggerFactory;
+			DataLayer = dataLayer;
 			_logger = loggerFactory.CreateLogger<SymbolHistoryStoreXpoCache>();
 		}
 
-		public Task<SymbolHistoryResponse> GetSymbolHistoryAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, ContinuationToken? continuationToken, CancellationToken cancellationToken = default)
-		{
-			throw new NotImplementedException();
-		}
+		internal IDataLayer DataLayer { get; }
 
 		public async Task<ISymbolHistoryStoreCacheEntry?> GetSymbolHistoryStoreCacheEntryAsync(ISymbol symbol, HistoryInterval historyInterval, CancellationToken cancellationToken = default)
 		{
 			return await _logger.LogOperationAsync(async () =>
 			{
-				using var session = new UnitOfWork(_dataLayer);
-				return await session.Query<SymbolHistoryStoreCacheEntry>().FirstOrDefaultAsync(cancellationToken);
+				using var session = new UnitOfWork(DataLayer);
+				var result = await session.Query<SymbolHistoryStoreCacheEntry>().FirstOrDefaultAsync(cancellationToken);
+				if (result != null)
+				{
+					result.Store = this;
+				}
+				return result;
 			}, "GetSymbolHistoryStoreCacheEntry({symbol},{historyInterval})", symbol.Code, historyInterval);
 		}
 
@@ -48,7 +52,7 @@ namespace SomeDataProvider.DataStorage.Xpo
 		{
 			return await _logger.LogOperationAsync(async () =>
 			{
-				using var session = new UnitOfWork(_dataLayer);
+				using var session = new UnitOfWork(DataLayer);
 				var result = new SymbolHistoryStoreCacheEntry(session)
 				{
 					SymbolCode = symbol.Code,
@@ -67,6 +71,7 @@ namespace SomeDataProvider.DataStorage.Xpo
 						throw new InvalidOperationException("Could not create cache entry", ex);
 					}
 				}
+				result.Store = this;
 				return result;
 			}, "CreateSymbolHistoryStoreCacheEntry({symbol},{historyInterval})", symbol.Code, historyInterval);
 		}
@@ -75,9 +80,27 @@ namespace SomeDataProvider.DataStorage.Xpo
 		{
 			return await _logger.LogOperationAsync(async () =>
 			{
-				using var session = new UnitOfWork(_dataLayer);
+				using var session = new UnitOfWork(DataLayer);
 				return await session.Query<SymbolHistoryStoreCacheEntry>().CountAsync(cancellationToken: cancellationToken);
 			}, "GetSymbolHistoryStoreCacheEntriesCount()");
+		}
+
+		public Task<ISymbolHistoryStoreReader> CreateSymbolHistoryReaderAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, CancellationToken cancellationToken = default)
+		{
+			return Task.FromResult((ISymbolHistoryStoreReader)new Reader(symbol, historyInterval, start, end, limit, _loggerFactory));
+		}
+
+		class Reader : SymbolHistoryStoreReaderBase<Reader>
+		{
+			public Reader(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, ILoggerFactory loggerFactory)
+				: base(symbol, historyInterval, start, end, limit, loggerFactory)
+			{
+			}
+
+			public override Task<SymbolHistoryResponse> ReadSymbolHistoryAsync(CancellationToken cancellationToken = default)
+			{
+				throw new NotImplementedException();
+			}
 		}
 	}
 }
