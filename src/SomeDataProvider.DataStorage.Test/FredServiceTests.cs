@@ -4,6 +4,7 @@
 namespace SomeDataProvider.DataStorage.Test
 {
 	using System.Globalization;
+	using System.Linq;
 	using System.Threading.Tasks;
 
 	using Microsoft.Extensions.Logging;
@@ -21,6 +22,34 @@ namespace SomeDataProvider.DataStorage.Test
 	public class FredServiceTests
 	{
 		static readonly ILoggerFactory LoggerFactory = ConfigureLogger(new LoggerFactory());
+
+		[Test]
+		public async Task TestGetCategoriesAndItsSeriesAsync()
+		{
+			// TODO: From secret.
+			using var svc = new Service((ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
+			var rootCategories = await svc.GetCategoriesAsync();
+			Assert.IsTrue(rootCategories.Length > 0);
+			var subCategories = await svc.GetCategoriesAsync(rootCategories[0].Id);
+			Assert.IsTrue(subCategories.Length > 0);
+			var subSubCategories = await svc.GetCategoriesAsync(subCategories[0].Id);
+			Assert.IsTrue(subSubCategories.Length > 0);
+			var series = await svc.GetCategorySeriesAsync(subSubCategories[0].Id);
+			Assert.IsTrue(series.Length > 0);
+		}
+
+		[Test]
+		public async Task TestGetAllSeriesAsync()
+		{
+			// TODO: From secret.
+			using var svc = new Service((ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
+			var allSeries = await svc.GetAllSeriesAsync();
+			Assert.IsTrue(allSeries.Count > 0);
+			Assert.IsTrue(allSeries.Any(x => x.IsDiscontinued));
+			Assert.IsTrue(allSeries.Any(x => x.Category.Contains(" | ")));
+			var actualCount = allSeries.Count(x => !x.IsDiscontinued);
+			Assert.IsTrue(actualCount > 0);
+		}
 
 		[Test]
 		public async Task TestGetSeriesInfoAsync()

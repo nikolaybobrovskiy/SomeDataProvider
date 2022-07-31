@@ -16,6 +16,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 	{
 		byte[]? _bytes;
 
+		public int EncodedMessageSize => _bytes?.Length ?? 0;
+
 		protected byte[]? Bytes
 		{
 			get => _bytes;

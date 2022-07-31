@@ -12,6 +12,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 	interface IMessageEncoder
 	{
+		int EncodedMessageSize { get; }
+
 		void EncodeEncodingResponse(EncodingEnum encoding);
 
 		void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection);

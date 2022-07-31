@@ -120,8 +120,8 @@ namespace SomeDataProvider.DtcProtocolServer
 						var ct = GetContext.CancellationToken;
 						var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer);
 						var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
-						using (new Finally(() => decoder.TryDispose()))
-						using (new Finally(() => encoder.TryDispose()))
+						await using (new FinallyAsync(() => decoder.TryDisposeAsync()))
+						await using (new FinallyAsync(() => encoder.TryDisposeAsync()))
 						{
 							var messageType = decoder.DecodeMessageType();
 							L.LogInformation("RequestReceived: {requestType}", messageType);
@@ -132,6 +132,7 @@ namespace SomeDataProvider.DtcProtocolServer
 									break;
 								case MessageTypeEnum.LogonRequest:
 									ProcessLogonRequest(decoder, encoder);
+									//// await SendKnownSymbolsInformationAsync(ct);
 									break;
 								case MessageTypeEnum.Heartbeat:
 									// TODO: Add Heartbeat detection logic.
@@ -170,7 +171,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			}
 		}
 
-		async Task ProcessSecurityDefinitionForSymbolRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
+		async ValueTask ProcessSecurityDefinitionForSymbolRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 		{
 			var securityDefinitionRequest = decoder.DecodeSecurityDefinitionForSymbolRequest();
 			var requestId = securityDefinitionRequest.RequestId;
@@ -186,6 +187,37 @@ namespace SomeDataProvider.DtcProtocolServer
 			{
 				L.LogInformation("Answer: SecurityDefinitionResponse");
 				encoder.EncodeSecurityDefinitionResponse(new EncodeSecurityDefinitionResponseArgs(requestId, symbol, true));
+			}
+			SendAsync(encoder.GetEncodedMessage());
+		}
+
+		// https://www.sierrachart.com/index.php?page=doc/DTC_TestClient.php#PopulatingSymbolList
+		// ReSharper disable once UnusedMember.Local
+		async ValueTask SendKnownSymbolsInformationAsync(CancellationToken ct)
+		{
+			// TODO: Logging.
+			var symbols = await _symbolsStore.GetKnownSymbolsAsync(ct);
+			var ln = symbols.Count;
+			if (ln == 0) return;
+			var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+			try
+			{
+				var i = 0;
+				foreach (var symbol in symbols)
+				{
+					if (encoder.EncodedMessageSize >= 80_000)
+					{
+						SendAsync(encoder.GetEncodedMessage());
+						await encoder.TryDisposeAsync();
+						encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+					}
+					encoder.EncodeSecurityDefinitionResponse(new EncodeSecurityDefinitionResponseArgs(0, symbol, i == ln - 1));
+					i++;
+				}
+			}
+			finally
+			{
+				await encoder.TryDisposeAsync();
 			}
 			SendAsync(encoder.GetEncodedMessage());
 		}
@@ -262,7 +294,6 @@ namespace SomeDataProvider.DtcProtocolServer
 							encoder.EncodeHistoricalPriceDataResponseHeader(requestId, historicalPriceDataRequest.RecordInterval, false, noRecordsToReturn, 1);
 							SendAsync(encoder.GetEncodedMessage());
 						}
-						// ReSharper disable once InconsistentlySynchronizedField
 						var historyRecordsEncoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
 						try
 						{

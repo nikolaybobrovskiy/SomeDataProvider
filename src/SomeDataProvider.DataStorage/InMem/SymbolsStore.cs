@@ -4,6 +4,7 @@
 namespace SomeDataProvider.DataStorage.InMem
 {
 	using System;
+	using System.Collections.Generic;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -33,7 +34,8 @@ namespace SomeDataProvider.DataStorage.InMem
 			_fredService.Dispose();
 		}
 
-		public async Task<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken = default)
+		// TODO: Cache
+		public async ValueTask<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken = default)
 		{
 			switch (code)
 			{
@@ -89,6 +91,23 @@ namespace SomeDataProvider.DataStorage.InMem
 					}
 			}
 			return default;
+		}
+
+		public ValueTask<IReadOnlyCollection<ISymbol>> GetKnownSymbolsAsync(CancellationToken cancellationToken = default)
+		{
+			return new ValueTask<IReadOnlyCollection<ISymbol>>(Array.Empty<ISymbol>());
+			//// var result = new Symbol[]
+			//// {
+			//// 	new ("fred-RUSCPIALLMINMEI")
+			//// 	{
+			//// 		Description = "RU CPI Value",
+			//// 		Category = SymbolCategories.Economics,
+			//// 		DataService = DataService.Fred,
+			//// 		NumberOfDecimals = 2,
+			//// 		MinPriceIncrement = 0.01F,
+			//// 	}
+			//// };
+			//// return new ValueTask<IReadOnlyCollection<ISymbol>>(result);
 		}
 
 		class Symbol : ISymbol

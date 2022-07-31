@@ -1,4 +1,4 @@
-namespace SomeDataProvider.DataStorage.Fred
+namespace SomeDataProvider.DataStorage.Fred.Dto
 {
 	using System;
 	using System.Globalization;

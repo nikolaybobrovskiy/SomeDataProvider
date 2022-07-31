@@ -1,11 +1,17 @@
-namespace SomeDataProvider.DataStorage.Fred
+namespace SomeDataProvider.DataStorage.Fred.Dto
 {
 	using System;
 
 	using Newtonsoft.Json;
 
-	public sealed class SeriesInfo : IEquatable<SeriesInfo>
+	public class SeriesInfo : IEquatable<SeriesInfo>
 	{
+		public SeriesInfo(SeriesInfo si)
+			: this(si.Id, si.Title, si.FrequencyShort, si.UnitsShort, si.SeasonalAdjustmentShort)
+		{
+		}
+
+		[JsonConstructor]
 		public SeriesInfo(string id, string title, string frequencyShort, string unitsShort, string seasonalAdjustmentShort)
 		{
 			Id = id;
@@ -13,6 +19,7 @@ namespace SomeDataProvider.DataStorage.Fred
 			FrequencyShort = frequencyShort;
 			UnitsShort = unitsShort;
 			SeasonalAdjustmentShort = seasonalAdjustmentShort;
+			IsDiscontinued = title.Contains("DISCONTINUED");
 		}
 
 		public string Id { get; }
@@ -28,6 +35,8 @@ namespace SomeDataProvider.DataStorage.Fred
 		[JsonProperty("seasonal_adjustment_short")]
 		public string SeasonalAdjustmentShort { get; }
 
+		public bool IsDiscontinued { get; }
+
 		public static bool operator ==(SeriesInfo? left, SeriesInfo? right)
 		{
 			return Equals(left, right);
@@ -38,6 +47,16 @@ namespace SomeDataProvider.DataStorage.Fred
 			return !Equals(left, right);
 		}
 
+		public override bool Equals(object? obj)
+		{
+			return ReferenceEquals(this, obj) || obj is SeriesInfo other && Equals(other);
+		}
+
+		public override int GetHashCode()
+		{
+			return Id.GetHashCode();
+		}
+
 		public bool Equals(SeriesInfo? other)
 		{
 			if (ReferenceEquals(null, other))
@@ -45,22 +64,6 @@ namespace SomeDataProvider.DataStorage.Fred
 			if (ReferenceEquals(this, other))
 				return true;
 			return Id == other.Id;
-		}
-
-		public override bool Equals(object? obj)
-		{
-			if (ReferenceEquals(null, obj))
-				return false;
-			if (ReferenceEquals(this, obj))
-				return true;
-			if (obj.GetType() != GetType())
-				return false;
-			return Equals((SeriesInfo)obj);
-		}
-
-		public override int GetHashCode()
-		{
-			return Id.GetHashCode();
 		}
 	}
 }
