@@ -6,14 +6,12 @@
 namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
-	using System.Context;
-	using System.Diagnostics;
-	using System.Threading;
 	using System.Threading.Tasks;
 
 	using Microsoft.Extensions.DependencyInjection;
 
 	using NBLib.Cli;
+	using NBLib.Cli.Extensions;
 	using NBLib.Configuration;
 
 	using Serilog;
@@ -26,24 +24,11 @@ namespace SomeDataProvider.DtcProtocolServer
 	{
 		static async Task<int> Main(string[] args)
 		{
-			GetContext.Current = new ContextAsyncLocalResolver { Value = GetContext.Root.WithValue(GetContext.ProcessIdProperty, Process.GetCurrentProcess().Id) };
 			var appBuilder = new AppBuilder();
 			using var appCtx = appBuilder.Build();
 			var app = appCtx.CommandLineApplication;
 			app.Name = "SomeDataProvider.DtcProtocolServer.exe";
-			using (var applicationExitTokenSource = new CancellationTokenSource())
-			using (RunContext.WithCancel(applicationExitTokenSource.Token, "ProgramExitRequested", CancellationReason.ApplicationExit))
-			using (RunContext.WithValue(GetContext.ApplicationNameProperty, "SomeDataProvider.DtcProtocolServer"))
-			{
-				Console.CancelKeyPress += (_, cancelKeyPressArgs) =>
-				{
-					cancelKeyPressArgs.Cancel = true;
-					// ReSharper disable once AccessToDisposedClosure
-					applicationExitTokenSource.Cancel();
-				};
-
-				return await app.ExecuteAsync(args, GetContext.CancellationToken);
-			}
+			return await app.ExecuteWithDefaultContextAsync(args);
 		}
 
 		class AppBuilder : DefaultAppBuilder<Application>
