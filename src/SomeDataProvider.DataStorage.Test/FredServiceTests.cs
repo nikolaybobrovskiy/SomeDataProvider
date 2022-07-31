@@ -47,8 +47,14 @@ namespace SomeDataProvider.DataStorage.Test
 			Assert.IsTrue(allSeries.Count > 0);
 			Assert.IsTrue(allSeries.Any(x => x.IsDiscontinued));
 			Assert.IsTrue(allSeries.Any(x => x.Category.Contains(" | ")));
-			var actualCount = allSeries.Count(x => !x.IsDiscontinued);
+			var actualSeries = allSeries.Where(x => !x.IsDiscontinued).ToArray();
+			var actualCount = actualSeries.Length;
 			Assert.IsTrue(actualCount > 0);
+			var popularity50 = actualSeries.Count(x => x.Popularity >= 50);
+			var popularity75 = actualSeries.Count(x => x.Popularity >= 75);
+			Assert.IsTrue(popularity50 > 0);
+			Assert.IsTrue(popularity75 > 0);
+			Assert.AreEqual(allSeries.Count, allSeries.DistinctBy(x => x.Id).Count());
 		}
 
 		[Test]

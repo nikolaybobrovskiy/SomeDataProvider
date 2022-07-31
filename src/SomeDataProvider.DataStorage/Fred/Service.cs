@@ -66,7 +66,7 @@ namespace SomeDataProvider.DataStorage.Fred
 
 		public async Task<IReadOnlyCollection<CategorizedSeriesInfo>> GetAllSeriesAsync(CancellationToken cancellationToken = default)
 		{
-			return await _logger.LogOperationAsync(async () => await GetAllSeriesAsync(null, cancellationToken), "GetAllSeries()");
+			return await _logger.LogOperationAsync(async () => (await GetAllSeriesAsync(null, cancellationToken)).DistinctBy(x => x.Id).ToArray(), "GetAllSeries()");
 		}
 
 		public async Task<SeriesInfo?> GetSeriesInfoAsync(string seriesId, CancellationToken cancellationToken = default)

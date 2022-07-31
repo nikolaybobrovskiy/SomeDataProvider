@@ -7,18 +7,19 @@ namespace SomeDataProvider.DataStorage.Fred.Dto
 	public class SeriesInfo : IEquatable<SeriesInfo>
 	{
 		public SeriesInfo(SeriesInfo si)
-			: this(si.Id, si.Title, si.FrequencyShort, si.UnitsShort, si.SeasonalAdjustmentShort)
+			: this(si.Id, si.Title, si.FrequencyShort, si.UnitsShort, si.SeasonalAdjustmentShort, si.Popularity)
 		{
 		}
 
 		[JsonConstructor]
-		public SeriesInfo(string id, string title, string frequencyShort, string unitsShort, string seasonalAdjustmentShort)
+		public SeriesInfo(string id, string title, string frequencyShort, string unitsShort, string seasonalAdjustmentShort, int popularity)
 		{
 			Id = id;
 			Title = title;
 			FrequencyShort = frequencyShort;
 			UnitsShort = unitsShort;
 			SeasonalAdjustmentShort = seasonalAdjustmentShort;
+			Popularity = popularity;
 			IsDiscontinued = title.Contains("DISCONTINUED");
 		}
 
@@ -34,6 +35,8 @@ namespace SomeDataProvider.DataStorage.Fred.Dto
 
 		[JsonProperty("seasonal_adjustment_short")]
 		public string SeasonalAdjustmentShort { get; }
+
+		public int Popularity { get; }
 
 		public bool IsDiscontinued { get; }
 
