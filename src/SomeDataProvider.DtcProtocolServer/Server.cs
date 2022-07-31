@@ -65,10 +65,10 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		protected override void OnStopped()
 		{
-			L.LogInformation("Server stopped.");
 			L.LogInformation($"Waiting for current requests are over (max {MaxWaitTimeForCurrentRequestToComplete})...");
 			SpinWait.SpinUntil(() => Interlocked.CompareExchange(ref _currentRequestsCount, 0, 0) == 0, MaxWaitTimeForCurrentRequestToComplete);
 			L.LogInformation("Current requests are over. Can proceed with shutdown.");
+			L.LogInformation("Server stopped.");
 		}
 
 		protected override void OnError(SocketError error)

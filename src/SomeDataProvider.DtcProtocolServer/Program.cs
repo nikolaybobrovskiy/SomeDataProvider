@@ -8,6 +8,7 @@ namespace SomeDataProvider.DtcProtocolServer
 	using System;
 	using System.Context;
 	using System.Diagnostics;
+	using System.Threading;
 	using System.Threading.Tasks;
 
 	using Microsoft.Extensions.DependencyInjection;
@@ -30,9 +31,18 @@ namespace SomeDataProvider.DtcProtocolServer
 			using var appCtx = appBuilder.Build();
 			var app = appCtx.CommandLineApplication;
 			app.Name = "SomeDataProvider.DtcProtocolServer.exe";
+			using (var applicationExitTokenSource = new CancellationTokenSource())
+			using (RunContext.WithCancel(applicationExitTokenSource.Token, "ProgramExitRequested", CancellationReason.ApplicationExit))
 			using (RunContext.WithValue(GetContext.ApplicationNameProperty, "SomeDataProvider.DtcProtocolServer"))
 			{
-				return await app.ExecuteAsync(args);
+				Console.CancelKeyPress += (_, cancelKeyPressArgs) =>
+				{
+					cancelKeyPressArgs.Cancel = true;
+					// ReSharper disable once AccessToDisposedClosure
+					applicationExitTokenSource.Cancel();
+				};
+
+				return await app.ExecuteAsync(args, GetContext.CancellationToken);
 			}
 		}
 

@@ -10,7 +10,6 @@ namespace SomeDataProvider.DtcProtocolServer
 	using System;
 	using System.Context;
 	using System.Net;
-	using System.Threading;
 	using System.Threading.Tasks;
 
 	using McMaster.Extensions.CommandLineUtils;
@@ -59,36 +58,27 @@ namespace SomeDataProvider.DtcProtocolServer
 
 			public override Task<int> OnExecuteAsync(CommandLineApplication app)
 			{
-				var applicationExitTokenSource = new CancellationTokenSource();
-				using (RunContext.WithCancel(applicationExitTokenSource.Token, "ProgramExitRequested", CancellationReason.ApplicationExit))
+				var ct = GetContext.CancellationToken;
+				try
 				{
-					var ct = GetContext.CancellationToken; 
-					try
-					{
-						Console.CancelKeyPress += (_, cancelKeyPressArgs) =>
-						{
-							cancelKeyPressArgs.Cancel = true;
-							applicationExitTokenSource.Cancel();
-						};
-						var mainServer = new Server(
-							IPAddress.Any,
-							Port,
-							OnlyHistoryServer,
-							_symbolsStore,
-							_historyStoreProvider,
-							_loggerFactory);
-						L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
-						mainServer.Start();
-						ct.WaitHandle.WaitOne();
-						L.LogInformation("Stopping server...");
-						mainServer.Stop();
-						return Task.FromResult(0);
-					}
-					catch (Exception ex) when (!ex.IsExplainedCancellation())
-					{
-						L.LogCritical(ex, ex.Message);
-						return Task.FromResult(-1);
-					}
+					var mainServer = new Server(
+						IPAddress.Any,
+						Port,
+						OnlyHistoryServer,
+						_symbolsStore,
+						_historyStoreProvider,
+						_loggerFactory);
+					L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
+					mainServer.Start();
+					ct.WaitHandle.WaitOne();
+					L.LogInformation("Stopping server...");
+					mainServer.Stop();
+					return Task.FromResult(0);
+				}
+				catch (Exception ex) when (!ex.IsExplainedCancellation())
+				{
+					L.LogCritical(ex, ex.Message);
+					return Task.FromResult(-1);
 				}
 			}
 		}
