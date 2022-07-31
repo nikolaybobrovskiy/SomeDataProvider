@@ -12,7 +12,6 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	using Microsoft.Extensions.Logging;
 
-	using NBLib.BuiltInTypes;
 	using NBLib.CodeFlow;
 	using NBLib.Exceptions;
 	using NBLib.Logging;
@@ -28,7 +27,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	// TcpSession.SendAsync is thread-safe, so use it instead of Send() and own synchronization for heartbeat timer.
 
-	class Session : TcpSession
+	partial class Session : TcpSession
 	{
 		const int HistoryDownloadBatchSize = 922; // 85000 - goes to LOH, need less. 88 bytes per record.
 
@@ -171,26 +170,6 @@ namespace SomeDataProvider.DtcProtocolServer
 			}
 		}
 
-		async ValueTask ProcessSecurityDefinitionForSymbolRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
-		{
-			var securityDefinitionRequest = decoder.DecodeSecurityDefinitionForSymbolRequest();
-			var requestId = securityDefinitionRequest.RequestId;
-			L.LogInformation("SecurityDefinitionForSymbolRequest: {securityDefinitionRequest}", securityDefinitionRequest);
-			var symbol = await _symbolsStore.GetSymbolAsync(securityDefinitionRequest.Symbol, ct);
-			if (symbol == null)
-			{
-				L.LogInformation("Answer: SecurityDefinitionReject: NoSymbol");
-				encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol is unknown: {securityDefinitionRequest.Symbol}.");
-				//// encoder.EncodeNoSecurityDefinitionsFound(requestId);
-			}
-			else
-			{
-				L.LogInformation("Answer: SecurityDefinitionResponse");
-				encoder.EncodeSecurityDefinitionResponse(new EncodeSecurityDefinitionResponseArgs(requestId, symbol, true));
-			}
-			SendAsync(encoder.GetEncodedMessage());
-		}
-
 		// https://www.sierrachart.com/index.php?page=doc/DTC_TestClient.php#PopulatingSymbolList
 		// ReSharper disable once UnusedMember.Local
 		async ValueTask SendKnownSymbolsInformationAsync(CancellationToken ct)
@@ -219,148 +198,6 @@ namespace SomeDataProvider.DtcProtocolServer
 			{
 				await encoder.TryDisposeAsync();
 			}
-			SendAsync(encoder.GetEncodedMessage());
-		}
-
-		async Task ProcessMarketDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
-		{
-			var marketDataRequest = decoder.DecodeMarketDataRequest();
-			L.LogInformation("MarketDataRequest: {marketDataRequest}", marketDataRequest);
-			if (marketDataRequest.RequestAction != RequestActionEnum.Subscribe)
-			{
-				throw new NotSupportedException($"MarketDataRequestAction '{marketDataRequest.RequestAction}' is not supported.");
-			}
-			var symbol = await _symbolsStore.GetSymbolAsync(marketDataRequest.Symbol, ct);
-			if (symbol == null)
-			{
-				L.LogInformation("Answer: MarketDataReject: NoSymbol");
-				encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Symbol is unknown: {marketDataRequest.Symbol}.");
-			}
-			else if (!symbol.IsRealTime)
-			{
-				L.LogInformation("Answer: MarketDataReject: NoRealTimeSupport");
-				encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Real-time market data is not supported for {marketDataRequest.Symbol}.");
-			}
-			else
-			{
-				L.LogInformation("Answer: MarketDataSnapshot");
-				encoder.EncodeMarketDataSnapshot(marketDataRequest.SymbolId, TradingStatusEnum.TradingStatusUnknown, DateTime.Now);
-			}
-			SendAsync(encoder.GetEncodedMessage());
-		}
-
-		async Task ProcessHistoricalPriceDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
-		{
-			var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
-			var requestId = historicalPriceDataRequest.RequestId;
-			L.LogInformation("RequestedHistory: {historicalPriceDataRequest}", historicalPriceDataRequest);
-			var symbol = await _symbolsStore.GetSymbolAsync(historicalPriceDataRequest.Symbol, ct);
-			if (symbol == null)
-			{
-				L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
-				encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, "No symbol found.");
-			}
-			else
-			{
-				var historyInterval = historicalPriceDataRequest.RecordInterval switch
-				{
-					HistoricalDataIntervalEnum.IntervalTick => HistoryInterval.Tick,
-					< HistoricalDataIntervalEnum.Interval1Day => HistoryInterval.Intraday,
-					_ => HistoryInterval.Daily
-				};
-				var store = await _symbolHistoryStoreProvider.GetSymbolHistoryStoreAsync(symbol, historyInterval, ct);
-				var headerSent = false;
-				var hasMore = false;
-				using var reader = await store.CreateSymbolHistoryReaderAsync(
-					symbol,
-					historyInterval,
-					historicalPriceDataRequest.StartDateTime,
-					historicalPriceDataRequest.EndDateTime,
-					HistoryDownloadBatchSize,
-					ct);
-				do
-				{
-					await L.LogOperationAsync(async () =>
-					{
-						// ReSharper disable once AccessToDisposedClosure
-						var r = await reader.ReadSymbolHistoryAsync(ct);
-						hasMore = r.HasMore;
-						L.LogDebug("HasMore: {hasMore}", hasMore);
-						if (!headerSent)
-						{
-							var noRecordsToReturn = r.Records.Count == 0;
-							L.LogInformation("SendHeader({recordsExist})", !noRecordsToReturn);
-							// TODO: ZLibCompression if client requests.
-							encoder.EncodeHistoricalPriceDataResponseHeader(requestId, historicalPriceDataRequest.RecordInterval, false, noRecordsToReturn, 1);
-							SendAsync(encoder.GetEncodedMessage());
-						}
-						var historyRecordsEncoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
-						try
-						{
-							var recIndex = 0;
-							var recsCount = r.Records.Count;
-							L.LogInformation("EncodeAndSendRecords({recordsCount})", recsCount);
-							foreach (var rec in r.Records)
-							{
-								historyRecordsEncoder.EncodeHistoricalPriceDataRecordResponse(
-									requestId,
-									rec.TimeStamp,
-									rec.OpenPrice,
-									rec.HighPrice,
-									rec.LowPrice,
-									rec.LastPrice,
-									rec.Volume,
-									0, 0, 0, !hasMore && recIndex == recsCount - 1);
-								recIndex++;
-							}
-							SendAsync(historyRecordsEncoder.GetEncodedMessage());
-						}
-						finally
-						{
-							await historyRecordsEncoder.TryDisposeAsync();
-						}
-					}, "DownloadAndSendHistoryDataBatch");
-				}
-				// ReSharper disable once LoopVariableIsNeverChangedInsideLoop
-				while (hasMore);
-			}
-		}
-
-		void ProcessLogonRequest(IMessageDecoder decoder, IMessageEncoder encoder)
-		{
-			var logonRequest = decoder.DecodeLogonRequest();
-			L.LogInformation("LogonInfo: {heartbeatIntervalInSeconds}, {clientName}, {hardwareIdentifier}", logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
-			StartHeartbeatTimer(logonRequest.HeartbeatIntervalInSeconds * 1000);
-			L.LogInformation("Answer: LogonSuccess");
-			encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.", _onlyHistoryServer);
-			SendAsync(encoder.GetEncodedMessage());
-		}
-
-		void ProcessEncodingRequest(IMessageDecoder decoder, IMessageEncoder encoder)
-		{
-			if (!(decoder is DtcProtocol.Binary.MessageDecoder binaryDecoder))
-			{
-				throw new InvalidOperationException("Encoding request must be sent using binary protocol.");
-			}
-			var encodingRequest = binaryDecoder.DecodeEncodingRequest();
-			if (encodingRequest.ProtocolVersion != MessageProtocol.Version)
-			{
-				throw new NotSupportedException($"Protocol version {encodingRequest.ProtocolVersion.ToInvStr()} is not supported. Supported: {MessageProtocol.Version}.");
-			}
-			switch (encodingRequest.Encoding)
-			{
-				default:
-					if (_currentMessageProtocol.Encoding != MessageProtocol.PreferredEncoding)
-					{
-						_currentMessageProtocol.MessageStreamer.MessageBytesReceived -= OnMessageReceived;
-						_currentMessageProtocol.Dispose();
-						_currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
-						_currentMessageProtocol.MessageStreamer.MessageBytesReceived += OnMessageReceived;
-					}
-					break;
-			}
-			L.LogInformation("ChosenEncoding: {chosenEncoding}", _currentMessageProtocol.Encoding);
-			encoder.EncodeEncodingResponse(_currentMessageProtocol.Encoding);
 			SendAsync(encoder.GetEncodedMessage());
 		}
 
