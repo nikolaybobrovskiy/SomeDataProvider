@@ -17,17 +17,27 @@ partial class Session
 		var securityDefinitionRequest = decoder.DecodeSecurityDefinitionForSymbolRequest();
 		var requestId = securityDefinitionRequest.RequestId;
 		L.LogInformation("SecurityDefinitionForSymbolRequest: {securityDefinitionRequest}", securityDefinitionRequest);
-		var symbol = await _symbolsStore.GetSymbolAsync(securityDefinitionRequest.Symbol, ct);
-		if (symbol == null)
+		var getSymbolsStoreResult = await _symbolsStoreProvider.GetSymbolsStoreAsync(securityDefinitionRequest.Symbol, ct);
+		if (getSymbolsStoreResult == null)
 		{
-			L.LogInformation("Answer: SecurityDefinitionReject: NoSymbol");
-			encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol is unknown: {securityDefinitionRequest.Symbol}.");
-			//// encoder.EncodeNoSecurityDefinitionsFound(requestId);
+			L.LogInformation("Answer: SecurityDefinitionReject: NoSymbolStore");
+			encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol store is found: {securityDefinitionRequest.Symbol}.");
 		}
 		else
 		{
-			L.LogInformation("Answer: SecurityDefinitionResponse");
-			encoder.EncodeSecurityDefinitionResponse(new IMessageEncoder.EncodeSecurityDefinitionResponseArgs(requestId, symbol, true));
+			var (symbolsStore, symbolCode) = getSymbolsStoreResult.Value;
+			var symbol = await symbolsStore.GetSymbolAsync(symbolCode, ct);
+			if (symbol == null)
+			{
+				L.LogInformation("Answer: SecurityDefinitionReject: NoSymbol");
+				encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol is unknown: {securityDefinitionRequest.Symbol}.");
+				//// encoder.EncodeNoSecurityDefinitionsFound(requestId);
+			}
+			else
+			{
+				L.LogInformation("Answer: SecurityDefinitionResponse");
+				encoder.EncodeSecurityDefinitionResponse(new IMessageEncoder.EncodeSecurityDefinitionResponseArgs(requestId, symbol, true));
+			}
 		}
 		SendAsync(encoder.GetEncodedMessage());
 	}

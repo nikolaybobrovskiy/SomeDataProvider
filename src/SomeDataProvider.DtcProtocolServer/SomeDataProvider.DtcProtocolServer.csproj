@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>$(ModernTargetFramework)</TargetFramework>
     <CodeAnalysisRuleSet>i:\Dropbox\SoftConfig\VisualStudio\NBCSharpRules.ruleset</CodeAnalysisRuleSet>
     <Nullable>enable</Nullable>
     <LangVersion>default</LangVersion>
@@ -14,8 +14,9 @@
 
   <ItemGroup>
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="*" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="*" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="$(MicrosoftExtensionsVersion)" />
     <PackageReference Include="NetCoreServer" Version="6.2.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="$(StyleCopAnalyzers)">
       <PrivateAssets>all</PrivateAssets>
@@ -35,13 +36,8 @@
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Configuration\NBLib.Configuration.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj" />
     <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />
-    <ProjectReference Include="..\SomeDataProvider.DataStorage.Xpo\SomeDataProvider.DataStorage.Xpo.csproj" />
-    <ProjectReference Include="..\SomeDataProvider.DataStorage\SomeDataProvider.DataStorage.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="History" />
-    <Folder Include="Main" />
+    <ProjectReference Include="..\SomeDataProvider.DataStorage.Definitions\SomeDataProvider.DataStorage.Definitions.csproj" />
+    <ProjectReference Include="..\SomeDataProvider.DataStorage.Fred\SomeDataProvider.DataStorage.Fred.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -54,6 +50,9 @@
 
   <ItemGroup>
     <None Remove="Terminal\**" />
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

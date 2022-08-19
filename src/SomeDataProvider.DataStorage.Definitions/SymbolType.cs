@@ -1,4 +1,4 @@
-namespace SomeDataProvider.DataStorage
+namespace SomeDataProvider.DataStorage.Definitions
 {
 	public enum SymbolType
 	{

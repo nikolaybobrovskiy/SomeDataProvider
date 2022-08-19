@@ -11,7 +11,7 @@ namespace SomeDataProvider.DataStorage.Definitions
 
 	public interface ISymbolHistoryStore
 	{
-		Task<ISymbolHistoryStoreReader> CreateSymbolHistoryReaderAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, CancellationToken cancellationToken = default);
+		ValueTask<ISymbolHistoryStoreReader> CreateSymbolHistoryReaderAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, CancellationToken cancellationToken = default);
 	}
 
 	public interface ISymbolHistoryStoreReader : IDisposable

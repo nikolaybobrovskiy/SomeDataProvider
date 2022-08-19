@@ -12,7 +12,7 @@ namespace SomeDataProvider.DataStorage.Fred.Dto
 		}
 
 		[JsonConstructor]
-		public SeriesInfo(string id, string title, string frequencyShort, string unitsShort, string seasonalAdjustmentShort, int popularity)
+		public SeriesInfo(SeriesInfoId id, string title, string frequencyShort, string unitsShort, string seasonalAdjustmentShort, int popularity)
 		{
 			Id = id;
 			Title = title;
@@ -23,7 +23,7 @@ namespace SomeDataProvider.DataStorage.Fred.Dto
 			IsDiscontinued = title.Contains("DISCONTINUED");
 		}
 
-		public string Id { get; }
+		public SeriesInfoId Id { get; }
 
 		public string Title { get; }
 

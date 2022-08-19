@@ -8,7 +8,9 @@ namespace SomeDataProvider.DtcProtocolServer
 	using System;
 	using System.Threading.Tasks;
 
+	using Microsoft.Extensions.Configuration;
 	using Microsoft.Extensions.DependencyInjection;
+	using Microsoft.Extensions.Logging;
 
 	using NBLib.Cli;
 	using NBLib.Cli.Extensions;
@@ -17,34 +19,49 @@ namespace SomeDataProvider.DtcProtocolServer
 	using Serilog;
 
 	using SomeDataProvider.DataStorage.Definitions;
-	using SomeDataProvider.DataStorage.HistoryStores;
-	using SomeDataProvider.DataStorage.HistoryStores.Providers;
+	using SomeDataProvider.DtcProtocolServer.Data;
 
 	class Program
 	{
 		static async Task<int> Main(string[] args)
 		{
-			var appBuilder = new AppBuilder();
+			using var appBuilder = new AppBuilder(args);
 			using var appCtx = appBuilder.Build();
 			var app = appCtx.CommandLineApplication;
 			app.Name = "SomeDataProvider.DtcProtocolServer.exe";
 			return await app.ExecuteWithDefaultContextAsync(args);
 		}
 
-		class AppBuilder : DefaultAppBuilder<Application>
+		sealed class AppBuilder : DefaultAppBuilder<Application>, IDisposable
 		{
+			readonly object _storesProviderLock = new ();
+
+			StoresProvider? _storesProvider;
+
 			// https://medium.com/volosoft/asp-net-core-dependency-injection-best-practices-tips-tricks-c6e9c67f9d96
-			protected override void ConfigureServices(IServiceCollection services)
+			public AppBuilder(string[] cliArgs)
+				: base(cliArgs)
 			{
-				base.ConfigureServices(services);
-				services.AddSingleton<ISymbolsStore, DataStorage.InMem.SymbolsStore>();
-				services.AddSingleton<ISymbolHistoryStoreProvider, SymbolHistoryStoreProvider>();
-				services.AddSingleton(CreateSymbolHistoryStoreCache);
-				services.Configure<SymbolHistoryTextFileStore.Options>((_, opts) =>
-				{
-					// TODO: Implement via JSON file.
-					opts.FolderPath = @"i:\Projects\SomeDataProvider\data";
-				});
+			}
+
+			public void Dispose()
+			{
+				_storesProvider?.Dispose();
+			}
+
+			protected override void Configure(IConfigurationBuilder configurationBuilder)
+			{
+				base.Configure(configurationBuilder);
+				configurationBuilder.AddJsonFile("appsettings.json", optional: true);
+			}
+
+			protected override void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+			{
+				base.ConfigureServices(services, configuration);
+				services.AddSingleton<ISymbolsStoreProvider>(GetOrCreateStoresProvider);
+				services.AddSingleton<ISymbolHistoryStoreProvider>(GetOrCreateStoresProvider);
+				services.Configure<StoresProvider.StoresOptions>(configuration.GetSection("StoresOptions"));
+				//// services.AddSingleton(CreateSymbolHistoryStoreCache);
 			}
 
 			protected override void ConfigureLogger(Application app, LoggerConfiguration serilogCfg)
@@ -59,13 +76,25 @@ namespace SomeDataProvider.DtcProtocolServer
 				}
 			}
 
-			static ISymbolHistoryStoreCache CreateSymbolHistoryStoreCache(IServiceProvider serviceProvider)
+			StoresProvider GetOrCreateStoresProvider(IServiceProvider serviceProvider)
 			{
-				return null;
-				// var result = new SymbolHistoryStoreXpoCache("HistoryDataCache.db", serviceProvider.GetRequiredService<ILoggerFactory>());
-				// result.InitAsync().GetAwaiter().GetResult();
-				// return result;
+				if (_storesProvider != null) return _storesProvider;
+				lock (_storesProviderLock)
+				{
+					if (_storesProvider != null) return _storesProvider;
+					// ReSharper disable once PossibleMultipleWriteAccessInDoubleCheckLocking
+					return _storesProvider = new StoresProvider(
+						serviceProvider.GetConfiguration<StoresProvider.StoresOptions>(),
+						serviceProvider.GetRequiredService<ILoggerFactory>());
+				}
 			}
+
+			//// static ISymbolHistoryStoreCache CreateSymbolHistoryStoreCache(IServiceProvider serviceProvider)
+			//// {
+			//// 	var result = new SymbolHistoryStoreXpoCache("HistoryDataCache.db", serviceProvider.GetRequiredService<ILoggerFactory>());
+			//// 	result.InitAsync().GetAwaiter().GetResult();
+			//// 	return result;
+			//// }
 		}
 	}
 }

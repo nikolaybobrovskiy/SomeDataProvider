@@ -17,6 +17,7 @@ namespace SomeDataProvider.DataStorage.Test
 	using Serilog.Events;
 
 	using SomeDataProvider.DataStorage.Fred;
+	using SomeDataProvider.DataStorage.Fred.Dto;
 
 	[TestFixture]
 	public class FredServiceTests
@@ -62,9 +63,9 @@ namespace SomeDataProvider.DataStorage.Test
 		{
 			// TODO: From secret.
 			using var svc = new Service((ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
-			var seriesInfo = await svc.GetSeriesInfoAsync("RUSCPIALLMINMEI");
+			var seriesInfo = await svc.GetSeriesInfoAsync((SeriesInfoId)"RUSCPIALLMINMEI");
 			Assert.IsNotNull(seriesInfo);
-			Assert.AreEqual("RUSCPIALLMINMEI", seriesInfo.Id);
+			Assert.AreEqual("RUSCPIALLMINMEI", seriesInfo.Id.ToString());
 			Assert.IsNotNull(seriesInfo.Title);
 			Assert.IsNotEmpty(seriesInfo.Title);
 			Assert.IsNotNull(seriesInfo.FrequencyShort);
@@ -80,14 +81,14 @@ namespace SomeDataProvider.DataStorage.Test
 		{
 			// TODO: From secret.
 			using var svc = new Service((ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
-			var observationsData = await svc.GetObservationsAsync("RUSCPIALLMINMEI", limit: 10, transformation: DataValueTransformation.PercentChangeFromYearAgo);
+			var observationsData = await svc.GetObservationsAsync((SeriesInfoId)"RUSCPIALLMINMEI", limit: 10, transformation: DataValueTransformation.PercentChangeFromYearAgo);
 			Assert.IsNotNull(observationsData);
 			Assert.AreEqual(10, observationsData.Observations.Length);
 			Assert.AreEqual("1992-01-01", observationsData.Observations[0].Date.ToString(Service.DateFormat, CultureInfo.InvariantCulture));
 			Assert.AreEqual("1992-10-01", observationsData.Observations[^1].Date.ToString(Service.DateFormat, CultureInfo.InvariantCulture));
 			Assert.IsNull(observationsData.Observations[0].Value);
 			Assert.IsNull(observationsData.Observations[^1].Value);
-			observationsData = await svc.GetObservationsAsync("RUSCPIALLMINMEI", limit: 10, offset: 10, transformation: DataValueTransformation.PercentChangeFromYearAgo);
+			observationsData = await svc.GetObservationsAsync((SeriesInfoId)"RUSCPIALLMINMEI", limit: 10, offset: 10, transformation: DataValueTransformation.PercentChangeFromYearAgo);
 			Assert.AreEqual(10, observationsData.Observations.Length);
 			Assert.AreEqual("1992-11-01", observationsData.Observations[0].Date.ToString(Service.DateFormat, CultureInfo.InvariantCulture));
 			Assert.AreEqual("1993-08-01", observationsData.Observations[^1].Date.ToString(Service.DateFormat, CultureInfo.InvariantCulture));

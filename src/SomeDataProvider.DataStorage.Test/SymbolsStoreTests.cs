@@ -15,18 +15,27 @@ namespace SomeDataProvider.DataStorage.Test
 	using Serilog;
 	using Serilog.Events;
 
-	using SomeDataProvider.DataStorage.InMem;
-
 	[TestFixture]
 	public class SymbolsStoreTests
 	{
 		static readonly ILoggerFactory LoggerFactory = ConfigureLogger(new LoggerFactory());
 
+		//// [Test]
+		//// public async Task TestGetSymbolAsync()
+		//// {
+		//// 	using SymbolsStore store = new(LoggerFactory);
+		//// 	var symbol = await store.GetSymbolAsync("fred-RUSCPIALLMINMEI.pc1");
+		//// 	Assert.IsNotNull(symbol);
+		//// 	Assert.IsFalse(symbol.Description.IsEmpty());
+		//// 	Assert.IsTrue(symbol.Description.Contains("% Chg y/y"));
+		//// }
+
 		[Test]
-		public async Task TestGetSymbolAsync()
+		public async Task TestFredGetSymbolAsync()
 		{
-			using SymbolsStore store = new(LoggerFactory);
-			var symbol = await store.GetSymbolAsync("fred-RUSCPIALLMINMEI.pc1");
+			// TODO: From secret.
+			using var store = new Fred.Store((Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
+			var symbol = await store.GetSymbolAsync("RUSCPIALLMINMEI.pc1");
 			Assert.IsNotNull(symbol);
 			Assert.IsFalse(symbol.Description.IsEmpty());
 			Assert.IsTrue(symbol.Description.Contains("% Chg y/y"));

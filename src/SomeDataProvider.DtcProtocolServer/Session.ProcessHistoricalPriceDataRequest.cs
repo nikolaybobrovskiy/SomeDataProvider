@@ -19,17 +19,40 @@ partial class Session
 {
 	async Task ProcessHistoricalPriceDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 	{
-		var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
-		var requestId = historicalPriceDataRequest.RequestId;
-		L.LogInformation("RequestedHistory: {historicalPriceDataRequest}", historicalPriceDataRequest);
-		var symbol = await _symbolsStore.GetSymbolAsync(historicalPriceDataRequest.Symbol, ct);
-		if (symbol == null)
+		await L.LogOperationAsync(async () =>
 		{
-			L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
-			encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, "No symbol found.");
-		}
-		else
+			var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
+			L.LogInformation("RequestedHistory: {historicalPriceDataRequest}", historicalPriceDataRequest);
+			var getSymbolsStoreResult = await _symbolsStoreProvider.GetSymbolsStoreAsync(historicalPriceDataRequest.Symbol, ct);
+			if (getSymbolsStoreResult == null)
+			{
+				L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbolStore");
+				encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, $"Symbol store is found: {historicalPriceDataRequest.Symbol}.");
+				SendAsync(encoder.GetEncodedMessage());
+			}
+			else
+			{
+				var (symbolsStore, symbolCode) = getSymbolsStoreResult.Value;
+				var symbol = await symbolsStore.GetSymbolAsync(symbolCode, ct);
+				if (symbol == null)
+				{
+					L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
+					encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, $"Symbol is unknown: {symbolCode}.");
+					SendAsync(encoder.GetEncodedMessage());
+				}
+				else
+				{
+					await StreamHistoricalPriceData(historicalPriceDataRequest, symbol, encoder, ct);
+				}
+			}
+		}, "ProcessHistoricalPriceDataRequest()");
+	}
+
+	async Task StreamHistoricalPriceData(HistoricalPriceDataRequest historicalPriceDataRequest, ISymbol symbol, IMessageEncoder encoder, CancellationToken ct)
+	{
+		await L.LogOperationAsync(async () =>
 		{
+			var requestId = historicalPriceDataRequest.RequestId;
 			var historyInterval = historicalPriceDataRequest.RecordInterval switch
 			{
 				HistoricalDataIntervalEnum.IntervalTick => HistoryInterval.Tick,
@@ -91,6 +114,6 @@ partial class Session
 			}
 			// ReSharper disable once LoopVariableIsNeverChangedInsideLoop
 			while (hasMore);
-		}
+		}, "StreamHistoricalPriceData({symbol})", symbol);
 	}
 }

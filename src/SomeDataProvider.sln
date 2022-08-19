@@ -22,8 +22,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.CodeFlow", "..\..\..\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.DateTime", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj", "{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage", "SomeDataProvider.DataStorage\SomeDataProvider.DataStorage.csproj", "{11BE7962-2457-4D94-80B0-9214DCDA79BC}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Configuration", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Configuration\NBLib.Configuration.csproj", "{B9E37BC7-26F4-4358-80ED-57B0A7459031}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Tasks", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Tasks\NBLib.Tasks.csproj", "{6CF5399F-2331-445D-9BF1-1DE667E3A9E4}"
@@ -31,12 +29,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.HttpClient", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.HttpClient\NBLib.HttpClient.csproj", "{BC54EAD1-F982-4965-9F9E-943550B0AAFA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage.Test", "SomeDataProvider.DataStorage.Test\SomeDataProvider.DataStorage.Test.csproj", "{3E38534C-AFCD-4172-8621-DE58782F7428}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage.Xpo", "SomeDataProvider.DataStorage.Xpo\SomeDataProvider.DataStorage.Xpo.csproj", "{F2A2B332-BE83-4D30-BBE8-C64A012EE04F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage.Xpo.Test", "SomeDataProvider.DataStorage.Xpo.Test\SomeDataProvider.DataStorage.Xpo.Test.csproj", "{33002987-E93F-49EF-8EC3-8B38ECD8D132}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Logging.Xpo", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging.Xpo\NBLib.Logging.Xpo.csproj", "{D599784E-A5FC-4DFA-9CD4-B19EF9A7B8A1}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A30517EC-6550-4B5F-A298-4EC68D481B4A}"
 	ProjectSection(SolutionItems) = preProject
@@ -50,6 +42,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DTC", "DTC", "{F42AF007-FC0
 		..\..\..\progs\SierraChart\DTC\DTCProtocol.h = ..\..\..\progs\SierraChart\DTC\DTCProtocol.h
 		..\..\..\progs\SierraChart\DTC\DTCProtocol.cpp = ..\..\..\progs\SierraChart\DTC\DTCProtocol.cpp
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage.Fred", "SomeDataProvider.DataStorage.Fred\SomeDataProvider.DataStorage.Fred.csproj", "{C6157B52-C32D-45C7-8C8B-0FD2B550B658}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage.Definitions", "SomeDataProvider.DataStorage.Definitions\SomeDataProvider.DataStorage.Definitions.csproj", "{66E8098D-518B-4E89-A81F-5C1BD4351C2D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -101,10 +97,6 @@ Global
 		{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{11BE7962-2457-4D94-80B0-9214DCDA79BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{11BE7962-2457-4D94-80B0-9214DCDA79BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{11BE7962-2457-4D94-80B0-9214DCDA79BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{11BE7962-2457-4D94-80B0-9214DCDA79BC}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B9E37BC7-26F4-4358-80ED-57B0A7459031}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B9E37BC7-26F4-4358-80ED-57B0A7459031}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9E37BC7-26F4-4358-80ED-57B0A7459031}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -121,18 +113,14 @@ Global
 		{3E38534C-AFCD-4172-8621-DE58782F7428}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E38534C-AFCD-4172-8621-DE58782F7428}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E38534C-AFCD-4172-8621-DE58782F7428}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F2A2B332-BE83-4D30-BBE8-C64A012EE04F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F2A2B332-BE83-4D30-BBE8-C64A012EE04F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F2A2B332-BE83-4D30-BBE8-C64A012EE04F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F2A2B332-BE83-4D30-BBE8-C64A012EE04F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{33002987-E93F-49EF-8EC3-8B38ECD8D132}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{33002987-E93F-49EF-8EC3-8B38ECD8D132}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{33002987-E93F-49EF-8EC3-8B38ECD8D132}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{33002987-E93F-49EF-8EC3-8B38ECD8D132}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D599784E-A5FC-4DFA-9CD4-B19EF9A7B8A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D599784E-A5FC-4DFA-9CD4-B19EF9A7B8A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D599784E-A5FC-4DFA-9CD4-B19EF9A7B8A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D599784E-A5FC-4DFA-9CD4-B19EF9A7B8A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C6157B52-C32D-45C7-8C8B-0FD2B550B658}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C6157B52-C32D-45C7-8C8B-0FD2B550B658}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C6157B52-C32D-45C7-8C8B-0FD2B550B658}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6157B52-C32D-45C7-8C8B-0FD2B550B658}.Release|Any CPU.Build.0 = Release|Any CPU
+		{66E8098D-518B-4E89-A81F-5C1BD4351C2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66E8098D-518B-4E89-A81F-5C1BD4351C2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66E8098D-518B-4E89-A81F-5C1BD4351C2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66E8098D-518B-4E89-A81F-5C1BD4351C2D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{F42AF007-FC09-478E-8DAA-F4798FD7AAC0} = {A30517EC-6550-4B5F-A298-4EC68D481B4A}

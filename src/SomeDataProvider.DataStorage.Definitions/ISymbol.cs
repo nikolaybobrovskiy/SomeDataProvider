@@ -27,8 +27,8 @@ namespace SomeDataProvider.DataStorage.Definitions
 
 		bool IsDiscontinued { get; }
 
-		DataService DataService { get; set; }
+		DataService DataService { get; }
 
-		string? DataServiceSettings { get; set; }
+		string? DataServiceSettings { get; }
 	}
 }

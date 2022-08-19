@@ -21,32 +21,32 @@ namespace SomeDataProvider.DataStorage.Fred
 	// https://fred.stlouisfed.org/docs/api/fred/
 	public sealed class Service : IDisposable
 	{
-		internal const string DateFormat = "yyyy-MM-dd";
+		public const string DateFormat = "yyyy-MM-dd";
 		const string ApiUrl = "https://api.stlouisfed.org/fred/";
-		readonly ServiceApiKey _apiKey;
 
+		readonly ServiceApiKey _apiKey;
 		readonly HttpClient _httpClient;
 		readonly bool _disposeClient;
-		readonly ILogger<Service> _logger;
+		readonly ILogger<Service> _l;
 
 		public Service(ServiceApiKey apiKey, ILoggerFactory loggerFactory)
 		{
 			_apiKey = apiKey;
 			_httpClient = new HttpClient { BaseAddress = new Uri(ApiUrl) };
 			_disposeClient = true;
-			_logger = loggerFactory.CreateLogger<Service>();
+			_l = loggerFactory.CreateLogger<Service>();
 		}
 
 		public Service(HttpClient httpClient, ServiceApiKey apiKey, ILoggerFactory loggerFactory)
 		{
 			_httpClient = httpClient;
 			_apiKey = apiKey;
-			_logger = loggerFactory.CreateLogger<Service>();
+			_l = loggerFactory.CreateLogger<Service>();
 		}
 
 		public async Task<CategoryInfo[]> GetCategoriesAsync(int parentCategoryId = 0, CancellationToken cancellationToken = default)
 		{
-			return await _logger.LogOperationAsync(async () =>
+			return await _l.LogOperationAsync(async () =>
 			{
 				var jsonResponse = await _httpClient.GetJsonAsync($"category/children?category_id={parentCategoryId}&api_key={_apiKey}&file_type=json", cancellationToken);
 				if (jsonResponse["categories"] is not JArray catsJson) return Array.Empty<CategoryInfo>();
@@ -56,7 +56,7 @@ namespace SomeDataProvider.DataStorage.Fred
 
 		public async Task<SeriesInfo[]> GetCategorySeriesAsync(int categoryId, CancellationToken cancellationToken = default)
 		{
-			return await _logger.LogOperationAsync(async () =>
+			return await _l.LogOperationAsync(async () =>
 			{
 				var jsonResponse = await _httpClient.GetJsonAsync($"category/series?category_id={categoryId}&api_key={_apiKey}&file_type=json", cancellationToken);
 				if (jsonResponse["seriess"] is not JArray seriesJson) return Array.Empty<SeriesInfo>();
@@ -66,19 +66,22 @@ namespace SomeDataProvider.DataStorage.Fred
 
 		public async Task<IReadOnlyCollection<CategorizedSeriesInfo>> GetAllSeriesAsync(CancellationToken cancellationToken = default)
 		{
-			return await _logger.LogOperationAsync(async () => (await GetAllSeriesAsync(null, cancellationToken)).DistinctBy(x => x.Id).ToArray(), "GetAllSeries()");
+			return await _l.LogOperationAsync(async () => (await GetAllSeriesAsync(null, cancellationToken)).DistinctBy(x => x.Id).ToArray(), "GetAllSeries()");
 		}
 
-		public async Task<SeriesInfo?> GetSeriesInfoAsync(string seriesId, CancellationToken cancellationToken = default)
+		public async Task<SeriesInfo?> GetSeriesInfoAsync(SeriesInfoId seriesId, CancellationToken cancellationToken = default)
 		{
-			var jsonResponse = await _httpClient.GetJsonAsync($"series?series_id={seriesId}&api_key={_apiKey}&file_type=json", cancellationToken);
-			if (jsonResponse["seriess"] is JArray series && series.Count > 0)
-				return series[0].ToObject<SeriesInfo>();
-			return null;
+			return await _l.LogOperationAsync(async () =>
+			{
+				var jsonResponse = await _httpClient.GetJsonAsync($"series?series_id={seriesId}&api_key={_apiKey}&file_type=json", cancellationToken);
+				if (jsonResponse["seriess"] is JArray { Count: > 0 } series)
+					return series[0].ToObject<SeriesInfo>();
+				return null;
+			}, "GetSeriesInfo({seriesId})", seriesId);
 		}
 
 		public async Task<ObservationsData?> GetObservationsAsync(
-			string seriesId,
+			SeriesInfoId seriesId,
 			DateTime start = default,
 			DateTime end = default,
 			DataValueTransformation transformation = DataValueTransformation.NoTransformation,
@@ -86,7 +89,7 @@ namespace SomeDataProvider.DataStorage.Fred
 			int limit = 0,
 			CancellationToken cancellationToken = default)
 		{
-			return await _logger.LogOperationAsync(async () =>
+			return await _l.LogOperationAsync(async () =>
 			{
 				var unitsQueryParam = string.Empty;
 				if (transformation != DataValueTransformation.NoTransformation)

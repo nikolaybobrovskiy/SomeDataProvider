@@ -20,7 +20,6 @@ namespace SomeDataProvider.DataStorage.InMem
 	// TODO: Cache.
 	public sealed class SymbolsStore : ISymbolsStore, IDisposable
 	{
-		const char DataSourceSymbolSeparator = '-';
 		readonly Fred.Service _fredService;
 
 		public SymbolsStore(ILoggerFactory loggerFactory)

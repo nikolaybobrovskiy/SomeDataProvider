@@ -36,16 +36,16 @@ namespace SomeDataProvider.DtcProtocolServer
 		class StartCommand : CommandWithLogger<StartCommand>
 		{
 			readonly ILoggerFactory _loggerFactory;
-			readonly ISymbolsStore _symbolsStore;
+			readonly ISymbolsStoreProvider _symbolsStoreProvider;
 			readonly ISymbolHistoryStoreProvider _historyStoreProvider;
 
 			public StartCommand(
-				ISymbolsStore symbolsStore,
+				ISymbolsStoreProvider symbolsStoreProvider,
 				ISymbolHistoryStoreProvider historyStoreProvider,
 				ILoggerFactory loggerFactory)
 				: base(loggerFactory)
 			{
-				_symbolsStore = symbolsStore;
+				_symbolsStoreProvider = symbolsStoreProvider;
 				_historyStoreProvider = historyStoreProvider;
 				_loggerFactory = loggerFactory;
 			}
@@ -65,7 +65,7 @@ namespace SomeDataProvider.DtcProtocolServer
 						IPAddress.Any,
 						Port,
 						OnlyHistoryServer,
-						_symbolsStore,
+						_symbolsStoreProvider,
 						_historyStoreProvider,
 						_loggerFactory);
 					L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
@@ -80,6 +80,20 @@ namespace SomeDataProvider.DtcProtocolServer
 					L.LogCritical(ex, ex.Message);
 					return Task.FromResult(-1);
 				}
+			}
+		}
+
+		[Command("fillsymbols", FullName = "Fill symbols", Description = "Fills symbols settings to SierraChart settings file.")]
+		class FillSymbolsCommand : CommandWithLogger<StartCommand>
+		{
+			public FillSymbolsCommand(ILoggerFactory loggerFactory)
+				: base(loggerFactory)
+			{
+			}
+
+			public override Task<int> OnExecuteAsync(CommandLineApplication app)
+			{
+				throw new NotImplementedException();
 			}
 		}
 	}

@@ -32,7 +32,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		const int HistoryDownloadBatchSize = 922; // 85000 - goes to LOH, need less. 88 bytes per record.
 
 		readonly bool _onlyHistoryServer;
-		readonly ISymbolsStore _symbolsStore;
+		readonly ISymbolsStoreProvider _symbolsStoreProvider;
 		readonly ISymbolHistoryStoreProvider _symbolHistoryStoreProvider;
 		readonly CancellationTokenSource _disconnectTokenSource = new ();
 		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
@@ -43,14 +43,14 @@ namespace SomeDataProvider.DtcProtocolServer
 		public Session(
 			Server server,
 			bool onlyHistoryServer,
-			ISymbolsStore symbolsStore,
+			ISymbolsStoreProvider symbolsStoreProvider,
 			ISymbolHistoryStoreProvider symbolHistoryStoreProvider,
 			ILoggerFactory loggerFactory)
 			: base(server)
 		{
 			_currentMessageProtocol.MessageStreamer.MessageBytesReceived += OnMessageReceived;
 			_onlyHistoryServer = onlyHistoryServer;
-			_symbolsStore = symbolsStore;
+			_symbolsStoreProvider = symbolsStoreProvider;
 			_symbolHistoryStoreProvider = symbolHistoryStoreProvider;
 			L = loggerFactory.CreateLogger<Session>();
 		}
@@ -175,7 +175,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		async ValueTask SendKnownSymbolsInformationAsync(CancellationToken ct)
 		{
 			// TODO: Logging.
-			var symbols = await _symbolsStore.GetKnownSymbolsAsync(ct);
+			var symbols = await _symbolsStoreProvider.GetKnownSymbolsAsync(ct);
 			var ln = symbols.Count;
 			if (ln == 0) return;
 			var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
