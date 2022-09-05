@@ -19,16 +19,19 @@ sealed class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider
 	public const char DataSourcePrefixSeparator = '-';
 
 	readonly ILogger<StoresProvider> _l;
-	readonly DataStorage.Fred.Store _fredStore;
+	readonly Lazy<DataStorage.Fred.Store> _lazyFredStore;
+	readonly StoresOptions _opts;
+	readonly ILoggerFactory _loggerFactory;
 
 	public StoresProvider(StoresOptions opts, ILoggerFactory loggerFactory)
 	{
-		if (opts == null) throw new ArgumentNullException(nameof(opts));
-		if (loggerFactory == null) throw new ArgumentNullException(nameof(loggerFactory));
-		// TODO: Create on-demand so we could delete Fred assembly without consequence.
-		_fredStore = new DataStorage.Fred.Store(opts.KnownFred.KnownApiKey, loggerFactory);
+		_opts = opts ?? throw new ArgumentNullException(nameof(opts));
+		_loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
 		_l = loggerFactory.CreateLogger<StoresProvider>();
+		_lazyFredStore = new (CreateFredStore);
 	}
+
+	DataStorage.Fred.Store FredStore => _lazyFredStore.Value;
 
 	public ValueTask<ISymbolHistoryStore> GetSymbolHistoryStoreAsync(ISymbol symbol, HistoryInterval historyInterval, CancellationToken cancellationToken = default)
 	{
@@ -37,7 +40,7 @@ sealed class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider
 		switch (dataService)
 		{
 			case DataService.Fred:
-				return new ValueTask<ISymbolHistoryStore>(_fredStore);
+				return new ValueTask<ISymbolHistoryStore>(FredStore);
 			default:
 				throw new NotImplementedException($"Store is not implemented: {dataService}");
 		}
@@ -49,7 +52,7 @@ sealed class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider
 		switch (code)
 		{
 			case var _ when code.StartsWith($"{DataSourceFredPrefix}{DataSourcePrefixSeparator}", StringComparison.Ordinal):
-				return new ((_fredStore, code.Substring(DataSourceFredPrefix.Length + 1)));
+				return new ((FredStore, code.Substring(DataSourceFredPrefix.Length + 1)));
 			default:
 				return default;
 		}
@@ -60,14 +63,19 @@ sealed class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider
 		// TODO: Cache. Log cache (with LogOperation without Async or just LogInformation)?
 		return await _l.LogOperationAsync(async () =>
 		{
-			return (await _fredStore.GetKnownSymbolsAsync(cancellationToken))
+			return (await FredStore.GetKnownSymbolsAsync(cancellationToken))
 				.Select(symbol => new Symbol(DataSourceFredPrefix, symbol)).ToArray();
 		}, "GetKnownSymbols()");
 	}
 
 	public void Dispose()
 	{
-		_fredStore.Dispose();
+		if (_lazyFredStore.IsValueCreated) _lazyFredStore.Value.Dispose();
+	}
+
+	DataStorage.Fred.Store CreateFredStore()
+	{
+		return new DataStorage.Fred.Store(_opts.KnownFred.KnownApiKey, _loggerFactory);
 	}
 
 	public class StoresOptions
