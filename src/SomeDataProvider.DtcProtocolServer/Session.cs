@@ -172,33 +172,35 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		// https://www.sierrachart.com/index.php?page=doc/DTC_TestClient.php#PopulatingSymbolList
 		// ReSharper disable once UnusedMember.Local
-		async ValueTask SendKnownSymbolsInformationAsync(CancellationToken ct)
+		async Task SendKnownSymbolsInformationAsync(CancellationToken ct)
 		{
-			// TODO: Logging.
-			var symbols = await _symbolsStoreProvider.GetKnownSymbolsAsync(ct);
-			var ln = symbols.Count;
-			if (ln == 0) return;
-			var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
-			try
+			await L.LogOperationAsync(async () =>
 			{
-				var i = 0;
-				foreach (var symbol in symbols)
+				var symbols = await _symbolsStoreProvider.GetKnownSymbolsAsync(ct);
+				var ln = symbols.Count;
+				if (ln == 0) return;
+				var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+				try
 				{
-					if (encoder.EncodedMessageSize >= 80_000)
+					var i = 0;
+					foreach (var symbol in symbols)
 					{
-						SendAsync(encoder.GetEncodedMessage());
-						await encoder.TryDisposeAsync();
-						encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+						if (encoder.EncodedMessageSize >= 80_000)
+						{
+							SendAsync(encoder.GetEncodedMessage());
+							await encoder.TryDisposeAsync();
+							encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+						}
+						encoder.EncodeSecurityDefinitionResponse(new EncodeSecurityDefinitionResponseArgs(0, symbol, i == ln - 1));
+						i++;
 					}
-					encoder.EncodeSecurityDefinitionResponse(new EncodeSecurityDefinitionResponseArgs(0, symbol, i == ln - 1));
-					i++;
 				}
-			}
-			finally
-			{
-				await encoder.TryDisposeAsync();
-			}
-			SendAsync(encoder.GetEncodedMessage());
+				finally
+				{
+					await encoder.TryDisposeAsync();
+				}
+				SendAsync(encoder.GetEncodedMessage());
+			}, "SendKnownSymbolsInformation()");
 		}
 
 		void OnHeartbeatTimerElapsed(object? sender, ElapsedEventArgs e)
