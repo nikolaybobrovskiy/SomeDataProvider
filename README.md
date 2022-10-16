@@ -18,5 +18,7 @@ Currently implemented data sources:
   - Historical Intraday Data Source: `DTC historical data server`
   - Real-Time Data Client: `generic sub-clients`
 - Now one can add any FRED symbol chart:
-  - `Find Symbol` -> `Selected Symbol`: `fred-T5YIFR` ![Screenshot](https://github.com/nikolaybobrovskiy/SomeDataProvider/blob/master/ExampleFredSymbolFindDlg.png?raw=true)
-  -  Graph should be display as: ![Screenshot](https://github.com/nikolaybobrovskiy/SomeDataProvider/blob/master/ExampleFredSymbolChart.png?raw=true) 
+  - `Find Symbol` -> `Selected Symbol`: `fred-T5YIFR`\
+  ![Screenshot](https://raw.githubusercontent.com/nikolaybobrovskiy/SomeDataProvider/master/blob/ExampleFredSymbolFindDlg.png)
+  -  Graph should be display as:\
+  ![Screenshot](https://raw.githubusercontent.com/nikolaybobrovskiy/SomeDataProvider/master/blob/ExampleFredSymbolChart.png?raw=true) 
