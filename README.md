@@ -4,6 +4,7 @@ Currently implemented data sources:
 
 ## Use as [Fred Economic](https://fred.stlouisfed.org/docs/api/fred/) Data proxy
 - Get [FRED API Key](https://fred.stlouisfed.org/docs/api/api_key.html) and put it to settings file `appsettings.json` at `StoresOptions.Fred.ApiKey`
+- Download SomeDataProvider.DtcProtocolServer from `Release` section.
 - Run SomeDataProvider.DtcProtocolServer as `SomeDataProvider.DtcProtocolServer.exe start`
 - In [Sierra Chart](https://www.sierrachart.com/) open `Global Settings` -> `Symbol Settings` and add single symbol with the following configuration:
   - Symbol: `fred-~`
