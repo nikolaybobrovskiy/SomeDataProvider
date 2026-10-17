@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Offline tests of the DTC server: no test here calls FRED. Build it through SomeDataProvider.sln,
+       because NBLib's projects read their settings from the solution's .settings folder. -->
+
+  <PropertyGroup>
+    <TargetFramework>$(ModernFramework)</TargetFramework>
+    <CodeAnalysisRuleSet>i:\Dropbox\SoftConfig\VisualStudio\NBCSharpRules.ruleset</CodeAnalysisRuleSet>
+    <Nullable>enable</Nullable>
+    <LangVersion>default</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="i:\Dropbox\SoftConfig\VisualStudio\StyleCop.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
+    <PackageReference Include="NUnit" Version="$(NUnitVersion)" />
+    <PackageReference Include="NUnit3TestAdapter" Version="*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
+    <!-- StyleCop.Analyzers comes from NBLib's Directory.Build.props; adding it here again causes NU1504. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SomeDataProvider.DtcProtocolServer\SomeDataProvider.DtcProtocolServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Fixtures\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

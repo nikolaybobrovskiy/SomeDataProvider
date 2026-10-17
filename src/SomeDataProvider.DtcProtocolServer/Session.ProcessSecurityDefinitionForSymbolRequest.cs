@@ -36,7 +36,11 @@ partial class Session
 			else
 			{
 				L.LogInformation("Answer: SecurityDefinitionResponse");
-				encoder.EncodeSecurityDefinitionResponse(new IMessageEncoder.EncodeSecurityDefinitionResponseArgs(requestId, symbol, true));
+				encoder.EncodeSecurityDefinitionResponse(new IMessageEncoder.EncodeSecurityDefinitionResponseArgs(requestId, symbol, true)
+				{
+					// Echo the requested symbol: the store's code lacks the data source prefix, such as "fred-".
+					Symbol = securityDefinitionRequest.Symbol,
+				});
 			}
 		}
 		SendAsync(encoder.GetEncodedMessage());

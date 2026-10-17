@@ -100,7 +100,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 		{
 			Bytes = StructConverter.StructToBytesArray(new HistoricalPriceDataRecordResponse(
 				requestId,
-				Convert.ToInt64(startDateTime.ToUnixTimeStamp()),
+				DtcDateTime.ToUnixMicroseconds(startDateTime),
 				lastPrice,
 				isFinalRecord ? (byte)1 : (byte)0)
 			{

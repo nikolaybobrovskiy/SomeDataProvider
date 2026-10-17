@@ -45,6 +45,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SomeDataProvider.DtcProtocolServer.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Remove="Terminal\**" />
   </ItemGroup>
 

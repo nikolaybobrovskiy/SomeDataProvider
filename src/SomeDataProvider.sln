@@ -48,6 +48,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorag
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage.Definitions", "SomeDataProvider.DataStorage.Definitions\SomeDataProvider.DataStorage.Definitions.csproj", "{66E8098D-518B-4E89-A81F-5C1BD4351C2D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DtcProtocolServer.Test", "SomeDataProvider.DtcProtocolServer.Test\SomeDataProvider.DtcProtocolServer.Test.csproj", "{E16CBDBF-C526-4B35-8924-1598BD9267FD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -122,6 +124,10 @@ Global
 		{66E8098D-518B-4E89-A81F-5C1BD4351C2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{66E8098D-518B-4E89-A81F-5C1BD4351C2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{66E8098D-518B-4E89-A81F-5C1BD4351C2D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E16CBDBF-C526-4B35-8924-1598BD9267FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E16CBDBF-C526-4B35-8924-1598BD9267FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E16CBDBF-C526-4B35-8924-1598BD9267FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E16CBDBF-C526-4B35-8924-1598BD9267FD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{F42AF007-FC09-478E-8DAA-F4798FD7AAC0} = {A30517EC-6550-4B5F-A298-4EC68D481B4A}

@@ -16,7 +16,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 		public ushort Size;
 		public MessageTypeEnum Type;
 		public int RequestId;
-		public long StartDateTime; // t_DateTime
+		public long StartDateTime; // t_DateTimeWithMicrosecondsInt
 		public double OpenPrice;
 		public double HighPrice;
 		public double LowPrice;
