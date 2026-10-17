@@ -5,6 +5,7 @@ namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
 	using System.Context;
+	using System.Net;
 	using System.Net.Sockets;
 	using System.Threading;
 	using System.Threading.Tasks;
@@ -55,6 +56,12 @@ namespace SomeDataProvider.DtcProtocolServer
 			L = loggerFactory.CreateLogger<Session>();
 		}
 
+		/// <summary>
+		/// The client's endpoint, captured while the session was connecting, or null if it was unavailable then. Unlike
+		/// Socket.RemoteEndPoint it can be read after the client disconnected and the socket was disposed.
+		/// </summary>
+		internal EndPoint? RemoteEndPoint { get; private set; }
+
 		ILogger<Session> L { get; }
 
 		protected override void Dispose(bool disposingManagedResources)
@@ -64,6 +71,13 @@ namespace SomeDataProvider.DtcProtocolServer
 			_currentMessageProtocol.MessageStreamer.MessageBytesReceived -= OnMessageReceived;
 			_currentMessageProtocol.Dispose();
 			_disconnectTokenSource.Dispose();
+		}
+
+		protected override void OnConnecting()
+		{
+			// NetCoreServer calls this before it starts receiving, so the client's disconnect cannot have disposed the
+			// socket yet; by the time it calls Server.OnConnected, it can have.
+			RemoteEndPoint = SomeDataProvider.DtcProtocolServer.Server.TryGetRemoteEndPoint(Socket, L);
 		}
 
 		protected override void OnSent(long sent, long pending)

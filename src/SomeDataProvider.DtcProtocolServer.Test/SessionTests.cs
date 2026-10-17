@@ -90,9 +90,8 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 				client = new TcpClient();
 				client.Connect(IPAddress.Loopback, port);
 				client.ReceiveTimeout = (int)ResponseTimeout.TotalMilliseconds;
-				// NetCoreServer starts receiving before it calls Server.OnConnected, which reads the session socket's
-				// RemoteEndPoint. Closing the connection before that callback ends makes it throw on a pool thread and
-				// aborts the test host, so wait for it.
+				// NetCoreServer starts receiving before it calls Server.OnConnected. Wait for that callback so each test
+				// starts from a fully accepted connection; ImmediateDisconnectTests covers clients that close before it.
 				Assert.That(server.SessionConnected.Wait(ResponseTimeout), Is.True, "The server did not finish accepting the connection.");
 				return new Connection(server, client);
 			}

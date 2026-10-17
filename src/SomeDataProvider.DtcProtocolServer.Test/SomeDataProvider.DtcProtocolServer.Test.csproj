@@ -9,6 +9,8 @@
     <Nullable>enable</Nullable>
     <LangVersion>default</LangVersion>
     <IsPackable>false</IsPackable>
+    <!-- Program.cs supplies the entry point: ImmediateDisconnectTests runs this assembly as a child process. -->
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
 
   <ItemGroup>
