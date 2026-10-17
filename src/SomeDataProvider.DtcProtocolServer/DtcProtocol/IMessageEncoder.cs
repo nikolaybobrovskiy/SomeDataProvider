@@ -5,8 +5,9 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
 	using System;
 
+	using Dtc.Protocol;
+
 	using SomeDataProvider.DataStorage.Definitions;
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	// https://www.sierrachart.com/index.php?page=doc/DTCMessageDocumentation.php
 
@@ -80,9 +81,9 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 				IsFinalMessage = true,
 				Symbol = string.Empty,
 				Exchange = string.Empty,
-				SecurityType = SecurityTypeEnum.SecurityTypeUnset,
+				SecurityType = SecurityTypeEnum.SECURITY_TYPE_UNSET,
 				Description = string.Empty,
-				PriceDisplayFormat = PriceDisplayFormatEnum.PriceDisplayFormatUnset,
+				PriceDisplayFormat = PriceDisplayFormatEnum.PRICE_DISPLAY_FORMAT_UNSET,
 				Currency = string.Empty
 			});
 		}

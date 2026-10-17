@@ -5,13 +5,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
 	using System;
 
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
-
 	// https://www.sierrachart.com/index.php?page=doc/DTCMessageDocumentation.php
 
 	interface IMessageDecoder
 	{
-		MessageTypeEnum DecodeMessageType();
+		/// <summary>The message's wire Type, one of the message type constants of <see cref="Dtc.Protocol.DtcConstants"/>.</summary>
+		ushort DecodeMessageType();
 
 		LogonRequest DecodeLogonRequest();
 

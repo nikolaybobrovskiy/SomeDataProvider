@@ -6,10 +6,11 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	using System;
 	using System.Globalization;
 
+	using Dtc.Protocol;
+
 	using NUnit.Framework;
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	// PLAN.md §7.3 item 1: history records carry StartDateTime as t_DateTimeWithMicrosecondsInt.
 	[TestFixture]
@@ -25,7 +26,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		[TestCase(false, "1947-01-01T00:00:00.0000000Z", -725_846_400_000_000L)]
 		public void Record_CarriesStartDateTimeInMicroseconds(bool variableLengthStrings, string startDateTime, long expectedMicroseconds)
 		{
-			var encoding = variableLengthStrings ? EncodingEnum.BinaryWithVariableLengthStrings : EncodingEnum.BinaryEncoding;
+			var encoding = variableLengthStrings ? EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS : EncodingEnum.BINARY_ENCODING;
 			var dateTime = DateTime.Parse(startDateTime, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
 			Assert.That(dateTime.Kind, Is.EqualTo(DateTimeKind.Utc));
 			var encoder = MessageProtocol.CreateMessageProtocol(encoding).MessageEncoderFactory.CreateMessageEncoder();

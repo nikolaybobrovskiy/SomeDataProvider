@@ -3,7 +3,7 @@
 
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
+	using Dtc.Protocol;
 
 	class MarketDataRequest
 	{

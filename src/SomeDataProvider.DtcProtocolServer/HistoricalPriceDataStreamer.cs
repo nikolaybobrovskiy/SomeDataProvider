@@ -7,13 +7,14 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Dtc.Protocol;
+
 using Microsoft.Extensions.Logging;
 
 using NBLib.CodeFlow;
 
 using SomeDataProvider.DataStorage.Definitions;
 using SomeDataProvider.DtcProtocolServer.DtcProtocol;
-using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 /// <summary>
 /// Sends one historical price data response: exactly one HISTORICAL_PRICE_DATA_RESPONSE_HEADER, then the records, one

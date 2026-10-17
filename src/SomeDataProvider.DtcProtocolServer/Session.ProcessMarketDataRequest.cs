@@ -7,12 +7,13 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Dtc.Protocol;
+
 using Microsoft.Extensions.Logging;
 
 using NBLib.Logging;
 
 using SomeDataProvider.DtcProtocolServer.DtcProtocol;
-using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 partial class Session
 {
@@ -22,7 +23,7 @@ partial class Session
 		{
 			var marketDataRequest = decoder.DecodeMarketDataRequest();
 			L.LogInformation("MarketDataRequest: {marketDataRequest}", marketDataRequest);
-			if (marketDataRequest.RequestAction != RequestActionEnum.Subscribe)
+			if (marketDataRequest.RequestAction != RequestActionEnum.SUBSCRIBE)
 			{
 				throw new NotSupportedException($"MarketDataRequestAction '{marketDataRequest.RequestAction}' is not supported.");
 			}
@@ -49,7 +50,7 @@ partial class Session
 				else
 				{
 					L.LogInformation("Answer: MarketDataSnapshot");
-					encoder.EncodeMarketDataSnapshot(marketDataRequest.SymbolId, TradingStatusEnum.TradingStatusUnknown, DateTime.Now);
+					encoder.EncodeMarketDataSnapshot(marketDataRequest.SymbolId, TradingStatusEnum.TRADING_STATUS_UNKNOWN, DateTime.Now);
 				}
 			}
 			SendAsync(encoder.GetEncodedMessage());

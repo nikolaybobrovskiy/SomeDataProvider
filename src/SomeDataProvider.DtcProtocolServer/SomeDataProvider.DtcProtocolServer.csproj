@@ -13,6 +13,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- DTC messages and codecs from MrktPltfrm, restored from the local feed in nuget.config. The exact version is
+         pinned, so each commit names the Dtc.Protocol it was built and tested with. -->
+    <PackageReference Include="Dtc.Protocol" Version="[8.0.0-alpha.1]" />
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="*" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftExtensionsVersion)" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />

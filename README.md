@@ -37,4 +37,11 @@ Currently implemented data sources:
   - `Find Symbol` -> `Selected Symbol`: `fred-T5YIFR`\
   ![Screenshot](https://raw.githubusercontent.com/nikolaybobrovskiy/SomeDataProvider/master/blob/ExampleFredSymbolFindDlg.png)
   -  Graph should be display as:\
-  ![Screenshot](https://raw.githubusercontent.com/nikolaybobrovskiy/SomeDataProvider/master/blob/ExampleFredSymbolChart.png?raw=true) 
+  ![Screenshot](https://raw.githubusercontent.com/nikolaybobrovskiy/SomeDataProvider/master/blob/ExampleFredSymbolChart.png?raw=true)
+
+## Build from source
+`SomeDataProvider.DtcProtocolServer` uses `Dtc.Protocol`, the DTC message library of the author's MrktPltfrm
+project, which is not on nuget.org. `nuget.config` restores it only from the local folder feed
+`I:\Projects\LocalNuGet`, and the project pins its exact version. Before the first build, pack that version of
+`Dtc.Protocol` and add it to the feed with `dotnet nuget push <nupkg> -s I:\Projects\LocalNuGet`. `nuget.config`
+explains how to use another folder.

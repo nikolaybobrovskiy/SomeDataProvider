@@ -5,7 +5,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
 	using System;
 
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
+	using Dtc.Protocol;
 
 	class HistoricalPriceDataRequest
 	{

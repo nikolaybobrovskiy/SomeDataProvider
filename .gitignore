@@ -57,3 +57,6 @@ workbench.dat
 
 # Local secrets (never commit): real values for appsettings.Local.example.json templates.
 appsettings.Local.json
+
+# A machine's own NuGet.Config that redefines the LocalNuGet feed folder of nuget.config.
+/src/NuGet.Config

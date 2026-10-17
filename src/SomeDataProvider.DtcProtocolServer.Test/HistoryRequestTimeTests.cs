@@ -14,6 +14,8 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	using System.Threading.Tasks;
 	using System.Web;
 
+	using Dtc.Protocol;
+
 	using Microsoft.Extensions.Logging.Abstractions;
 
 	using NUnit.Framework;
@@ -21,7 +23,6 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DataStorage.Fred;
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	/// <summary>
 	/// PLAN.md §7.3 item 5: request times pass through NBLib's <c>UnixTimeStampToDateTimeUtc</c>. 0 must mean the earliest
@@ -55,7 +56,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			Assert.That(request.StartDateTime, Is.EqualTo(new DateTime(1947, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
 			Assert.That(request.EndDateTime, Is.EqualTo(new DateTime(1960, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
 			Assert.That(request.Symbol, Is.EqualTo("fred-GNPCA"));
-			Assert.That(request.RecordInterval, Is.EqualTo(HistoricalDataIntervalEnum.Interval1Day));
+			Assert.That(request.RecordInterval, Is.EqualTo(HistoricalDataIntervalEnum.INTERVAL_1_DAY));
 		}
 
 		[TestCase(0L, 0L, null, null)]
@@ -89,11 +90,11 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			Assert.That(response.Records.Select(r => r.LastPrice), Is.EqualTo(new[] { 243.164, 250.716, 542.648 }));
 		}
 
-		static DtcProtocol.HistoricalPriceDataRequest Decode(byte[] message)
+		static HistoricalPriceDataRequest Decode(byte[] message)
 		{
-			var decoder = MessageProtocol.CreateMessageProtocol(EncodingEnum.BinaryWithVariableLengthStrings)
+			var decoder = MessageProtocol.CreateMessageProtocol(EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS)
 				.MessageDecoderFactory.CreateMessageDecoder(message);
-			Assert.That(decoder.DecodeMessageType(), Is.EqualTo(MessageTypeEnum.HistoricalPriceDataRequest));
+			Assert.That(decoder.DecodeMessageType(), Is.EqualTo(DtcConstants.HISTORICAL_PRICE_DATA_REQUEST));
 			return decoder.DecodeHistoricalPriceDataRequest();
 		}
 

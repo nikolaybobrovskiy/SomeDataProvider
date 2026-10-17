@@ -5,45 +5,26 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 {
 	using System;
 
-	using NBLib.BuiltInTypes;
-	using NBLib.DateTime;
+	using Dtc.Protocol;
 
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
+	using NBLib.DateTime;
 
 	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
 
+	/// <summary>Encodes messages in binary encoding with the structures and encoder of Dtc.Protocol.</summary>
+	/// <remarks>
+	/// The encoder appends each message it encodes to its buffer, so <see cref="GetEncodedMessage"/> returns every message
+	/// encoded so far, one after another.
+	/// </remarks>
 	class MessageEncoder : IMessageEncoder
 	{
 		byte[]? _bytes;
 
 		public int EncodedMessageSize => _bytes?.Length ?? 0;
 
-		protected byte[]? Bytes
-		{
-			get => _bytes;
-			set
-			{
-				if (value == null || value.Length == 0)
-				{
-					return;
-				}
-				if (_bytes?.Length > 0)
-				{
-					var newArr = new byte[_bytes.Length + value.Length];
-					Array.Copy(_bytes, newArr, _bytes.Length);
-					Array.Copy(value, 0, newArr, _bytes.Length, value.Length);
-					_bytes = newArr;
-				}
-				else
-				{
-					_bytes = value;
-				}
-			}
-		}
-
 		public void EncodeEncodingResponse(EncodingEnum encoding)
 		{
-			Bytes = StructConverter.StructToBytesArray(new EncodingResponse(encoding));
+			Append(new s_EncodingResponse { Encoding = encoding });
 		}
 
 		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection)
@@ -53,7 +34,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public void EncodeHeartbeatMessage(uint numDroppedMessages)
 		{
-			Bytes = StructConverter.StructToBytesArray(new Heartbeat(0));
+			Append(new s_Heartbeat { NumDroppedMessages = numDroppedMessages });
 		}
 
 		public virtual void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText)
@@ -68,10 +49,10 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public void EncodeMarketDataSnapshot(uint symbolId, TradingStatusEnum tradingStatus, DateTime lastTradeDateTime)
 		{
-			Bytes = StructConverter.StructToBytesArray(new MarketDataSnapshot(
-				symbolId,
-				tradingStatus)
+			Append(new s_MarketDataSnapshot
 			{
+				SymbolID = symbolId,
+				TradingStatus = tradingStatus,
 				LastTradeDateTime = lastTradeDateTime.ToUnixTimeStamp(),
 			});
 		}
@@ -88,35 +69,59 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 
 		public void EncodeHistoricalPriceDataResponseHeader(int requestId, HistoricalDataIntervalEnum recordInterval, bool useZLibCompression, bool noRecordsToReturn, float intToFloatPriceDivisor)
 		{
-			Bytes = StructConverter.StructToBytesArray(new HistoricalPriceDataResponseHeader(
-				requestId,
-				recordInterval,
-				useZLibCompression ? (byte)1 : (byte)0,
-				noRecordsToReturn ? (byte)1 : (byte)0,
-				intToFloatPriceDivisor));
+			Append(new s_HistoricalPriceDataResponseHeader
+			{
+				RequestID = requestId,
+				RecordInterval = recordInterval,
+				UseZLibCompression = useZLibCompression ? (byte)1 : (byte)0,
+				NoRecordsToReturn = noRecordsToReturn ? (byte)1 : (byte)0,
+				IntToFloatPriceDivisor = intToFloatPriceDivisor,
+			});
 		}
 
 		public void EncodeHistoricalPriceDataRecordResponse(int requestId, DateTime startDateTime, double openPrice, double highPrice, double lowPrice, double lastPrice, double volume, uint openInterestOrNumTrades, double bidVolume, double askVolume, bool isFinalRecord)
 		{
-			Bytes = StructConverter.StructToBytesArray(new HistoricalPriceDataRecordResponse(
-				requestId,
-				DtcDateTime.ToUnixMicroseconds(startDateTime),
-				lastPrice,
-				isFinalRecord ? (byte)1 : (byte)0)
+			Append(new s_HistoricalPriceDataRecordResponse
 			{
+				RequestID = requestId,
+				StartDateTime = DtcDateTime.ToUnixMicroseconds(startDateTime),
 				OpenPrice = openPrice,
 				HighPrice = highPrice,
 				LowPrice = lowPrice,
+				LastPrice = lastPrice,
 				Volume = volume,
-				OpenInterestOrNumTrades = openInterestOrNumTrades,
+				// OpenInterest and NumTrades share their storage, as in the header's union.
+				OpenInterest = openInterestOrNumTrades,
 				BidVolume = bidVolume,
 				AskVolume = askVolume,
+				IsFinalRecord = isFinalRecord ? (byte)1 : (byte)0,
 			});
 		}
 
 		public byte[] GetEncodedMessage()
 		{
-			return Bytes ?? throw new InvalidOperationException("Message is not ready.");
+			return _bytes ?? throw new InvalidOperationException("Message is not ready.");
+		}
+
+		/// <summary>Encodes a message without strings and appends it to the buffer.</summary>
+		protected void Append<T>(in T message)
+			where T : unmanaged, IDtcBinaryMessage
+		{
+			DtcBinaryEncoder.Encode(in message, Extend(DtcBinaryEncoder.GetEncodedLength<T>()));
+		}
+
+		/// <summary>Appends an encoded message to the buffer.</summary>
+		protected void Append(ReadOnlySpan<byte> message)
+		{
+			message.CopyTo(Extend(message.Length));
+		}
+
+		/// <summary>Grows the buffer by <paramref name="length"/> bytes and returns them.</summary>
+		Span<byte> Extend(int length)
+		{
+			var start = _bytes?.Length ?? 0;
+			Array.Resize(ref _bytes, start + length);
+			return _bytes.AsSpan(start, length);
 		}
 
 		public sealed class Factory : IMessageEncoderFactory

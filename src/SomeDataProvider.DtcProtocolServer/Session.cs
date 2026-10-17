@@ -11,6 +11,8 @@ namespace SomeDataProvider.DtcProtocolServer
 	using System.Threading.Tasks;
 	using System.Timers;
 
+	using Dtc.Protocol;
+
 	using Microsoft.Extensions.Logging;
 
 	using NBLib.CodeFlow;
@@ -21,7 +23,6 @@ namespace SomeDataProvider.DtcProtocolServer
 
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
 	using Timer = System.Timers.Timer;
@@ -137,31 +138,31 @@ namespace SomeDataProvider.DtcProtocolServer
 						await using (new FinallyAsync(() => encoder.TryDisposeAsync()))
 						{
 							var messageType = decoder.DecodeMessageType();
-							L.LogInformation("RequestReceived: {requestType}", messageType);
+							L.LogInformation("RequestReceived: {requestType}", MessageTypeNames.Get(messageType));
 							switch (messageType)
 							{
-								case MessageTypeEnum.EncodingRequest:
+								case DtcConstants.ENCODING_REQUEST:
 									ProcessEncodingRequest(decoder, encoder);
 									break;
-								case MessageTypeEnum.LogonRequest:
+								case DtcConstants.LOGON_REQUEST:
 									ProcessLogonRequest(decoder, encoder);
 									//// await SendKnownSymbolsInformationAsync(ct);
 									break;
-								case MessageTypeEnum.Heartbeat:
+								case DtcConstants.HEARTBEAT:
 									// TODO: Add Heartbeat detection logic.
 									// It is recommended that if there is a loss of HEARTBEAT messages from the other side, for twice the amount of the HeartbeatIntervalInSeconds time that it is safe to assume that the other side is no longer present and the network socket should be then gracefully closed.
 									break;
-								case MessageTypeEnum.HistoricalPriceDataRequest:
+								case DtcConstants.HISTORICAL_PRICE_DATA_REQUEST:
 									await ProcessHistoricalPriceDataRequestAsync(decoder, encoder, ct);
 									break;
-								case MessageTypeEnum.MarketDataRequest:
+								case DtcConstants.MARKET_DATA_REQUEST:
 									await ProcessMarketDataRequestAsync(decoder, encoder, ct);
 									break;
-								case MessageTypeEnum.SecurityDefinitionForSymbolRequest:
+								case DtcConstants.SECURITY_DEFINITION_FOR_SYMBOL_REQUEST:
 									await ProcessSecurityDefinitionForSymbolRequestAsync(decoder, encoder, ct);
 									break;
 								default:
-									L.LogWarning($"Message type is not supported: {messageType}.");
+									L.LogWarning($"Message type is not supported: {MessageTypeNames.Get(messageType)}.");
 									break;
 								//// throw new NotSupportedException($"Message type is not supported: {messageType}.");
 							}

@@ -9,12 +9,13 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	using System.Threading;
 	using System.Threading.Tasks;
 
+	using Dtc.Protocol;
+
 	using Microsoft.Extensions.Logging.Abstractions;
 
 	using NUnit.Framework;
 
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 	// PLAN.md §7.3 items 2 and 3: one header per response, and a response with records ends with exactly one final record.
 	[TestFixture]
@@ -134,7 +135,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			await HistoricalPriceDataStreamer.StreamAsync(
 				reader,
 				RequestId,
-				HistoricalDataIntervalEnum.Interval1Day,
+				HistoricalDataIntervalEnum.INTERVAL_1_DAY,
 				protocol.MessageEncoderFactory,
 				bytes => sends.Add(DtcWire.SplitFrames(bytes)),
 				NullLogger.Instance,

@@ -4,16 +4,20 @@
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
 	using System;
+	using System.Text;
+
+	using Dtc.Protocol;
 
 	using NBLib.CodeFlow;
 
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
-
 	sealed class MessageProtocol : IDisposable
 	{
-		public const int Version = 8;
+		public const int Version = DtcConstants.CURRENT_VERSION;
 
-		public const EncodingEnum PreferredEncoding = EncodingEnum.BinaryWithVariableLengthStrings;
+		public const EncodingEnum PreferredEncoding = EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS;
+
+		/// <summary>The text encoding of the server's strings: ASCII, which sends any other character as '?'.</summary>
+		public static readonly Encoding TextEncoding = System.Text.Encoding.ASCII;
 
 		MessageProtocol(EncodingEnum encoding, IMessageDecoderFactory messageDecoderFactory, IMessageEncoderFactory messageEncoderFactory, IMessageStreamer messageStreamer)
 		{
@@ -38,12 +42,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 			IMessageStreamer messageStreamer;
 			switch (encoding)
 			{
-				case EncodingEnum.BinaryEncoding:
+				case EncodingEnum.BINARY_ENCODING:
 					decoderFactory = new Binary.MessageDecoder.Factory();
 					encoderFactory = new Binary.MessageEncoder.Factory();
 					messageStreamer = new Binary.MessageStreamer();
 					break;
-				case EncodingEnum.BinaryWithVariableLengthStrings:
+				case EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS:
 					decoderFactory = new BinaryVls.MessageDecoder.Factory();
 					encoderFactory = new BinaryVls.MessageEncoder.Factory();
 					messageStreamer = new Binary.MessageStreamer();

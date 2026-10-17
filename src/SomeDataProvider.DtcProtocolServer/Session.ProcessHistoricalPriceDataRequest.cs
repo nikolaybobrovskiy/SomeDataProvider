@@ -6,13 +6,14 @@ namespace SomeDataProvider.DtcProtocolServer;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Dtc.Protocol;
+
 using Microsoft.Extensions.Logging;
 
 using NBLib.Logging;
 
 using SomeDataProvider.DataStorage.Definitions;
 using SomeDataProvider.DtcProtocolServer.DtcProtocol;
-using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 partial class Session
 {
@@ -26,7 +27,7 @@ partial class Session
 			if (getSymbolsStoreResult == null)
 			{
 				L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbolStore");
-				encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, $"Symbol store is found: {historicalPriceDataRequest.Symbol}.");
+				encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, $"Symbol store is found: {historicalPriceDataRequest.Symbol}.");
 				SendAsync(encoder.GetEncodedMessage());
 			}
 			else
@@ -36,7 +37,7 @@ partial class Session
 				if (symbol == null)
 				{
 					L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
-					encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HpdrGeneralRejectError, $"Symbol is unknown: {symbolCode}.");
+					encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, $"Symbol is unknown: {symbolCode}.");
 					SendAsync(encoder.GetEncodedMessage());
 				}
 				else
@@ -53,8 +54,8 @@ partial class Session
 		{
 			var historyInterval = historicalPriceDataRequest.RecordInterval switch
 			{
-				HistoricalDataIntervalEnum.IntervalTick => HistoryInterval.Tick,
-				< HistoricalDataIntervalEnum.Interval1Day => HistoryInterval.Intraday,
+				HistoricalDataIntervalEnum.INTERVAL_TICK => HistoryInterval.Tick,
+				< HistoricalDataIntervalEnum.INTERVAL_1_DAY => HistoryInterval.Intraday,
 				_ => HistoryInterval.Daily
 			};
 			var store = await _symbolHistoryStoreProvider.GetSymbolHistoryStoreAsync(symbol, historyInterval, ct);

@@ -3,10 +3,11 @@
 
 namespace SomeDataProvider.DtcProtocolServer;
 
+using Dtc.Protocol;
+
 using Microsoft.Extensions.Logging;
 
 using SomeDataProvider.DtcProtocolServer.DtcProtocol;
-using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
 
 partial class Session
 {
@@ -16,7 +17,7 @@ partial class Session
 		L.LogInformation("LogonInfo: {heartbeatIntervalInSeconds}, {clientName}, {hardwareIdentifier}", logonRequest.HeartbeatIntervalInSeconds, logonRequest.ClientName, logonRequest.HardwareIdentifier);
 		StartHeartbeatTimer(logonRequest.HeartbeatIntervalInSeconds * 1000);
 		L.LogInformation("Answer: LogonSuccess");
-		encoder.EncodeLogonResponse(LogonStatusEnum.LogonSuccess, "Logon is successful.", _onlyHistoryServer);
+		encoder.EncodeLogonResponse(LogonStatusEnum.LOGON_SUCCESS, "Logon is successful.", _onlyHistoryServer);
 		SendAsync(encoder.GetEncodedMessage());
 	}
 }

@@ -5,9 +5,9 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 {
 	using System;
 
-	using NBLib.BuiltInTypes;
+	using Dtc.Protocol;
 
-	using SomeDataProvider.DtcProtocolServer.DtcProtocol.Enums;
+	using LogonRequestRecord = Dtc.Protocol.Messages.LogonRequest;
 
 	class MessageDecoder : IMessageDecoder
 	{
@@ -16,45 +16,41 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			Buffer = buffer;
 		}
 
+		/// <summary>One complete message, as <see cref="MessageStreamer"/> passes it on: its Size field equals its length.</summary>
 		protected Memory<byte> Buffer { get; }
 
-		public MessageTypeEnum DecodeMessageType()
+		public ushort DecodeMessageType()
 		{
-			return (MessageTypeEnum)BitConverter.ToUInt16(Buffer.Span.Slice(2, 2));
+			return BitConverter.ToUInt16(Buffer.Span.Slice(2, 2));
 		}
 
-		public virtual DtcProtocol.LogonRequest DecodeLogonRequest()
+		public virtual LogonRequest DecodeLogonRequest()
 		{
-			var r = GetRequest<LogonRequest>();
-			return new DtcProtocol.LogonRequest(r.HeartbeatIntervalInSeconds, r.ClientName, r.HardwareIdentifier);
+			DtcBinaryDecoder.Decode(Buffer.Span, out s_LogonRequest message);
+			var r = LogonRequestRecord.FromBinary(in message, MessageProtocol.TextEncoding);
+			return new LogonRequest(r.HeartbeatIntervalInSeconds, r.ClientName, r.HardwareIdentifier);
 		}
 
-		public virtual DtcProtocol.HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest()
+		public virtual HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest()
 		{
 			throw new NotImplementedException();
 		}
 
-		// ReSharper disable once RedundantNameQualifier
-		public virtual DtcProtocol.MarketDataRequest DecodeMarketDataRequest()
+		public virtual MarketDataRequest DecodeMarketDataRequest()
 		{
 			throw new NotImplementedException();
 		}
 
-		// ReSharper disable once RedundantNameQualifier
-		public virtual DtcProtocol.SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest()
+		public virtual SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest()
 		{
 			throw new NotImplementedException();
 		}
 
-		public EncodingRequest DecodeEncodingRequest()
+		/// <summary>Decodes ENCODING_REQUEST, which has no strings, so every encoding sends it in binary encoding.</summary>
+		public s_EncodingRequest DecodeEncodingRequest()
 		{
-			return GetRequest<EncodingRequest>();
-		}
-
-		protected T GetRequest<T>()
-			where T : struct
-		{
-			return Buffer.ToStruct<T>()!.Value;
+			DtcBinaryDecoder.Decode(Buffer.Span, out s_EncodingRequest message);
+			return message;
 		}
 
 		public sealed class Factory : IMessageDecoderFactory

@@ -5,31 +5,43 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 {
 	using System;
 
+	using Dtc.Protocol.Vls;
+
 	using NBLib.DateTime;
 
+	/// <summary>Decodes requests in binary encoding with variable-length strings, with the codec of Dtc.Protocol.</summary>
+	/// <remarks>
+	/// A malformed string field, such as one that ends beyond the message or lacks its null terminator, makes the decoder
+	/// throw <see cref="System.IO.InvalidDataException"/>.
+	/// </remarks>
 	class MessageDecoder : Binary.MessageDecoder
 	{
+		/// <summary>The most bytes of a request's string that the server decodes; it ignores the rest.</summary>
+		const int MaxStringLength = 4096;
+
 		MessageDecoder(Memory<byte> buffer)
 			: base(buffer)
 		{
 		}
 
-		public override DtcProtocol.LogonRequest DecodeLogonRequest()
+		public override LogonRequest DecodeLogonRequest()
 		{
-			var r = GetRequest<LogonRequest>();
-			return new DtcProtocol.LogonRequest(
+			var frame = Buffer.Span;
+			DtcVlsDecoder.Decode(frame, out s_LogonRequest r);
+			return new LogonRequest(
 				r.HeartbeatIntervalInSeconds,
-				r.GetClientName(Buffer.Span),
-				r.GetHardwareIdentifier(Buffer.Span));
+				GetString(frame, r.ClientName),
+				GetString(frame, r.HardwareIdentifier));
 		}
 
-		public override DtcProtocol.HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest()
+		public override HistoricalPriceDataRequest DecodeHistoricalPriceDataRequest()
 		{
-			var r = GetRequest<HistoricalPriceDataRequest>();
-			return new DtcProtocol.HistoricalPriceDataRequest(
-				r.RequestId,
-				r.GetSymbol(Buffer.Span),
-				r.GetExchange(Buffer.Span),
+			var frame = Buffer.Span;
+			DtcVlsDecoder.Decode(frame, out s_HistoricalPriceDataRequest r);
+			return new HistoricalPriceDataRequest(
+				r.RequestID,
+				GetString(frame, r.Symbol),
+				GetString(frame, r.Exchange),
 				r.RecordInterval,
 				Convert.ToDouble(r.StartDateTime).UnixTimeStampToDateTimeUtc(),
 				Convert.ToDouble(r.EndDateTime).UnixTimeStampToDateTimeUtc(),
@@ -37,24 +49,36 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 				r.UseZLibCompression == 1);
 		}
 
-		public override DtcProtocol.MarketDataRequest DecodeMarketDataRequest()
+		public override MarketDataRequest DecodeMarketDataRequest()
 		{
-			var r = GetRequest<MarketDataRequest>();
-			return new DtcProtocol.MarketDataRequest(
+			var frame = Buffer.Span;
+			DtcVlsDecoder.Decode(frame, out s_MarketDataRequest r);
+			return new MarketDataRequest(
 				r.RequestAction,
-				r.SymbolId,
-				r.GetSymbol(Buffer.Span),
-				r.GetExchange(Buffer.Span),
+				r.SymbolID,
+				GetString(frame, r.Symbol),
+				GetString(frame, r.Exchange),
 				r.IntervalForSnapshotUpdatesInMilliseconds);
 		}
 
-		public override DtcProtocol.SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest()
+		public override SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest()
 		{
-			var r = GetRequest<SecurityDefinitionForSymbolRequest>();
-			return new DtcProtocol.SecurityDefinitionForSymbolRequest(
-				r.RequestId,
-				r.GetSymbol(Buffer.Span),
-				r.GetExchange(Buffer.Span));
+			var frame = Buffer.Span;
+			DtcVlsDecoder.Decode(frame, out s_SecurityDefinitionForSymbolRequest r);
+			return new SecurityDefinitionForSymbolRequest(
+				r.RequestID,
+				GetString(frame, r.Symbol),
+				GetString(frame, r.Exchange));
+		}
+
+		/// <summary>
+		/// Decodes a string of the request, keeping at most its first <see cref="MaxStringLength"/> bytes, as the server
+		/// always has. This also keeps any reply that quotes the string within the maximum message size.
+		/// </summary>
+		static string GetString(ReadOnlySpan<byte> frame, s_VariableLengthStringField field)
+		{
+			var bytes = DtcVlsDecoder.GetBytes(frame, field);
+			return MessageProtocol.TextEncoding.GetString(bytes.Length > MaxStringLength ? bytes[..MaxStringLength] : bytes);
 		}
 
 		public new sealed class Factory : IMessageDecoderFactory
