@@ -1,1 +1,21 @@
-../../../YandexDisk/Projects/NBLib/src/Directory.Build.props
+<Project>
+  <!--
+    NBLib, the author's own library (a separate Mercurial repository), is referenced from source.
+    NBLibRoot is the NBLib repository root, the folder that contains src. Override the default with
+    an NBLibRoot environment variable or -p:NBLibRoot=... SomeDataProvider.sln lists the NBLib
+    projects by the default relative path; keep those entries in step when the default changes.
+  -->
+  <PropertyGroup>
+    <NBLibRoot Condition=" '$(NBLibRoot)' == '' ">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\Yandex.Disk\Projects\NBLib'))</NBLibRoot>
+  </PropertyGroup>
+
+  <!-- NBLib's shared build settings: ModernFramework, nullable, analyzers and their versions. -->
+  <Import Project="$(NBLibRoot)\src\Directory.Build.props" />
+
+  <!--
+    Per-solution settings: target framework and package versions. NBLib projects import this file
+    as $(SolutionDir)\.settings\$(SolutionName)\Directory.Build.props; the provider's own projects
+    import it here so both use the same versions.
+  -->
+  <Import Project="$(MSBuildThisFileDirectory).settings\SomeDataProvider\Directory.Build.props" />
+</Project>

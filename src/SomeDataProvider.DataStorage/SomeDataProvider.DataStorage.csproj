@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>$(ModernFramework)</TargetFramework>
     <CodeAnalysisRuleSet>i:\Dropbox\SoftConfig\VisualStudio\NBCSharpRules.ruleset</CodeAnalysisRuleSet>
     <Nullable>enable</Nullable>
     <LangVersion>default</LangVersion>
@@ -25,13 +25,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Enum\NBLib.Enum.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.HttpClient\NBLib.HttpClient.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Tasks\NBLib.Tasks.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.DateTime\NBLib.DateTime.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Enum\NBLib.Enum.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.HttpClient\NBLib.HttpClient.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Logging\NBLib.Logging.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Tasks\NBLib.Tasks.csproj" />
   </ItemGroup>
 
 </Project>

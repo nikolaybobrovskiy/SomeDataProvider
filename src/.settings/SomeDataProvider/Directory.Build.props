@@ -1,0 +1,12 @@
+<Project>
+  <!-- SomeDataProvider solution settings, modelled on NBLib's src/.settings/NBLib.Wq.NET10. -->
+  <PropertyGroup>
+    <TargetFramework>$(ModernFramework)</TargetFramework>
+    <MicrosoftExtensionsVersion>10.0.*</MicrosoftExtensionsVersion>
+    <MicrosoftAspNetCoreVersion>2.3.*</MicrosoftAspNetCoreVersion>
+    <NewtonsoftJsonVersion>13.0.*</NewtonsoftJsonVersion>
+    <SerilogVersion>4.3.*</SerilogVersion>
+    <DevExpressVersion>22.2.3</DevExpressVersion>
+    <DevExpressMajorVersion>22.2</DevExpressMajorVersion>
+  </PropertyGroup>
+</Project>

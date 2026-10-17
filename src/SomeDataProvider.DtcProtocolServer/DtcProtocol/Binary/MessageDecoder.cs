@@ -54,7 +54,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 		protected T GetRequest<T>()
 			where T : struct
 		{
-			return Buffer.ToStruct<T>();
+			return Buffer.ToStruct<T>()!.Value;
 		}
 
 		public sealed class Factory : IMessageDecoderFactory

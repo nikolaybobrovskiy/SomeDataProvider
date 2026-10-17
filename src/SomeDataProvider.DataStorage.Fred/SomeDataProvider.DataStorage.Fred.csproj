@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>$(ModernTargetFramework)</TargetFramework>
+    <TargetFramework>$(ModernFramework)</TargetFramework>
     <CodeAnalysisRuleSet>i:\Dropbox\SoftConfig\VisualStudio\NBCSharpRules.ruleset</CodeAnalysisRuleSet>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -26,10 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Enum\NBLib.Enum.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.HttpClient\NBLib.HttpClient.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Enum\NBLib.Enum.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.HttpClient\NBLib.HttpClient.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Logging\NBLib.Logging.csproj" />
     <ProjectReference Include="..\SomeDataProvider.DataStorage.Definitions\SomeDataProvider.DataStorage.Definitions.csproj" />
   </ItemGroup>
   

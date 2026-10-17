@@ -2,31 +2,31 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DtcProtocolServer", "SomeDataProvider.DtcProtocolServer\SomeDataProvider.DtcProtocolServer.csproj", "{22EC7A36-C03C-4074-B1AA-2ABEE0A1FD04}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "System.Context", "..\..\..\YandexDisk\Projects\NBLib\src\System.Context\System.Context.csproj", "{510A808B-9502-455D-B318-0CA2867BA843}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "System.Context", "..\..\..\Yandex.Disk\Projects\NBLib\src\System.Context\System.Context.csproj", "{510A808B-9502-455D-B318-0CA2867BA843}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Logging", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj", "{1981D773-3790-4F7E-8BAD-6CEFCED16A0E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Logging", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj", "{1981D773-3790-4F7E-8BAD-6CEFCED16A0E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Cli", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Cli\NBLib.Cli.csproj", "{E4844EA2-4F7B-4585-A808-5627DDA329D7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Cli", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.Cli\NBLib.Cli.csproj", "{E4844EA2-4F7B-4585-A808-5627DDA329D7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Logging.Serilog", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging.Serilog\NBLib.Logging.Serilog.csproj", "{2864863A-4647-4656-9076-6A7AEC91EFC9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Logging.Serilog", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.Logging.Serilog\NBLib.Logging.Serilog.csproj", "{2864863A-4647-4656-9076-6A7AEC91EFC9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serilog.Sinks.Console", "..\..\Serilog.Sinks.Console\src\Serilog.Sinks.Console\Serilog.Sinks.Console.csproj", "{D0499492-E53E-48C2-8719-BCB22D19C9AD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Enum", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Enum\NBLib.Enum.csproj", "{6F3965DA-DC0B-4612-A6DB-26C7D48EE099}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Enum", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.Enum\NBLib.Enum.csproj", "{6F3965DA-DC0B-4612-A6DB-26C7D48EE099}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.BuiltInTypes", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj", "{2487ED1A-00F0-4E08-AE8F-47228BB835EA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.BuiltInTypes", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.BuiltInTypes\NBLib.BuiltInTypes.csproj", "{2487ED1A-00F0-4E08-AE8F-47228BB835EA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Exceptions", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Exceptions\NBLib.Exceptions.csproj", "{BE4F6EFF-BE80-4EAA-AA6D-1C560FE6817C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Exceptions", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.Exceptions\NBLib.Exceptions.csproj", "{BE4F6EFF-BE80-4EAA-AA6D-1C560FE6817C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.CodeFlow", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj", "{B4E430FF-3824-4BF6-9760-175D3278BD7D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.CodeFlow", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj", "{B4E430FF-3824-4BF6-9760-175D3278BD7D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.DateTime", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj", "{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.DateTime", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj", "{B9372FD2-819E-4B88-8DD3-EDED6347A6C2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Configuration", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Configuration\NBLib.Configuration.csproj", "{B9E37BC7-26F4-4358-80ED-57B0A7459031}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Configuration", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.Configuration\NBLib.Configuration.csproj", "{B9E37BC7-26F4-4358-80ED-57B0A7459031}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Tasks", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Tasks\NBLib.Tasks.csproj", "{6CF5399F-2331-445D-9BF1-1DE667E3A9E4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.Tasks", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.Tasks\NBLib.Tasks.csproj", "{6CF5399F-2331-445D-9BF1-1DE667E3A9E4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.HttpClient", "..\..\..\YandexDisk\Projects\NBLib\src\NBLib.HttpClient\NBLib.HttpClient.csproj", "{BC54EAD1-F982-4965-9F9E-943550B0AAFA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBLib.HttpClient", "..\..\..\Yandex.Disk\Projects\NBLib\src\NBLib.HttpClient\NBLib.HttpClient.csproj", "{BC54EAD1-F982-4965-9F9E-943550B0AAFA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SomeDataProvider.DataStorage.Test", "SomeDataProvider.DataStorage.Test\SomeDataProvider.DataStorage.Test.csproj", "{3E38534C-AFCD-4172-8621-DE58782F7428}"
 EndProject

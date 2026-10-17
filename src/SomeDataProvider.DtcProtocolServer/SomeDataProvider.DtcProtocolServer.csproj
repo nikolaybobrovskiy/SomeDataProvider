@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>$(ModernTargetFramework)</TargetFramework>
+    <TargetFramework>$(ModernFramework)</TargetFramework>
     <CodeAnalysisRuleSet>i:\Dropbox\SoftConfig\VisualStudio\NBCSharpRules.ruleset</CodeAnalysisRuleSet>
     <Nullable>enable</Nullable>
     <LangVersion>default</LangVersion>
@@ -31,11 +31,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Cli\NBLib.Cli.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Configuration\NBLib.Configuration.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.DateTime\NBLib.DateTime.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging\NBLib.Logging.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Cli\NBLib.Cli.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.CodeFlow\NBLib.CodeFlow.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Configuration\NBLib.Configuration.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.DateTime\NBLib.DateTime.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Logging\NBLib.Logging.csproj" />
     <ProjectReference Include="..\SomeDataProvider.DataStorage.Definitions\SomeDataProvider.DataStorage.Definitions.csproj" />
     <ProjectReference Include="..\SomeDataProvider.DataStorage.Fred\SomeDataProvider.DataStorage.Fred.csproj" />
   </ItemGroup>

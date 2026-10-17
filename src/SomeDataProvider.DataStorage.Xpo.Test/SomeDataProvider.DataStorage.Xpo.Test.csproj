@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>$(ModernFramework)</TargetFramework>
     <CodeAnalysisRuleSet>i:\Dropbox\SoftConfig\VisualStudio\NBCSharpRules.ruleset</CodeAnalysisRuleSet>
     <Nullable>enable</Nullable>
     <LangVersion>default</LangVersion>
@@ -31,8 +31,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging.Serilog\NBLib.Logging.Serilog.csproj" />
-    <ProjectReference Include="..\..\..\..\YandexDisk\Projects\NBLib\src\NBLib.Logging.Xpo\NBLib.Logging.Xpo.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Logging.Serilog\NBLib.Logging.Serilog.csproj" />
+    <ProjectReference Include="$(NBLibRoot)\src\NBLib.Logging.Xpo\NBLib.Logging.Xpo.csproj" />
     <ProjectReference Include="..\SomeDataProvider.DataStorage.Xpo\SomeDataProvider.DataStorage.Xpo.csproj" />
   </ItemGroup>
 
