@@ -33,8 +33,7 @@ namespace SomeDataProvider.DataStorage.Test
 		[Test]
 		public async Task TestFredGetSymbolAsync()
 		{
-			// TODO: From secret.
-			using var store = new Fred.Store((Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
+			using var store = new Fred.Store(FredTestApiKey.GetOrSkip(), LoggerFactory);
 			var symbol = await store.GetSymbolAsync("RUSCPIALLMINMEI.pc1");
 			Assert.IsNotNull(symbol);
 			Assert.IsFalse(symbol.Description.IsEmpty());

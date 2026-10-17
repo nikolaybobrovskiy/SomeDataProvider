@@ -53,6 +53,16 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Git-ignored; only present on a machine that configured a local FRED API key.
+         CopyToPublishDirectory=Never keeps the real secret out of publish/release output. -->
+    <None Update="appsettings.Local.json" Condition="Exists('appsettings.Local.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+    <!-- Harmless placeholder; safe (and useful) to ship in both output and publish. -->
+    <None Update="appsettings.Local.example.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

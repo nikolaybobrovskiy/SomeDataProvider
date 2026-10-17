@@ -34,4 +34,13 @@
     <ProjectReference Include="..\SomeDataProvider.DataStorage.Fred\SomeDataProvider.DataStorage.Fred.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Git-ignored; only present on a machine that configured a local FRED API key.
+         CopyToPublishDirectory=Never keeps the real secret out of publish/release output. -->
+    <None Update="appsettings.Local.json" Condition="Exists('appsettings.Local.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

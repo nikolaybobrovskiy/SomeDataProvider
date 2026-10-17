@@ -53,6 +53,9 @@ namespace SomeDataProvider.DtcProtocolServer
 			{
 				base.Configure(configurationBuilder);
 				configurationBuilder.AddJsonFile("appsettings.json", optional: true);
+				// Git-ignored, machine-local overrides (e.g. the real FRED API key).
+				// See appsettings.Local.example.json for the expected shape.
+				configurationBuilder.AddJsonFile("appsettings.Local.json", optional: true);
 			}
 
 			protected override void ConfigureServices(IServiceCollection services, IConfiguration configuration)

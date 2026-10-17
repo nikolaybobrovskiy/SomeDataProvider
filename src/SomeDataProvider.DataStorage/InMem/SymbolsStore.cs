@@ -24,8 +24,9 @@ namespace SomeDataProvider.DataStorage.InMem
 
 		public SymbolsStore(ILoggerFactory loggerFactory)
 		{
-			// TODO: From secret.
-			_fredService = new Fred.Service((Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", loggerFactory);
+			// TODO: Not wired into DI; this constructor needs a real FRED API key from
+			// configuration (see StoresProvider.StoresOptions) before it can be used.
+			_fredService = new Fred.Service((Fred.ServiceApiKey)string.Empty, loggerFactory);
 		}
 
 		public void Dispose()

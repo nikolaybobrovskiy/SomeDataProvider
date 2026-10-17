@@ -62,8 +62,9 @@ namespace SomeDataProvider.DataStorage.HistoryStores
 
 		Task<ISymbolHistoryStore> GetFredStoreAsync(CancellationToken cancellationToken)
 		{
-			// TODO: Need to take key from user context.
-			var apiKey = (Fred.ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459";
+			// TODO: Not wired into DI; needs a real FRED API key from configuration
+			// (see StoresProvider.StoresOptions) before this path can be used.
+			var apiKey = (Fred.ServiceApiKey)string.Empty;
 			var storeInstance = _fredStoreInstances.GetOrAddDisposable(apiKey, k => new SymbolHistoryFredStoreInstance(k, _cache, _loggerFactory));
 			return Task.FromResult(storeInstance.Store);
 		}

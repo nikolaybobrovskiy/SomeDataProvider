@@ -88,7 +88,7 @@ sealed class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider
 		{
 			public string? ApiKey { get; init; }
 
-			public DataStorage.Fred.ServiceApiKey KnownApiKey => ApiKey != null ? (DataStorage.Fred.ServiceApiKey)ApiKey : throw new InvalidOperationException($"{nameof(Fred)}.{nameof(ApiKey)} is not set.");
+			public DataStorage.Fred.ServiceApiKey KnownApiKey => !string.IsNullOrEmpty(ApiKey) ? (DataStorage.Fred.ServiceApiKey)ApiKey : throw new InvalidOperationException($"{nameof(Fred)}.{nameof(ApiKey)} is not set. Configure it in appsettings.Local.json (see appsettings.Local.example.json) or the {nameof(StoresOptions)}:{nameof(Fred)}:{nameof(ApiKey)} configuration section.");
 		}
 	}
 

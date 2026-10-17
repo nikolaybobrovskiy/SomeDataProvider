@@ -54,3 +54,6 @@ cldr-data/
 codemap.dat
 global_history.dat
 workbench.dat
+
+# Local secrets (never commit): real values for appsettings.Local.example.json templates.
+appsettings.Local.json

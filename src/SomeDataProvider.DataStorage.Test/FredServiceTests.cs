@@ -27,8 +27,7 @@ namespace SomeDataProvider.DataStorage.Test
 		[Test]
 		public async Task TestGetCategoriesAndItsSeriesAsync()
 		{
-			// TODO: From secret.
-			using var svc = new Service((ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
+			using var svc = new Service(FredTestApiKey.GetOrSkip(), LoggerFactory);
 			var rootCategories = await svc.GetCategoriesAsync();
 			Assert.IsTrue(rootCategories.Length > 0);
 			var subCategories = await svc.GetCategoriesAsync(rootCategories[0].Id);
@@ -42,8 +41,7 @@ namespace SomeDataProvider.DataStorage.Test
 		[Test]
 		public async Task TestGetAllSeriesAsync()
 		{
-			// TODO: From secret.
-			using var svc = new Service((ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
+			using var svc = new Service(FredTestApiKey.GetOrSkip(), LoggerFactory);
 			var allSeries = await svc.GetAllSeriesAsync();
 			Assert.IsTrue(allSeries.Count > 0);
 			Assert.IsTrue(allSeries.Any(x => x.IsDiscontinued));
@@ -61,8 +59,7 @@ namespace SomeDataProvider.DataStorage.Test
 		[Test]
 		public async Task TestGetSeriesInfoAsync()
 		{
-			// TODO: From secret.
-			using var svc = new Service((ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
+			using var svc = new Service(FredTestApiKey.GetOrSkip(), LoggerFactory);
 			var seriesInfo = await svc.GetSeriesInfoAsync((SeriesInfoId)"RUSCPIALLMINMEI");
 			Assert.IsNotNull(seriesInfo);
 			Assert.AreEqual("RUSCPIALLMINMEI", seriesInfo.Id.ToString());
@@ -79,8 +76,7 @@ namespace SomeDataProvider.DataStorage.Test
 		[Test]
 		public async Task TestGetObservationsAsync()
 		{
-			// TODO: From secret.
-			using var svc = new Service((ServiceApiKey)"5e34dec427a5c32c3e45a70604b85459", LoggerFactory);
+			using var svc = new Service(FredTestApiKey.GetOrSkip(), LoggerFactory);
 			var observationsData = await svc.GetObservationsAsync((SeriesInfoId)"RUSCPIALLMINMEI", limit: 10, transformation: DataValueTransformation.PercentChangeFromYearAgo);
 			Assert.IsNotNull(observationsData);
 			Assert.AreEqual(10, observationsData.Observations.Length);
