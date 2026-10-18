@@ -6,11 +6,13 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	using System;
 	using System.Buffers.Binary;
 	using System.Collections.Generic;
+	using System.IO;
 	using System.Linq;
 	using System.Net;
 	using System.Net.Sockets;
 	using System.Threading;
 
+	using Microsoft.Extensions.Logging;
 	using Microsoft.Extensions.Logging.Abstractions;
 
 	using NUnit.Framework;
@@ -76,24 +78,54 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 				Is.EqualTo(Enumerable.Range(0, recordsCount).Select(i => (long)(FakeHistory.DateOf(i) - DateTime.UnixEpoch).TotalDays * 86_400_000_000L)));
 		}
 
-		static Connection Connect(FakeHistory history)
+		// A read that ends inside the Size field used to throw from OnReceived, on a socket thread.
+		[TestCase(1)]
+		[TestCase(2)]
+		[TestCase(3)]
+		public void Request_SplitInsideItsHeader_IsAnswered(int splitAt)
+		{
+			using var connection = Connect(new FakeHistory(0));
+
+			connection.SendInTwoParts(DtcWire.EncodeSecurityDefinitionForSymbolRequest(19, "fred-" + FakeStores.SeriesId), splitAt);
+
+			var (requestId, _) = DtcWire.DecodeSecurityDefinitionResponse(connection.ReadFrame());
+			Assert.That(requestId, Is.EqualTo(19));
+		}
+
+		// Size 0 used to recurse until a stack overflow ended the server process.
+		[Test]
+		public void SizeBelowHeader_ClosesOnlyThatConnection([Values(0, 1, 2, 3)] int size)
+		{
+			var logs = new RecordingLoggerFactory();
+			using var connection = Connect(new FakeHistory(0), logs);
+			var heartbeatHeader = new byte[4];
+			BinaryPrimitives.WriteUInt16LittleEndian(heartbeatHeader, (ushort)size);
+			BinaryPrimitives.WriteUInt16LittleEndian(heartbeatHeader.AsSpan(2), 3);
+
+			connection.Send(heartbeatHeader);
+
+			connection.AssertClosedByServer();
+			Assert.That(
+				logs.Entries.Where(e => e.Level == LogLevel.Warning && e.Exception is InvalidDataException),
+				Has.Exactly(1).Items,
+				"The invalid frame was not logged once as a warning.");
+			using var nextConnection = connection.ConnectAnotherClient();
+			nextConnection.Send(DtcWire.EncodeSecurityDefinitionForSymbolRequest(21, "fred-" + FakeStores.SeriesId));
+			var (requestId, _) = DtcWire.DecodeSecurityDefinitionResponse(nextConnection.ReadFrame());
+			Assert.That(requestId, Is.EqualTo(21), "The server stopped serving other connections.");
+		}
+
+		static Connection Connect(FakeHistory history, ILoggerFactory? loggerFactory = null)
 		{
 			var stores = new FakeStores(history);
 			// Port 0: the OS picks a free port when the server binds, and the server's Endpoint reports it.
-			var server = new ConnectionTrackingServer(stores);
+			var server = new ConnectionTrackingServer(stores, loggerFactory ?? NullLoggerFactory.Instance);
 			Assert.That(server.Start(), Is.True, "The server did not start.");
 			TcpClient? client = null;
 			try
 			{
-				var port = ((IPEndPoint)server.Endpoint).Port;
-				Assert.That(port, Is.Not.Zero, "The server did not report the port it bound.");
-				client = new TcpClient();
-				client.Connect(IPAddress.Loopback, port);
-				client.ReceiveTimeout = (int)ResponseTimeout.TotalMilliseconds;
-				// NetCoreServer starts receiving before it calls Server.OnConnected. Wait for that callback so each test
-				// starts from a fully accepted connection; ImmediateDisconnectTests covers clients that close before it.
-				Assert.That(server.SessionConnected.Wait(ResponseTimeout), Is.True, "The server did not finish accepting the connection.");
-				return new Connection(server, client);
+				client = ConnectClient(server);
+				return new Connection(server, client, true);
 			}
 			catch
 			{
@@ -104,10 +136,32 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			}
 		}
 
+		static TcpClient ConnectClient(ConnectionTrackingServer server)
+		{
+			var port = ((IPEndPoint)server.Endpoint).Port;
+			Assert.That(port, Is.Not.Zero, "The server did not report the port it bound.");
+			server.SessionConnected.Reset();
+			var client = new TcpClient { NoDelay = true };
+			try
+			{
+				client.Connect(IPAddress.Loopback, port);
+				client.ReceiveTimeout = (int)ResponseTimeout.TotalMilliseconds;
+				// NetCoreServer starts receiving before it calls Server.OnConnected. Wait for that callback so each test
+				// starts from a fully accepted connection; ImmediateDisconnectTests covers clients that close before it.
+				Assert.That(server.SessionConnected.Wait(ResponseTimeout), Is.True, "The server did not finish accepting the connection.");
+				return client;
+			}
+			catch
+			{
+				client.Dispose();
+				throw;
+			}
+		}
+
 		sealed class ConnectionTrackingServer : Server
 		{
-			public ConnectionTrackingServer(FakeStores stores)
-				: base(IPAddress.Loopback, 0, true, stores, stores, NullLoggerFactory.Instance)
+			public ConnectionTrackingServer(FakeStores stores, ILoggerFactory loggerFactory)
+				: base(IPAddress.Loopback, 0, true, stores, stores, loggerFactory)
 			{
 			}
 
@@ -122,18 +176,47 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 
 		sealed class Connection : IDisposable
 		{
-			readonly Server _server;
+			readonly ConnectionTrackingServer _server;
 			readonly TcpClient _client;
 			readonly NetworkStream _stream;
+			readonly bool _ownsServer;
 
-			public Connection(Server server, TcpClient client)
+			public Connection(ConnectionTrackingServer server, TcpClient client, bool ownsServer)
 			{
 				_server = server;
 				_client = client;
 				_stream = client.GetStream();
+				_ownsServer = ownsServer;
 			}
 
 			public void Send(byte[] message) => _stream.Write(message);
+
+			/// <summary>Sends a message in two writes, with a pause between them so the server receives them separately.</summary>
+			public void SendInTwoParts(byte[] message, int splitAt)
+			{
+				_stream.Write(message, 0, splitAt);
+				Thread.Sleep(QuietPeriod);
+				_stream.Write(message, splitAt, message.Length - splitAt);
+			}
+
+			/// <summary>Opens another client connection to the same server; disposing it leaves the server running.</summary>
+			public Connection ConnectAnotherClient() => new(_server, ConnectClient(_server), false);
+
+			/// <summary>Checks that the server closes the connection without sending anything first.</summary>
+			public void AssertClosedByServer()
+			{
+				int read;
+				try
+				{
+					read = _stream.Read(new byte[1]);
+				}
+				catch (IOException ex) when (ex.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset or SocketError.ConnectionAborted })
+				{
+					return;
+				}
+				// A receive timeout throws IOException with SocketError.TimedOut, which fails the test.
+				Assert.That(read, Is.Zero, "The server sent bytes instead of closing the connection.");
+			}
 
 			public byte[] ReadFrame()
 			{
@@ -174,6 +257,8 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			{
 				_stream.Dispose();
 				_client.Dispose();
+				if (!_ownsServer)
+					return;
 				_server.Stop();
 				_server.Dispose();
 			}

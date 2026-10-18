@@ -5,6 +5,7 @@ namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
 	using System.Context;
+	using System.IO;
 	using System.Net;
 	using System.Net.Sockets;
 	using System.Threading;
@@ -100,6 +101,18 @@ namespace SomeDataProvider.DtcProtocolServer
 			try
 			{
 				_currentMessageProtocol.MessageStreamer.PutReceivedBytes(buffer.AsMemory(Convert.ToInt32(offset), Convert.ToInt32(size)));
+			}
+			// An exception that leaves OnReceived is unhandled on a socket thread and ends the process, so end just this
+			// connection. After an invalid frame the stream's frame boundaries are unknown, so it cannot continue anyway.
+			catch (InvalidDataException ex)
+			{
+				L.LogException(ex, LogLevel.Warning, "Invalid message frame received; closing the connection.");
+				Disconnect();
+			}
+			catch (Exception ex)
+			{
+				L.LogException(ex, "Error while handling received bytes; closing the connection.");
+				Disconnect();
 			}
 			finally
 			{
