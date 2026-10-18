@@ -12,6 +12,8 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	using System.Net.Sockets;
 	using System.Threading;
 
+	using Dtc.Protocol;
+
 	using Microsoft.Extensions.Logging;
 	using Microsoft.Extensions.Logging.Abstractions;
 
@@ -52,6 +54,116 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			var frame = connection.ReadFrame();
 			Assert.That(DtcWire.TypeOf(frame), Is.EqualTo(DtcWire.SecurityDefinitionRejectType));
 			Assert.That(BinaryPrimitives.ReadInt32LittleEndian(frame.AsSpan(8)), Is.EqualTo(18));
+		}
+
+		// PLAN.md §7.3 item 7. FakeStores' catalog: GDP/"Gross Domestic Product", GDPC1/"Real Gross Domestic
+		// Product", UNRATE/"Unemployment Rate".
+		[Test]
+		public void SymbolSearchResponse_WithMatches_HasTheFinalFlagOnlyOnTheLast()
+		{
+			using var connection = Connect(new FakeHistory(0));
+
+			connection.Send(DtcWire.EncodeSymbolSearchRequest(30, "Product", searchType: SearchTypeEnum.SEARCH_TYPE_BY_DESCRIPTION));
+
+			var frames = new[] { connection.ReadFrame(), connection.ReadFrame() };
+			connection.AssertNothingMoreArrives();
+
+			Assert.That(frames.Select(DtcWire.TypeOf), Is.All.EqualTo(DtcWire.SecurityDefinitionResponseType));
+			Assert.That(frames.Select(f => DtcWire.DecodeSecurityDefinitionResponse(f).RequestId), Is.All.EqualTo(30));
+			Assert.That(frames.Select(DtcWire.DecodeSecurityDefinitionResponseIsFinalMessage), Is.EqualTo(new[] { false, true }));
+		}
+
+		[Test]
+		public void SymbolSearchResponse_WithNoMatches_IsOneResponseWithOnlyRequestIdAndTheFinalFlag()
+		{
+			using var connection = Connect(new FakeHistory(0));
+
+			connection.Send(DtcWire.EncodeSymbolSearchRequest(31, "NoSuchSeries"));
+
+			var frame = connection.ReadFrame();
+			connection.AssertNothingMoreArrives();
+			var (requestId, symbol) = DtcWire.DecodeSecurityDefinitionResponse(frame);
+			Assert.That(requestId, Is.EqualTo(31));
+			Assert.That(symbol, Is.Empty);
+			Assert.That(DtcWire.DecodeSecurityDefinitionResponseIsFinalMessage(frame), Is.True);
+		}
+
+		[Test]
+		public void SymbolSearchRequest_WithEmptySearchText_IsRejectedWithoutCallingTheStore()
+		{
+			var stores = new FakeStores(new FakeHistory(0));
+			using var connection = Connect(stores);
+
+			connection.Send(DtcWire.EncodeSymbolSearchRequest(32, string.Empty));
+
+			var frame = connection.ReadFrame();
+			Assert.That(DtcWire.TypeOf(frame), Is.EqualTo(DtcWire.SecurityDefinitionRejectType));
+			Assert.That(BinaryPrimitives.ReadInt32LittleEndian(frame.AsSpan(8)), Is.EqualTo(32));
+			Assert.That(stores.LastSearchLimit, Is.Null, "The store was called for an empty SearchText.");
+		}
+
+		[Test]
+		public void SymbolSearchRequest_RequestsNoMoreThanTheDocumentedCap()
+		{
+			var stores = new FakeStores(new FakeHistory(0));
+			using var connection = Connect(stores);
+
+			connection.Send(DtcWire.EncodeSymbolSearchRequest(33, "Product"));
+
+			connection.ReadFrame();
+			connection.ReadFrame();
+			connection.AssertNothingMoreArrives();
+			Assert.That(stores.LastSearchLimit, Is.EqualTo(Session.MaxSymbolSearchResults));
+		}
+
+		[Test]
+		public void SymbolSearchRequest_OnStoreFailure_IsRejected()
+		{
+			using var connection = Connect(new FakeHistory(0));
+
+			connection.Send(DtcWire.EncodeSymbolSearchRequest(34, FakeStores.FailingSearchText));
+
+			var frame = connection.ReadFrame();
+			Assert.That(DtcWire.TypeOf(frame), Is.EqualTo(DtcWire.SecurityDefinitionRejectType));
+			Assert.That(BinaryPrimitives.ReadInt32LittleEndian(frame.AsSpan(8)), Is.EqualTo(34));
+		}
+
+		[TestCase(SearchTypeEnum.SEARCH_TYPE_BY_SYMBOL, "GDPC1")]
+		[TestCase(SearchTypeEnum.SEARCH_TYPE_BY_DESCRIPTION, "Real Gross")]
+		public void SymbolSearchRequest_SupportsBothSearchTypes(SearchTypeEnum searchType, string searchText)
+		{
+			using var connection = Connect(new FakeHistory(0));
+
+			connection.Send(DtcWire.EncodeSymbolSearchRequest(35, searchText, searchType: searchType));
+
+			var frame = connection.ReadFrame();
+			connection.AssertNothingMoreArrives();
+			var (requestId, symbol) = DtcWire.DecodeSecurityDefinitionResponse(frame);
+			Assert.That(requestId, Is.EqualTo(35));
+			Assert.That(symbol, Is.EqualTo("GDPC1"));
+			Assert.That(DtcWire.DecodeSecurityDefinitionResponseIsFinalMessage(frame), Is.True);
+		}
+
+		// Per the DTC spec, a request that constrains Exchange or SecurityType matches on those too, not SearchText
+		// alone. Profile v1 symbols never carry an Exchange or a SecurityType other than unset, so such a request
+		// cannot match anything, even though its SearchText alone would.
+		[Test]
+		public void SymbolSearchRequest_WithExchangeOrSecurityTypeConstraint_IsNoMatches()
+		{
+			using var connection = Connect(new FakeHistory(0));
+
+			connection.Send(DtcWire.EncodeSymbolSearchRequest(
+				36,
+				"GDPC1",
+				exchange: "NYSE",
+				securityType: SecurityTypeEnum.SECURITY_TYPE_STOCK,
+				searchType: SearchTypeEnum.SEARCH_TYPE_BY_SYMBOL));
+
+			var frame = connection.ReadFrame();
+			var (requestId, symbol) = DtcWire.DecodeSecurityDefinitionResponse(frame);
+			Assert.That(requestId, Is.EqualTo(36));
+			Assert.That(symbol, Is.Empty);
+			Assert.That(DtcWire.DecodeSecurityDefinitionResponseIsFinalMessage(frame), Is.True);
 		}
 
 		// PLAN.md §7.3 items 1–3 through the session: the acceptance sizes, including exact multiples of 922.
@@ -115,9 +227,11 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			Assert.That(requestId, Is.EqualTo(21), "The server stopped serving other connections.");
 		}
 
-		static Connection Connect(FakeHistory history, ILoggerFactory? loggerFactory = null)
+		static Connection Connect(FakeHistory history, ILoggerFactory? loggerFactory = null) =>
+			Connect(new FakeStores(history), loggerFactory);
+
+		static Connection Connect(FakeStores stores, ILoggerFactory? loggerFactory = null)
 		{
-			var stores = new FakeStores(history);
 			// Port 0: the OS picks a free port when the server binds, and the server's Endpoint reports it.
 			var server = new ConnectionTrackingServer(stores, loggerFactory ?? NullLoggerFactory.Instance);
 			Assert.That(server.Start(), Is.True, "The server did not start.");

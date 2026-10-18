@@ -7,9 +7,17 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	using System.Buffers.Binary;
 	using System.Collections.Generic;
 	using System.Linq;
+	using System.Runtime.CompilerServices;
 	using System.Text;
 
+	using Dtc.Protocol;
+	using Dtc.Protocol.Vls;
+
 	using NUnit.Framework;
+
+	using VlsSecurityDefinitionReject = Dtc.Protocol.Vls.s_SecurityDefinitionReject;
+	using VlsSecurityDefinitionResponse = Dtc.Protocol.Vls.s_SecurityDefinitionResponse;
+	using VlsSymbolSearchRequest = Dtc.Protocol.Vls.s_SymbolSearchRequest;
 
 	/// <summary>
 	/// Encodes requests and decodes responses at the byte offsets of the DTC headers (DTCProtocol.h and
@@ -76,6 +84,47 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		{
 			Assert.That(TypeOf(frame), Is.EqualTo(SecurityDefinitionResponseType));
 			return (BinaryPrimitives.ReadInt32LittleEndian(frame.AsSpan(8)), ReadVls(frame, 12));
+		}
+
+		// Decoded through the real Dtc.Protocol.Vls struct, not a hand-picked byte offset: IsFinalMessage's offset
+		// has moved as the header grew fields across DTC protocol versions (PLAN.md §7.3 item 7).
+		public static bool DecodeSecurityDefinitionResponseIsFinalMessage(byte[] frame)
+		{
+			Assert.That(TypeOf(frame), Is.EqualTo(SecurityDefinitionResponseType));
+			DtcVlsDecoder.Decode(frame, out VlsSecurityDefinitionResponse message);
+			return message.IsFinalMessage != 0;
+		}
+
+		// s_SecurityDefinitionReject (VLS): RequestID @8, RejectText @12.
+		public static string DecodeSecurityDefinitionRejectText(byte[] frame)
+		{
+			Assert.That(TypeOf(frame), Is.EqualTo(SecurityDefinitionRejectType));
+			DtcVlsDecoder.Decode(frame, out VlsSecurityDefinitionReject message);
+			return DtcVlsDecoder.GetString(frame, message.RejectText, Encoding.ASCII);
+		}
+
+		/// <summary>
+		/// Builds s_SymbolSearchRequest (Dtc.Protocol.Vls) with the library's own VLS encoder, the way a real DTC
+		/// client would, rather than by a hand-picked byte offset.
+		/// </summary>
+		public static byte[] EncodeSymbolSearchRequest(
+			int requestId,
+			string searchText,
+			string exchange = "",
+			SecurityTypeEnum securityType = SecurityTypeEnum.SECURITY_TYPE_UNSET,
+			SearchTypeEnum searchType = SearchTypeEnum.SEARCH_TYPE_UNSET)
+		{
+			var message = new VlsSymbolSearchRequest
+			{
+				RequestID = requestId,
+				SecurityType = securityType,
+				SearchType = searchType,
+			};
+			var buffer = new byte[Unsafe.SizeOf<VlsSymbolSearchRequest>() + VlsByteCount(searchText) + VlsByteCount(exchange)];
+			var encoder = new DtcVlsEncoder<VlsSymbolSearchRequest>(ref message, buffer);
+			encoder.AddString(ref message.SearchText, searchText, Encoding.ASCII);
+			encoder.AddString(ref message.Exchange, exchange, Encoding.ASCII);
+			return buffer.AsSpan(0, encoder.Complete()).ToArray();
 		}
 
 		// s_HistoricalPriceDataResponseHeader: RequestID @4, RecordInterval @8, UseZLibCompression @12, NoRecordsToReturn @13.
@@ -162,6 +211,9 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			Assert.That(frame[offset + length - 1], Is.EqualTo(0), "A VLS string is not terminated by 0.");
 			return Encoding.ASCII.GetString(frame, offset, length - 1);
 		}
+
+		// An empty string is absent from a VLS message; any other takes its bytes and a null terminator.
+		static int VlsByteCount(string s) => string.IsNullOrEmpty(s) ? 0 : Encoding.ASCII.GetByteCount(s) + 1;
 	}
 
 	sealed record HistoryHeader(int RequestId, int RecordInterval, byte UseZLibCompression, byte NoRecordsToReturn);

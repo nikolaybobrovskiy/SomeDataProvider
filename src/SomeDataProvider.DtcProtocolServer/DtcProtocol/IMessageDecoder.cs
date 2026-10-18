@@ -19,6 +19,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		MarketDataRequest DecodeMarketDataRequest();
 
 		SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest();
+
+		SymbolSearchRequest DecodeSymbolSearchRequest();
 	}
 
 	interface IMessageDecoderFactory

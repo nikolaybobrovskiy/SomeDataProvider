@@ -22,6 +22,13 @@ namespace SomeDataProvider.DataStorage.Fred
 	public sealed class Service : IDisposable
 	{
 		public const string DateFormat = "yyyy-MM-dd";
+
+		/// <summary>FRED's series search (series/search): matches SearchText against a series ID.</summary>
+		public const string SearchTypeSeriesId = "series_id";
+
+		/// <summary>FRED's series search (series/search): matches SearchText against a series's title, full-text.</summary>
+		public const string SearchTypeFullText = "full_text";
+
 		const string ApiUrl = "https://api.stlouisfed.org/fred/";
 
 		readonly ServiceApiKey _apiKey;
@@ -78,6 +85,29 @@ namespace SomeDataProvider.DataStorage.Fred
 					return series[0].ToObject<SeriesInfo>();
 				return null;
 			}, "GetSeriesInfo({seriesId})", seriesId);
+		}
+
+		public async Task<SeriesInfo[]> SearchSeriesAsync(string searchText, string searchType, int limit, CancellationToken cancellationToken = default)
+		{
+			return await _l.LogOperationAsync(async () =>
+			{
+				var limitQueryParam = limit > 0 ? $"&limit={limit}" : string.Empty;
+				var uri = $"series/search?search_text={Uri.EscapeDataString(searchText)}&search_type={searchType}&api_key={_apiKey}&file_type=json{limitQueryParam}";
+				using var requestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
+				using var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+				var jsonResponse = await response.GetJsonAsync(cancellationToken);
+				// Unlike GetSeriesInfoAsync (an absent series means "not found"), a symbol search must tell a FRED
+				// API error apart from a plain no-matches result (the caller answers the two very differently).
+				// GetJsonAsync does not check the HTTP status, so a non-success response -- with or without FRED's
+				// own error_message field in its body -- is a hard failure here, not an empty "seriess" array.
+				if (!response.IsSuccessStatusCode || jsonResponse["error_message"] is { } errorMessage)
+				{
+					var detail = jsonResponse["error_message"]?.ToString() ?? response.ReasonPhrase ?? "non-success HTTP status";
+					throw new InvalidOperationException($"FRED series search failed ({(int)response.StatusCode}): {detail}.");
+				}
+				if (jsonResponse["seriess"] is not JArray seriesJson) return Array.Empty<SeriesInfo>();
+				return seriesJson.ToObject<SeriesInfo[]>() ?? Array.Empty<SeriesInfo>();
+			}, "SearchSeries({searchText},{searchType},{limit})", searchText, searchType, limit);
 		}
 
 		public async Task<ObservationsData?> GetObservationsAsync(

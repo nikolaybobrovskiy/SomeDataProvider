@@ -20,15 +20,24 @@ sealed class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider
 
 	readonly ILogger<StoresProvider> _l;
 	readonly Lazy<DataStorage.Fred.Store> _lazyFredStore;
-	readonly StoresOptions _opts;
-	readonly ILoggerFactory _loggerFactory;
 
 	public StoresProvider(StoresOptions opts, ILoggerFactory loggerFactory)
 	{
-		_opts = opts ?? throw new ArgumentNullException(nameof(opts));
-		_loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+		if (opts == null) throw new ArgumentNullException(nameof(opts));
+		if (loggerFactory == null) throw new ArgumentNullException(nameof(loggerFactory));
 		_l = loggerFactory.CreateLogger<StoresProvider>();
-		_lazyFredStore = new (CreateFredStore);
+		_lazyFredStore = new (() => new DataStorage.Fred.Store(opts.KnownFred.KnownApiKey, loggerFactory));
+	}
+
+	/// <summary>
+	/// For tests: uses this store instead of building one from <see cref="StoresOptions"/>, so a test can give it a
+	/// <see cref="DataStorage.Fred.Service"/> built on a fake HttpMessageHandler, with no real API key or network call.
+	/// </summary>
+	internal StoresProvider(DataStorage.Fred.Store fredStore, ILoggerFactory loggerFactory)
+	{
+		if (loggerFactory == null) throw new ArgumentNullException(nameof(loggerFactory));
+		_l = loggerFactory.CreateLogger<StoresProvider>();
+		_lazyFredStore = new (() => fredStore);
 	}
 
 	DataStorage.Fred.Store FredStore => _lazyFredStore.Value;
@@ -68,14 +77,22 @@ sealed class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider
 		}, "GetKnownSymbols()");
 	}
 
+	public async ValueTask<IReadOnlyCollection<ISymbol>> SearchSymbolsAsync(string searchText, SymbolSearchType searchType, int limit, CancellationToken cancellationToken = default)
+	{
+		_l.LogInformation("SearchSymbols({searchText},{searchType},{limit})", searchText, searchType, limit);
+		// A leading "fred-" in SearchText is this provider's own routing prefix (see GetSymbolsStoreAsync above),
+		// not part of FRED's series ID or title; strip it so a pasted "fred-"-prefixed symbol code still matches.
+		var fredPrefix = $"{DataSourceFredPrefix}{DataSourcePrefixSeparator}";
+		var normalizedSearchText = searchText.StartsWith(fredPrefix, StringComparison.Ordinal)
+			? searchText.Substring(fredPrefix.Length)
+			: searchText;
+		var matches = await FredStore.SearchSymbolsAsync(normalizedSearchText, searchType, limit, cancellationToken);
+		return matches.Select(symbol => (ISymbol)new Symbol(DataSourceFredPrefix, symbol)).ToArray();
+	}
+
 	public void Dispose()
 	{
 		if (_lazyFredStore.IsValueCreated) _lazyFredStore.Value.Dispose();
-	}
-
-	DataStorage.Fred.Store CreateFredStore()
-	{
-		return new DataStorage.Fred.Store(_opts.KnownFred.KnownApiKey, _loggerFactory);
 	}
 
 	public class StoresOptions

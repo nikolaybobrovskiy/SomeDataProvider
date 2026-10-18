@@ -12,5 +12,11 @@ namespace SomeDataProvider.DataStorage.Definitions
 		ValueTask<ISymbol?> GetSymbolAsync(string code, CancellationToken cancellationToken = default);
 
 		ValueTask<IReadOnlyCollection<ISymbol>> GetKnownSymbolsAsync(CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Finds symbols matching <paramref name="searchText"/>, in the store's own order, with at most
+		/// <paramref name="limit"/> results.
+		/// </summary>
+		ValueTask<IReadOnlyCollection<ISymbol>> SearchSymbolsAsync(string searchText, SymbolSearchType searchType, int limit, CancellationToken cancellationToken = default);
 	}
 }

@@ -71,6 +71,18 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 				GetString(frame, r.Exchange));
 		}
 
+		public override SymbolSearchRequest DecodeSymbolSearchRequest()
+		{
+			var frame = Buffer.Span;
+			DtcVlsDecoder.Decode(frame, out s_SymbolSearchRequest r);
+			return new SymbolSearchRequest(
+				r.RequestID,
+				GetString(frame, r.SearchText),
+				GetString(frame, r.Exchange),
+				r.SecurityType,
+				r.SearchType);
+		}
+
 		/// <summary>
 		/// Decodes a string of the request, keeping at most its first <see cref="MaxStringLength"/> bytes, as the server
 		/// always has. This also keeps any reply that quotes the string within the maximum message size.

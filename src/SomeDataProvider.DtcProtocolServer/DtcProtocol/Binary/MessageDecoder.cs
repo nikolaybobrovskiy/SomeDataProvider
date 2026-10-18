@@ -46,6 +46,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
+		public virtual SymbolSearchRequest DecodeSymbolSearchRequest()
+		{
+			throw new NotImplementedException();
+		}
+
 		/// <summary>Decodes ENCODING_REQUEST, which has no strings, so every encoding sends it in binary encoding.</summary>
 		public s_EncodingRequest DecodeEncodingRequest()
 		{

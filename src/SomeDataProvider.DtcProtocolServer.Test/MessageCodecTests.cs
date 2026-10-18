@@ -336,6 +336,41 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			Assert.That(MessageTypeNames.Get(type), Is.EqualTo(expected));
 		}
 
+		// PLAN.md §7.3 item 7.
+		[Test]
+		public void SymbolSearchRequest_DecodesAllFields()
+		{
+			var frame = ToVls(new Records.SymbolSearchRequest
+			{
+				RequestID = 42,
+				SearchText = "GDP",
+				Exchange = "NYSE",
+				SecurityType = SecurityTypeEnum.SECURITY_TYPE_STOCK,
+				SearchType = SearchTypeEnum.SEARCH_TYPE_BY_SYMBOL,
+			});
+
+			var request = NewDecoder(frame).DecodeSymbolSearchRequest();
+
+			Assert.That(request.RequestId, Is.EqualTo(42));
+			Assert.That(request.SearchText, Is.EqualTo("GDP"));
+			Assert.That(request.Exchange, Is.EqualTo("NYSE"));
+			Assert.That(request.SecurityType, Is.EqualTo(SecurityTypeEnum.SECURITY_TYPE_STOCK));
+			Assert.That(request.SearchType, Is.EqualTo(SearchTypeEnum.SEARCH_TYPE_BY_SYMBOL));
+		}
+
+		[Test]
+		public void SymbolSearchRequest_WithUnsetSearchTypeAndEmptyStrings_Decodes()
+		{
+			var frame = ToVls(new Records.SymbolSearchRequest { RequestID = 1 });
+
+			var request = NewDecoder(frame).DecodeSymbolSearchRequest();
+
+			Assert.That(request.SearchText, Is.EqualTo(string.Empty));
+			Assert.That(request.Exchange, Is.EqualTo(string.Empty));
+			Assert.That(request.SecurityType, Is.EqualTo(SecurityTypeEnum.SECURITY_TYPE_UNSET));
+			Assert.That(request.SearchType, Is.EqualTo(SearchTypeEnum.SEARCH_TYPE_UNSET));
+		}
+
 		static IMessageEncoder NewEncoder() =>
 			MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding).MessageEncoderFactory.CreateMessageEncoder();
 
@@ -362,6 +397,8 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		static byte[] ToVls(Records.MarketDataRequest record) => ToVls(buffer => record.ToVls(buffer, Ascii));
 
 		static byte[] ToVls(Records.SecurityDefinitionForSymbolRequest record) => ToVls(buffer => record.ToVls(buffer, Ascii));
+
+		static byte[] ToVls(Records.SymbolSearchRequest record) => ToVls(buffer => record.ToVls(buffer, Ascii));
 
 		static byte[] ToVls(Func<byte[], int> encode)
 		{

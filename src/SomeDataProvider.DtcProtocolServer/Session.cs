@@ -137,8 +137,8 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		async Task ProcessMessageAsync(Memory<byte> buffer)
 		{
-			Interlocked.Increment(ref _requestId);
-			using var tcpRequestIdContext = RunContext.WithValue("TcpRequestId", _requestId);
+			var requestId = Interlocked.Increment(ref _requestId);
+			using var tcpRequestIdContext = RunContext.WithValue("TcpRequestId", requestId);
 			using (RunContext.WithCancel(_disconnectTokenSource.Token, "ClientDisconnected", CancellationReason.OperationAborted))
 			{
 				try
@@ -175,6 +175,9 @@ namespace SomeDataProvider.DtcProtocolServer
 									break;
 								case DtcConstants.SECURITY_DEFINITION_FOR_SYMBOL_REQUEST:
 									await ProcessSecurityDefinitionForSymbolRequestAsync(decoder, encoder, ct);
+									break;
+								case DtcConstants.SYMBOL_SEARCH_REQUEST:
+									await ProcessSymbolSearchRequestAsync(decoder, encoder, ct);
 									break;
 								default:
 									L.LogWarning($"Message type is not supported: {MessageTypeNames.Get(messageType)}.");

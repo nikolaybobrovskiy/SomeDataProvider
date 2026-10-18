@@ -71,6 +71,39 @@ namespace SomeDataProvider.DataStorage.Fred
 			}, "GetKnownSymbols()");
 		}
 
+		// PLAN.md §7.3 item 7.
+		public async ValueTask<IReadOnlyCollection<ISymbol>> SearchSymbolsAsync(string searchText, SymbolSearchType searchType, int limit, CancellationToken cancellationToken = default)
+		{
+			return await _l.LogOperationAsync(async () =>
+			{
+				// An empty SearchText cannot match anything in FRED's search either; skip the call outright.
+				if (string.IsNullOrEmpty(searchText)) return Array.Empty<ISymbol>();
+
+				string fredSearchText;
+				string fredSearchType;
+				if (searchType == SymbolSearchType.BySymbol)
+				{
+					fredSearchType = Service.SearchTypeSeriesId;
+					// A symbol search by symbol can carry our own units suffix (e.g. "RUSCPIALLMINMEI.pc1", the same
+					// form GetFredSymbol parses for a definition lookup); that suffix is not part of FRED's series
+					// ID, so strip it when recognized. An unrecognized "."-suffix (such as a series ID that is not
+					// actually one of ours) is left alone and simply will not match in FRED.
+					fredSearchText = StripRecognizedUnitsSuffix(searchText);
+				}
+				else
+				{
+					fredSearchType = Service.SearchTypeFullText;
+					fredSearchText = searchText;
+				}
+
+				var seriesInfos = await _fredService.SearchSeriesAsync(fredSearchText, fredSearchType, limit, cancellationToken);
+				return seriesInfos.Select(seriesInfo => (ISymbol)new Symbol(
+					seriesInfo.Id,
+					DataValueTransformation.NoTransformation,
+					seriesInfo)).ToArray();
+			}, "SearchSymbols({searchText},{searchType},{limit})", searchText, searchType, limit);
+		}
+
 		public void Dispose()
 		{
 			if (_disposeFredService)
@@ -93,6 +126,25 @@ namespace SomeDataProvider.DataStorage.Fred
 				seriesId = (SeriesInfoId)normalizedCode.ToString();
 			}
 			return new FredSymbol(seriesId, units);
+		}
+
+		/// <summary>
+		/// Strips a trailing ".&lt;units&gt;" suffix recognized as a <see cref="DataValueTransformation"/> string value
+		/// (see <see cref="GetFredSymbol"/>); unlike GetFredSymbol, this never throws on an unrecognized suffix, since a
+		/// search's SearchText is free-form input, not a symbol code the provider itself produced.
+		/// </summary>
+		static string StripRecognizedUnitsSuffix(string code)
+		{
+			var separatorIndex = code.LastIndexOf('.');
+			if (separatorIndex < 0) return code;
+			var suffix = code.Substring(separatorIndex + 1);
+			foreach (var transformation in Enum.GetValues<DataValueTransformation>())
+			{
+				if (transformation == DataValueTransformation.NoTransformation) continue;
+				if (string.Equals(suffix, transformation.GetStringValue(), StringComparison.Ordinal))
+					return code[..separatorIndex];
+			}
+			return code;
 		}
 
 		//// static ETag GetActualETag()
