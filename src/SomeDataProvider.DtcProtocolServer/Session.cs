@@ -128,8 +128,10 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		void OnMessageReceived(Memory<byte> buffer)
 		{
+			// The message can be a slice of NetCoreServer's receive buffer, which the next read overwrites as soon as
+			// OnReceived returns, while the processing below is not awaited. So the processing gets its own copy.
 #pragma warning disable CS4014
-			ProcessMessageAsync(buffer);
+			ProcessMessageAsync(buffer.ToArray());
 #pragma warning restore CS4014
 		}
 

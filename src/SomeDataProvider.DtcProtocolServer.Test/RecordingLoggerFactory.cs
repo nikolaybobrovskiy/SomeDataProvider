@@ -17,6 +17,9 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 
 		public IReadOnlyList<Entry> Entries => _entries.ToArray();
 
+		/// <summary>Called with each entry right after it is recorded, on the thread that wrote it.</summary>
+		public Action<Entry>? Logged { get; set; }
+
 		public ILogger CreateLogger(string categoryName) => new Logger(this, categoryName);
 
 		public void AddProvider(ILoggerProvider provider)
@@ -57,7 +60,9 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 						values[key] = value;
 				}
 				values.TryGetValue("{OriginalFormat}", out var template);
-				_factory._entries.Enqueue(new Entry(_category, logLevel, template as string, values, formatter(state, exception), exception));
+				var entry = new Entry(_category, logLevel, template as string, values, formatter(state, exception), exception);
+				_factory._entries.Enqueue(entry);
+				_factory.Logged?.Invoke(entry);
 			}
 		}
 	}
