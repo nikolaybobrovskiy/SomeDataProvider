@@ -43,6 +43,6 @@ partial class Session
 				});
 			}
 		}
-		SendAsync(encoder.GetEncodedMessage());
+		SendResponse(encoder.GetEncodedMessage());
 	}
 }

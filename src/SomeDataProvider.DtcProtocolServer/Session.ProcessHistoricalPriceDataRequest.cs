@@ -28,7 +28,7 @@ partial class Session
 			{
 				L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbolStore");
 				encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, $"Symbol store is found: {historicalPriceDataRequest.Symbol}.");
-				SendAsync(encoder.GetEncodedMessage());
+				SendResponse(encoder.GetEncodedMessage());
 			}
 			else
 			{
@@ -38,7 +38,7 @@ partial class Session
 				{
 					L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
 					encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, $"Symbol is unknown: {symbolCode}.");
-					SendAsync(encoder.GetEncodedMessage());
+					SendResponse(encoder.GetEncodedMessage());
 				}
 				else
 				{
@@ -71,7 +71,7 @@ partial class Session
 				historicalPriceDataRequest.RequestId,
 				historicalPriceDataRequest.RecordInterval,
 				_currentMessageProtocol.MessageEncoderFactory,
-				bytes => SendAsync(bytes),
+				bytes => SendResponse(bytes),
 				L,
 				ct);
 		}, "StreamHistoricalPriceData({symbol})", symbol);

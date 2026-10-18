@@ -25,7 +25,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	/// </summary>
 	[TestFixture]
 	[NonParallelizable]
-	public class SessionTests
+	public partial class SessionTests
 	{
 		static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(10);
 		static readonly TimeSpan QuietPeriod = TimeSpan.FromMilliseconds(500);
@@ -227,13 +227,13 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			Assert.That(requestId, Is.EqualTo(21), "The server stopped serving other connections.");
 		}
 
-		static Connection Connect(FakeHistory history, ILoggerFactory? loggerFactory = null) =>
-			Connect(new FakeStores(history), loggerFactory);
+		static Connection Connect(FakeHistory history, ILoggerFactory? loggerFactory = null, bool onlyHistoryServer = true, TimeProvider? timeProvider = null) =>
+			Connect(new FakeStores(history), loggerFactory, onlyHistoryServer, timeProvider);
 
-		static Connection Connect(FakeStores stores, ILoggerFactory? loggerFactory = null)
+		static Connection Connect(FakeStores stores, ILoggerFactory? loggerFactory = null, bool onlyHistoryServer = true, TimeProvider? timeProvider = null)
 		{
 			// Port 0: the OS picks a free port when the server binds, and the server's Endpoint reports it.
-			var server = new ConnectionTrackingServer(stores, loggerFactory ?? NullLoggerFactory.Instance);
+			var server = new ConnectionTrackingServer(stores, loggerFactory ?? NullLoggerFactory.Instance, onlyHistoryServer, timeProvider);
 			Assert.That(server.Start(), Is.True, "The server did not start.");
 			TcpClient? client = null;
 			try
@@ -274,16 +274,19 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 
 		sealed class ConnectionTrackingServer : Server
 		{
-			public ConnectionTrackingServer(FakeStores stores, ILoggerFactory loggerFactory)
-				: base(IPAddress.Loopback, 0, true, stores, stores, loggerFactory)
+			public ConnectionTrackingServer(FakeStores stores, ILoggerFactory loggerFactory, bool onlyHistoryServer, TimeProvider? timeProvider)
+				: base(IPAddress.Loopback, 0, onlyHistoryServer, stores, stores, loggerFactory, timeProvider)
 			{
 			}
 
 			public ManualResetEventSlim SessionConnected { get; } = new();
 
+			public NetCoreServer.TcpSession? LastSession { get; private set; }
+
 			protected override void OnConnected(NetCoreServer.TcpSession session)
 			{
 				base.OnConnected(session);
+				LastSession = session;
 				SessionConnected.Set();
 			}
 		}
@@ -303,7 +306,11 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 				_ownsServer = ownsServer;
 			}
 
+			public bool IsSessionConnected => _server.LastSession?.IsConnected == true;
+
 			public void Send(byte[] message) => _stream.Write(message);
+
+			public void CloseClient() => _client.Dispose();
 
 			/// <summary>Sends a message in two writes, with a pause between them so the server receives them separately.</summary>
 			public void SendInTwoParts(byte[] message, int splitAt)

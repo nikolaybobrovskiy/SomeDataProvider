@@ -39,6 +39,17 @@ Currently implemented data sources:
   -  Graph should be display as:\
   ![Screenshot](https://raw.githubusercontent.com/nikolaybobrovskiy/SomeDataProvider/master/blob/ExampleFredSymbolChart.png?raw=true)
 
+## Session lifetime and heartbeats
+`LOGOFF` from a client closes its connection immediately, stops its timers, and cancels any running requests,
+including history downloads. The server queues no further responses after processing `LOGOFF`.
+
+On the streaming server, a successful `LOGON_REQUEST` enables heartbeats at the requested interval of 1 to 300
+seconds. If no complete client message arrives for twice that interval, the server cancels the session's requests
+and closes the connection. Any complete message counts as activity, not just `HEARTBEAT`; partial frames do not.
+An interval of 0 disables heartbeats in both directions and disables loss detection. Negative intervals are clamped
+to 0, and intervals above 300 seconds are clamped to 300. The history-only server never sends heartbeats or runs
+loss detection, regardless of the requested interval. Client `LOGOFF` still closes a history-only session.
+
 ## Build from source
 `SomeDataProvider.DtcProtocolServer` uses `Dtc.Protocol`, the DTC message library of the author's MrktPltfrm
 project, which is not on nuget.org. `nuget.config` restores it only from the local folder feed

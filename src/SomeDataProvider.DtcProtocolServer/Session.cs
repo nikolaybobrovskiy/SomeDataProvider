@@ -4,13 +4,13 @@
 namespace SomeDataProvider.DtcProtocolServer
 {
 	using System;
+	using System.Buffers.Binary;
 	using System.Context;
 	using System.IO;
 	using System.Net;
 	using System.Net.Sockets;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using System.Timers;
 
 	using Dtc.Protocol;
 
@@ -26,9 +26,6 @@ namespace SomeDataProvider.DtcProtocolServer
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
 
 	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
-	using Timer = System.Timers.Timer;
-
-	// TcpSession.SendAsync is thread-safe, so use it instead of Send() and own synchronization for heartbeat timer.
 
 	partial class Session : TcpSession
 	{
@@ -39,7 +36,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		readonly ISymbolHistoryStoreProvider _symbolHistoryStoreProvider;
 		readonly CancellationTokenSource _disconnectTokenSource = new ();
 		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
-		Timer? _heartbeatTimer;
+
 		long _requestId;
 		int _processingReceivedCounter;
 
@@ -55,6 +52,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			_onlyHistoryServer = onlyHistoryServer;
 			_symbolsStoreProvider = symbolsStoreProvider;
 			_symbolHistoryStoreProvider = symbolHistoryStoreProvider;
+			_timeProvider = server.TimeProvider;
 			L = loggerFactory.CreateLogger<Session>();
 		}
 
@@ -69,7 +67,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		protected override void Dispose(bool disposingManagedResources)
 		{
 			if (!disposingManagedResources) return;
-			StopHeartbeatTimer();
+			StopSession();
 			_currentMessageProtocol.MessageStreamer.MessageBytesReceived -= OnMessageReceived;
 			_currentMessageProtocol.Dispose();
 			_disconnectTokenSource.Dispose();
@@ -89,8 +87,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		protected override void OnDisconnected()
 		{
-			StopHeartbeatTimer();
-			_disconnectTokenSource.Cancel();
+			StopSession();
 		}
 
 		protected override void OnReceived(byte[] buffer, long offset, long size)
@@ -107,12 +104,12 @@ namespace SomeDataProvider.DtcProtocolServer
 			catch (InvalidDataException ex)
 			{
 				L.LogException(ex, LogLevel.Warning, "Invalid message frame received; closing the connection.");
-				Disconnect();
+				CloseSession();
 			}
 			catch (Exception ex)
 			{
 				L.LogException(ex, "Error while handling received bytes; closing the connection.");
-				Disconnect();
+				CloseSession();
 			}
 			finally
 			{
@@ -128,6 +125,23 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		void OnMessageReceived(Memory<byte> buffer)
 		{
+			var isLogoff = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Span.Slice(2)) == DtcConstants.LOGOFF;
+			lock (_sessionLock)
+			{
+				if (_closing) return;
+				_lastMessageTimestamp = _timeProvider.GetTimestamp();
+				_lossTimer?.Change(_lossTimeout, Timeout.InfiniteTimeSpan);
+				if (isLogoff)
+				{
+					BeginClose();
+					L.LogInformation("Client logged off; closing connection: {remoteEndPoint}", RemoteEndPoint);
+				}
+			}
+			if (isLogoff)
+			{
+				CancelAndDisconnect();
+				return;
+			}
 			// The message can be a slice of NetCoreServer's receive buffer, which the next read overwrites as soon as
 			// OnReceived returns, while the processing below is not awaited. So the processing gets its own copy.
 #pragma warning disable CS4014
@@ -147,6 +161,7 @@ namespace SomeDataProvider.DtcProtocolServer
 					await L.LogOperationAsync(async () =>
 					{
 						var ct = GetContext.CancellationToken;
+						ct.ThrowIfCancellationRequested();
 						var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer);
 						var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
 						await using (new FinallyAsync(() => decoder.TryDisposeAsync()))
@@ -164,8 +179,6 @@ namespace SomeDataProvider.DtcProtocolServer
 									//// await SendKnownSymbolsInformationAsync(ct);
 									break;
 								case DtcConstants.HEARTBEAT:
-									// TODO: Add Heartbeat detection logic.
-									// It is recommended that if there is a loss of HEARTBEAT messages from the other side, for twice the amount of the HeartbeatIntervalInSeconds time that it is safe to assume that the other side is no longer present and the network socket should be then gracefully closed.
 									break;
 								case DtcConstants.HISTORICAL_PRICE_DATA_REQUEST:
 									await ProcessHistoricalPriceDataRequestAsync(decoder, encoder, ct);
@@ -220,7 +233,7 @@ namespace SomeDataProvider.DtcProtocolServer
 					{
 						if (encoder.EncodedMessageSize >= 80_000)
 						{
-							SendAsync(encoder.GetEncodedMessage());
+							SendResponse(encoder.GetEncodedMessage());
 							await encoder.TryDisposeAsync();
 							encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
 						}
@@ -232,51 +245,8 @@ namespace SomeDataProvider.DtcProtocolServer
 				{
 					await encoder.TryDisposeAsync();
 				}
-				SendAsync(encoder.GetEncodedMessage());
+				SendResponse(encoder.GetEncodedMessage());
 			}, "SendKnownSymbolsInformation()");
-		}
-
-		void OnHeartbeatTimerElapsed(object? sender, ElapsedEventArgs e)
-		{
-			L.LogOperation(() =>
-			{
-				if (IsDisposed || !IsConnected)
-				{
-					L.LogDebug("DisposedOrDisconnected");
-					return;
-				}
-				var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
-				using (new Finally(() => encoder.TryDispose()))
-				{
-					encoder.EncodeHeartbeatMessage(0);
-					L.LogInformation("Sending hearbeat...");
-					SendAsync(encoder.GetEncodedMessage());
-					L.LogInformation("Sent hearbeat.");
-				}
-			}, "SendHeartbeat");
-		}
-
-		void StartHeartbeatTimer(int intervalMs)
-		{
-			if (_onlyHistoryServer) return;
-			StopHeartbeatTimer();
-			var t = new Timer(intervalMs);
-			t.Elapsed += OnHeartbeatTimerElapsed;
-			t.Start();
-			L.LogInformation("HearbeatTimerStarted({intervalMs})", intervalMs);
-			_heartbeatTimer = t;
-		}
-
-		void StopHeartbeatTimer()
-		{
-			if (_onlyHistoryServer) return;
-			var t = _heartbeatTimer;
-			if (t == null) return;
-			_heartbeatTimer = null;
-			t.Stop();
-			t.Elapsed -= OnHeartbeatTimerElapsed;
-			L.LogInformation("HearbeatTimerStopped");
-			t.Dispose();
 		}
 	}
 }

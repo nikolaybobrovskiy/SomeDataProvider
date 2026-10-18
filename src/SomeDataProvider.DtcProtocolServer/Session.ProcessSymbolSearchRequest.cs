@@ -85,6 +85,6 @@ partial class Session
 				encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol search failed: {request.SearchText}.");
 			}
 		}
-		SendAsync(encoder.GetEncodedMessage());
+		SendResponse(encoder.GetEncodedMessage());
 	}
 }

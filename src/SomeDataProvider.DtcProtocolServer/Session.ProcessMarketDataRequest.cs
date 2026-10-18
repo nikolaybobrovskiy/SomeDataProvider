@@ -53,7 +53,7 @@ partial class Session
 					encoder.EncodeMarketDataSnapshot(marketDataRequest.SymbolId, TradingStatusEnum.TRADING_STATUS_UNKNOWN, DateTime.Now);
 				}
 			}
-			SendAsync(encoder.GetEncodedMessage());
+			SendResponse(encoder.GetEncodedMessage());
 		}, "ProcessMarketDataRequest()");
 	}
 }

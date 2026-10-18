@@ -38,6 +38,6 @@ partial class Session
 		}
 		L.LogInformation("ChosenEncoding: {chosenEncoding}", _currentMessageProtocol.Encoding);
 		encoder.EncodeEncodingResponse(_currentMessageProtocol.Encoding);
-		SendAsync(encoder.GetEncodedMessage());
+		SendResponse(encoder.GetEncodedMessage());
 	}
 }

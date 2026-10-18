@@ -43,6 +43,8 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		/// <summary>The limit the server's last SearchSymbolsAsync call passed, for asserting the documented cap.</summary>
 		public int? LastSearchLimit { get; private set; }
 
+		public Func<int, ISymbolHistoryStoreReader>? HistoryReaderFactory { get; set; }
+
 		public ValueTask<(ISymbolsStore SymbolsStore, string SymbolCode)?> GetSymbolsStoreAsync(string code, CancellationToken cancellationToken = default)
 		{
 			(ISymbolsStore, string)? result = code.StartsWith(Prefix, StringComparison.Ordinal) ? (this, code.Substring(Prefix.Length)) : null;
@@ -68,7 +70,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			ValueTask.FromResult<ISymbolHistoryStore>(this);
 
 		public ValueTask<ISymbolHistoryStoreReader> CreateSymbolHistoryReaderAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, CancellationToken cancellationToken = default) =>
-			ValueTask.FromResult(_history.CreateReader(limit));
+			ValueTask.FromResult(HistoryReaderFactory?.Invoke(limit) ?? _history.CreateReader(limit));
 
 		ValueTask<IReadOnlyCollection<ISymbol>> SearchSymbolsAsync(string searchText, SymbolSearchType searchType, int limit)
 		{

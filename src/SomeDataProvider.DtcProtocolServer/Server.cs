@@ -31,15 +31,19 @@ namespace SomeDataProvider.DtcProtocolServer
 			bool onlyHistoryServer,
 			ISymbolsStoreProvider symbolsStoreProvider,
 			ISymbolHistoryStoreProvider historyStoreProvider,
-			ILoggerFactory loggerFactory)
+			ILoggerFactory loggerFactory,
+			TimeProvider? timeProvider = null)
 			: base(address, port)
 		{
 			_loggerFactory = loggerFactory;
 			_onlyHistoryServer = onlyHistoryServer;
 			_symbolsStoreProvider = symbolsStoreProvider;
 			_historyStoreProvider = historyStoreProvider;
+			TimeProvider = timeProvider ?? System.TimeProvider.System;
 			L = loggerFactory.CreateLogger<Server>();
 		}
+
+		internal TimeProvider TimeProvider { get; }
 
 		ILogger<Server> L { get; }
 
