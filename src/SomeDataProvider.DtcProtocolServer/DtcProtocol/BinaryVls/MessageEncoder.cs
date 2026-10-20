@@ -4,10 +4,15 @@
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 {
 	using System;
+	using System.Collections.Generic;
+	using System.Diagnostics;
 	using System.Runtime.CompilerServices;
 
 	using Dtc.Protocol;
+	using Dtc.Protocol.Private;
 	using Dtc.Protocol.Vls;
+
+	using SomeDataProvider.DtcProtocolServer.Data;
 
 	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
 	using VlsHistoricalPriceDataReject = Dtc.Protocol.Vls.s_HistoricalPriceDataReject;
@@ -96,6 +101,59 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			Append(buffer.AsSpan(0, encoder.Complete()));
 		}
 
+		public override void EncodeSeriesExtensionResponse(SeriesExtensionResponse response)
+		{
+			ArgumentNullException.ThrowIfNull(response);
+			var buffer = NewSeriesBuffer<s_SeriesExtensionResponse>();
+			Append(buffer.AsSpan(0, response.ToVls(buffer, MessageProtocol.SeriesTextEncoding)));
+		}
+
+		public override void EncodeSeriesMetadataResponse(SeriesMetadataResponse response)
+		{
+			ArgumentNullException.ThrowIfNull(response);
+			var buffer = NewSeriesBuffer<s_SeriesMetadataResponse>(response.Symbol, response.Exchange, response.Title, response.Units, response.UnitsShort);
+			Append(buffer.AsSpan(0, response.ToVls(buffer, MessageProtocol.SeriesTextEncoding)));
+		}
+
+		public override void EncodeSeriesVintageRecords(int requestId, IReadOnlyList<SeriesVintage> rows, int start, int count)
+		{
+			ArgumentNullException.ThrowIfNull(rows);
+			ArgumentOutOfRangeException.ThrowIfNegative(start);
+			ArgumentOutOfRangeException.ThrowIfNegative(count);
+			ArgumentOutOfRangeException.ThrowIfGreaterThan(start, rows.Count - count);
+			// Rows have no strings, so each takes exactly the fixed part; the buffer grows once for all of them.
+			var size = Unsafe.SizeOf<s_SeriesVintageRecord>();
+			var destination = Extend(count * size);
+			for (var i = 0; i < count; i++)
+			{
+				var row = rows[start + i];
+				var record = new SeriesVintageRecord
+				{
+					RequestID = requestId,
+					ObservationDate = row.ObservationDate,
+					RealtimeStart = row.RealtimeStart,
+					RealtimeEnd = row.RealtimeEnd,
+					Value = row.Value,
+				};
+				var length = record.ToVls(destination.Slice(i * size, size), MessageProtocol.SeriesTextEncoding);
+				Debug.Assert(length == size, "A SERIES_VINTAGE_RECORD has no strings, so its length is its fixed part.");
+			}
+		}
+
+		public override void EncodeSeriesVintagesTerminator(int requestId)
+		{
+			var buffer = NewSeriesBuffer<s_SeriesVintageRecord>();
+			var terminator = new SeriesVintageRecord { RequestID = requestId, IsFinalMessage = true };
+			Append(buffer.AsSpan(0, terminator.ToVls(buffer, MessageProtocol.SeriesTextEncoding)));
+		}
+
+		public override void EncodeSeriesRequestReject(SeriesRequestReject reject)
+		{
+			ArgumentNullException.ThrowIfNull(reject);
+			var buffer = NewSeriesBuffer<s_SeriesRequestReject>(reject.RejectText);
+			Append(buffer.AsSpan(0, reject.ToVls(buffer, MessageProtocol.SeriesTextEncoding)));
+		}
+
 		/// <summary>Allocates storage for a message of type <typeparamref name="T"/> with these strings.</summary>
 		static byte[] NewBuffer<T>(params ReadOnlySpan<string?> strings)
 			where T : unmanaged, IDtcVlsMessage<T>
@@ -106,6 +164,20 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 				// An empty string is absent; any other takes its bytes and a null terminator.
 				if (!string.IsNullOrEmpty(s))
 					length += MessageProtocol.TextEncoding.GetByteCount(s) + 1;
+			}
+			return new byte[length];
+		}
+
+		/// <summary>Allocates storage for a series extension message of type <typeparamref name="T"/> with these UTF-8 strings.</summary>
+		static byte[] NewSeriesBuffer<T>(params ReadOnlySpan<string?> strings)
+			where T : unmanaged, IDtcVlsMessage<T>
+		{
+			var length = Unsafe.SizeOf<T>();
+			foreach (var s in strings)
+			{
+				// An empty string is absent; any other takes its bytes and a null terminator.
+				if (!string.IsNullOrEmpty(s))
+					length += MessageProtocol.SeriesTextEncoding.GetByteCount(s) + 1;
 			}
 			return new byte[length];
 		}

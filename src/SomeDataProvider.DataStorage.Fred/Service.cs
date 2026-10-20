@@ -19,7 +19,7 @@ namespace SomeDataProvider.DataStorage.Fred
 	using SomeDataProvider.DataStorage.Fred.Dto;
 
 	// https://fred.stlouisfed.org/docs/api/fred/
-	public sealed class Service : IDisposable
+	public sealed partial class Service : IDisposable
 	{
 		public const string DateFormat = "yyyy-MM-dd";
 

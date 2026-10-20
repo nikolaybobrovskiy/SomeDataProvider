@@ -19,6 +19,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		/// <summary>The text encoding of the server's strings: ASCII, which sends any other character as '?'.</summary>
 		public static readonly Encoding TextEncoding = System.Text.Encoding.ASCII;
 
+		/// <summary>
+		/// The text encoding of the private series extension's strings: UTF-8, as Provider Profile v1 and the extension's
+		/// specification require.
+		/// </summary>
+		public static readonly Encoding SeriesTextEncoding = System.Text.Encoding.UTF8;
+
 		MessageProtocol(EncodingEnum encoding, IMessageDecoderFactory messageDecoderFactory, IMessageEncoderFactory messageEncoderFactory, IMessageStreamer messageStreamer)
 		{
 			Encoding = encoding;

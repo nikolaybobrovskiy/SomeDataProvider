@@ -7,6 +7,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 	using System.Globalization;
 
 	using Dtc.Protocol;
+	using Dtc.Protocol.Private;
 
 	/// <summary>Names DTC message types for logs.</summary>
 	static class MessageTypeNames
@@ -15,10 +16,13 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		/// <summary>
 		/// Returns the name of the message structure that has the wire Type <paramref name="type"/>, without its <c>s_</c>
-		/// prefix, such as <c>HistoricalPriceDataRequest</c>; or the number, for a Type without a structure.
+		/// prefix, such as <c>HistoricalPriceDataRequest</c>; the registry name of a private Type of Dtc.Protocol, such as
+		/// <c>SERIES_METADATA_REQUEST</c>; or the number, for any other Type.
 		/// </summary>
 		public static string Get(ushort type)
 		{
+			if (DtcPrivateMessages.TryGetInfo(type, out var info))
+				return info.Name;
 			var visitor = default(NameVisitor);
 			return DtcBinaryMessages.TryVisit(type, ref visitor) && visitor.Name != null
 				? visitor.Name

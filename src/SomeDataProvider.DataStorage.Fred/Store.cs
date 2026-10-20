@@ -16,7 +16,7 @@ namespace SomeDataProvider.DataStorage.Fred
 	using SomeDataProvider.DataStorage.Definitions;
 	using SomeDataProvider.DataStorage.Fred.Dto;
 
-	public sealed class Store : ISymbolHistoryStore, ISymbolsStore, IDisposable
+	public sealed partial class Store : ISymbolHistoryStore, ISymbolsStore, IDisposable
 	{
 		readonly ILoggerFactory _loggerFactory;
 		readonly Service _fredService;

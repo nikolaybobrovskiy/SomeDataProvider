@@ -13,6 +13,7 @@ namespace SomeDataProvider.DtcProtocolServer
 	using NetCoreServer;
 
 	using SomeDataProvider.DataStorage.Definitions;
+	using SomeDataProvider.DtcProtocolServer.Data;
 
 	class Server : TcpServer
 	{
@@ -22,6 +23,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		readonly bool _onlyHistoryServer;
 		readonly ISymbolsStoreProvider _symbolsStoreProvider;
 		readonly ISymbolHistoryStoreProvider _historyStoreProvider;
+		readonly ISeriesSource _seriesSource;
 
 		int _currentRequestsCount;
 
@@ -31,6 +33,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			bool onlyHistoryServer,
 			ISymbolsStoreProvider symbolsStoreProvider,
 			ISymbolHistoryStoreProvider historyStoreProvider,
+			ISeriesSource seriesSource,
 			ILoggerFactory loggerFactory,
 			TimeProvider? timeProvider = null)
 			: base(address, port)
@@ -39,6 +42,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			_onlyHistoryServer = onlyHistoryServer;
 			_symbolsStoreProvider = symbolsStoreProvider;
 			_historyStoreProvider = historyStoreProvider;
+			_seriesSource = seriesSource;
 			TimeProvider = timeProvider ?? System.TimeProvider.System;
 			L = loggerFactory.CreateLogger<Server>();
 		}
@@ -82,7 +86,7 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		protected override TcpSession CreateSession()
 		{
-			return new Session(this, _onlyHistoryServer, _symbolsStoreProvider, _historyStoreProvider, _loggerFactory);
+			return new Session(this, _onlyHistoryServer, _symbolsStoreProvider, _historyStoreProvider, _seriesSource, _loggerFactory);
 		}
 
 		protected override void OnStarted()

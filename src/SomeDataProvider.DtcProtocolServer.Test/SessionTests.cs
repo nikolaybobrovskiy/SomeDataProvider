@@ -275,7 +275,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		sealed class ConnectionTrackingServer : Server
 		{
 			public ConnectionTrackingServer(FakeStores stores, ILoggerFactory loggerFactory, bool onlyHistoryServer, TimeProvider? timeProvider)
-				: base(IPAddress.Loopback, 0, onlyHistoryServer, stores, stores, loggerFactory, timeProvider)
+				: base(IPAddress.Loopback, 0, onlyHistoryServer, stores, stores, stores, loggerFactory, timeProvider)
 			{
 			}
 

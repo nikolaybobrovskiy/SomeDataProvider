@@ -12,7 +12,7 @@ using NBLib.Logging;
 
 using SomeDataProvider.DataStorage.Definitions;
 
-sealed class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider, IDisposable
+sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider, IDisposable
 {
 	public const string DataSourceFredPrefix = "fred";
 

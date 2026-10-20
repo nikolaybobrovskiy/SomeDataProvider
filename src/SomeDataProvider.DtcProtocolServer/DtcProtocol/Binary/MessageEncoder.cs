@@ -4,10 +4,14 @@
 namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 {
 	using System;
+	using System.Collections.Generic;
 
 	using Dtc.Protocol;
+	using Dtc.Protocol.Private;
 
 	using NBLib.DateTime;
+
+	using SomeDataProvider.DtcProtocolServer.Data;
 
 	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
 
@@ -98,6 +102,31 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			});
 		}
 
+		public virtual void EncodeSeriesExtensionResponse(SeriesExtensionResponse response)
+		{
+			throw MessageDecoder.NewSeriesExtensionNotSupportedException();
+		}
+
+		public virtual void EncodeSeriesMetadataResponse(SeriesMetadataResponse response)
+		{
+			throw MessageDecoder.NewSeriesExtensionNotSupportedException();
+		}
+
+		public virtual void EncodeSeriesVintageRecords(int requestId, IReadOnlyList<SeriesVintage> rows, int start, int count)
+		{
+			throw MessageDecoder.NewSeriesExtensionNotSupportedException();
+		}
+
+		public virtual void EncodeSeriesVintagesTerminator(int requestId)
+		{
+			throw MessageDecoder.NewSeriesExtensionNotSupportedException();
+		}
+
+		public virtual void EncodeSeriesRequestReject(SeriesRequestReject reject)
+		{
+			throw MessageDecoder.NewSeriesExtensionNotSupportedException();
+		}
+
 		public byte[] GetEncodedMessage()
 		{
 			return _bytes ?? throw new InvalidOperationException("Message is not ready.");
@@ -117,7 +146,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 		}
 
 		/// <summary>Grows the buffer by <paramref name="length"/> bytes and returns them.</summary>
-		Span<byte> Extend(int length)
+		protected Span<byte> Extend(int length)
 		{
 			var start = _bytes?.Length ?? 0;
 			Array.Resize(ref _bytes, start + length);

@@ -50,6 +50,22 @@ An interval of 0 disables heartbeats in both directions and disables loss detect
 to 0, and intervals above 300 seconds are clamped to 300. The history-only server never sends heartbeats or runs
 loss detection, regardless of the requested interval. Client `LOGOFF` still closes a history-only session.
 
+## Series extension
+Both servers, the streaming and the history-only one, implement version 1 of MrktPltfrm's private DTC series extension
+(`docs/dtc-series-extension.md` in MrktPltfrm, private Types 20000 to 20006, binary encoding with variable-length
+strings only). The server keeps no handshake state: it answers `SERIES_METADATA_REQUEST` and
+`SERIES_VINTAGES_REQUEST` whenever they arrive, each with its answer or exactly one `SERIES_REQUEST_REJECT`.
+- Symbols are `fred-<SERIES_ID>`, optionally with a units suffix such as `.pch`, with an empty Exchange.
+- Metadata comes from FRED's `fred/series`. Units are the base series'; the suffix only sets the units
+  transformation.
+- Vintages come from FRED's `fred/series/observations` with `output_type=1`: one row per observation and real-time
+  period, in ascending observation date and then real-time start, keeping FRED's clipping to the requested real-time
+  window. A real-time bound of 0 asks for 1776-07-04 or 9999-12-31; FRED's `.` is a row without a value; `ReleaseTime`
+  is 0. Rows go out page by page as FRED returns them: a page's complete observation dates are sent before the next
+  page is fetched, and a date whose rows continue on the next page waits for that page.
+- A missing series is rejected as an unknown symbol; FRED's rate limit, outages and API key problems as source
+  unavailable, with a retry hint of 1 to 3,600 seconds when one is known.
+
 ## Build from source
 `SomeDataProvider.DtcProtocolServer` uses `Dtc.Protocol`, the DTC message library of the author's MrktPltfrm
 project, which is not on nuget.org. `nuget.config` restores it only from the local folder feed

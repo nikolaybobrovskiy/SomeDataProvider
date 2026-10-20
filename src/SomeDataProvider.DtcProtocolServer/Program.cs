@@ -63,6 +63,7 @@ namespace SomeDataProvider.DtcProtocolServer
 				base.ConfigureServices(services, configuration);
 				services.AddSingleton<ISymbolsStoreProvider>(GetOrCreateStoresProvider);
 				services.AddSingleton<ISymbolHistoryStoreProvider>(GetOrCreateStoresProvider);
+				services.AddSingleton<ISeriesSource>(GetOrCreateStoresProvider);
 				services.Configure<StoresProvider.StoresOptions>(configuration.GetSection("StoresOptions"));
 				//// services.AddSingleton(CreateSymbolHistoryStoreCache);
 			}

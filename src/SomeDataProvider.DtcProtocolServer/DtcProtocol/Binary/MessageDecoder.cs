@@ -6,6 +6,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 	using System;
 
 	using Dtc.Protocol;
+	using Dtc.Protocol.Private;
 
 	using LogonRequestRecord = Dtc.Protocol.Messages.LogonRequest;
 
@@ -51,12 +52,31 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
+		public virtual SeriesExtensionRequest DecodeSeriesExtensionRequest()
+		{
+			throw NewSeriesExtensionNotSupportedException();
+		}
+
+		public virtual SeriesMetadataRequest DecodeSeriesMetadataRequest()
+		{
+			throw NewSeriesExtensionNotSupportedException();
+		}
+
+		public virtual SeriesVintagesRequest DecodeSeriesVintagesRequest()
+		{
+			throw NewSeriesExtensionNotSupportedException();
+		}
+
 		/// <summary>Decodes ENCODING_REQUEST, which has no strings, so every encoding sends it in binary encoding.</summary>
 		public s_EncodingRequest DecodeEncodingRequest()
 		{
 			DtcBinaryDecoder.Decode(Buffer.Span, out s_EncodingRequest message);
 			return message;
 		}
+
+		/// <summary>The series extension's messages exist only in binary encoding with variable-length strings.</summary>
+		internal static NotSupportedException NewSeriesExtensionNotSupportedException() =>
+			new("The series extension's messages exist only in binary encoding with variable-length strings.");
 
 		public sealed class Factory : IMessageDecoderFactory
 		{

@@ -48,7 +48,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		{
 			var logs = new RecordingLoggerFactory();
 			var stores = new FakeStores(new FakeHistory(0));
-			var server = new Server(IPAddress.Loopback, 0, true, stores, stores, logs);
+			var server = new Server(IPAddress.Loopback, 0, true, stores, stores, stores, logs);
 			Assert.That(server.Start(), Is.True, "The server did not start.");
 			try
 			{
@@ -119,7 +119,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			var logs = new RecordingLoggerFactory();
 			var stores = new FakeStores(new FakeHistory(0));
 			using var server = new CallbackServer(stores, logs);
-			using var session = new Session(server, true, stores, stores, logs);
+			using var session = new Session(server, true, stores, stores, stores, logs);
 			using var plainSession = new NetCoreServer.TcpSession(server);
 
 			Assert.That(() => server.CallOnConnected(session), Throws.Nothing);
@@ -187,7 +187,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		sealed class CallbackServer : Server
 		{
 			public CallbackServer(FakeStores stores, RecordingLoggerFactory logs)
-				: base(IPAddress.Loopback, 0, true, stores, stores, logs)
+				: base(IPAddress.Loopback, 0, true, stores, stores, stores, logs)
 			{
 			}
 

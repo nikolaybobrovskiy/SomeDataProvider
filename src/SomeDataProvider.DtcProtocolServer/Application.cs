@@ -20,6 +20,7 @@ namespace SomeDataProvider.DtcProtocolServer
 	using NBLib.Exceptions;
 
 	using SomeDataProvider.DataStorage.Definitions;
+	using SomeDataProvider.DtcProtocolServer.Data;
 
 	// How to set up Sierra Chart for custom data provider: https://www.sierrachart.com/index.php?page=doc/DTC_TestClient.php
 
@@ -38,15 +39,18 @@ namespace SomeDataProvider.DtcProtocolServer
 			readonly ILoggerFactory _loggerFactory;
 			readonly ISymbolsStoreProvider _symbolsStoreProvider;
 			readonly ISymbolHistoryStoreProvider _historyStoreProvider;
+			readonly ISeriesSource _seriesSource;
 
 			public StartCommand(
 				ISymbolsStoreProvider symbolsStoreProvider,
 				ISymbolHistoryStoreProvider historyStoreProvider,
+				ISeriesSource seriesSource,
 				ILoggerFactory loggerFactory)
 				: base(loggerFactory)
 			{
 				_symbolsStoreProvider = symbolsStoreProvider;
 				_historyStoreProvider = historyStoreProvider;
+				_seriesSource = seriesSource;
 				_loggerFactory = loggerFactory;
 			}
 
@@ -67,6 +71,7 @@ namespace SomeDataProvider.DtcProtocolServer
 						OnlyHistoryServer,
 						_symbolsStoreProvider,
 						_historyStoreProvider,
+						_seriesSource,
 						_loggerFactory);
 					L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
 					mainServer.Start();

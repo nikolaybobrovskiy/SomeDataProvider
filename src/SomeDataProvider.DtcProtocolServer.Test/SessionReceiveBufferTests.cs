@@ -48,7 +48,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			};
 			var stores = new FakeStores(new FakeHistory(0));
 			// The server is never started: the session only needs it to count the requests in progress.
-			using (var server = new Server(IPAddress.Loopback, 0, true, stores, stores, logs))
+			using (var server = new Server(IPAddress.Loopback, 0, true, stores, stores, stores, logs))
 			using (var session = new ReceivingSession(server, stores, logs))
 			{
 				// The fake stores complete at once, so the session processes the request before PassReceivedBytes returns.
@@ -69,7 +69,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		sealed class ReceivingSession : Session
 		{
 			public ReceivingSession(Server server, FakeStores stores, ILoggerFactory loggerFactory)
-				: base(server, true, stores, stores, loggerFactory)
+				: base(server, true, stores, stores, stores, loggerFactory)
 			{
 			}
 

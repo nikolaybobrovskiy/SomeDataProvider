@@ -13,6 +13,7 @@ namespace SomeDataProvider.DtcProtocolServer
 	using System.Threading.Tasks;
 
 	using Dtc.Protocol;
+	using Dtc.Protocol.Private;
 
 	using Microsoft.Extensions.Logging;
 
@@ -23,6 +24,7 @@ namespace SomeDataProvider.DtcProtocolServer
 	using NetCoreServer;
 
 	using SomeDataProvider.DataStorage.Definitions;
+	using SomeDataProvider.DtcProtocolServer.Data;
 	using SomeDataProvider.DtcProtocolServer.DtcProtocol;
 
 	using EncodeSecurityDefinitionResponseArgs = SomeDataProvider.DtcProtocolServer.DtcProtocol.IMessageEncoder.EncodeSecurityDefinitionResponseArgs;
@@ -34,6 +36,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		readonly bool _onlyHistoryServer;
 		readonly ISymbolsStoreProvider _symbolsStoreProvider;
 		readonly ISymbolHistoryStoreProvider _symbolHistoryStoreProvider;
+		readonly ISeriesSource _seriesSource;
 		readonly CancellationTokenSource _disconnectTokenSource = new ();
 		MessageProtocol _currentMessageProtocol = MessageProtocol.CreateMessageProtocol(MessageProtocol.PreferredEncoding);
 
@@ -45,6 +48,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			bool onlyHistoryServer,
 			ISymbolsStoreProvider symbolsStoreProvider,
 			ISymbolHistoryStoreProvider symbolHistoryStoreProvider,
+			ISeriesSource seriesSource,
 			ILoggerFactory loggerFactory)
 			: base(server)
 		{
@@ -52,6 +56,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			_onlyHistoryServer = onlyHistoryServer;
 			_symbolsStoreProvider = symbolsStoreProvider;
 			_symbolHistoryStoreProvider = symbolHistoryStoreProvider;
+			_seriesSource = seriesSource;
 			_timeProvider = server.TimeProvider;
 			L = loggerFactory.CreateLogger<Session>();
 		}
@@ -191,6 +196,16 @@ namespace SomeDataProvider.DtcProtocolServer
 									break;
 								case DtcConstants.SYMBOL_SEARCH_REQUEST:
 									await ProcessSymbolSearchRequestAsync(decoder, encoder, ct);
+									break;
+								// The series extension's private messages exist only in binary VLS, the encoding of every session.
+								case DtcPrivateMessages.SeriesExtensionRequestType when IsVlsSession:
+									ProcessSeriesExtensionRequest(decoder, encoder);
+									break;
+								case DtcPrivateMessages.SeriesMetadataRequestType when IsVlsSession:
+									await ProcessSeriesMetadataRequestAsync(decoder, ct);
+									break;
+								case DtcPrivateMessages.SeriesVintagesRequestType when IsVlsSession:
+									await ProcessSeriesVintagesRequestAsync(decoder, ct);
 									break;
 								default:
 									L.LogWarning($"Message type is not supported: {MessageTypeNames.Get(messageType)}.");

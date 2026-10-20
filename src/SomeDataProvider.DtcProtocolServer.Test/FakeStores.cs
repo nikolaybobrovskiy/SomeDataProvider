@@ -16,7 +16,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	/// without the prefix. The store knows one series, <see cref="SeriesId"/>, plus a small fixed catalog for symbol
 	/// search, independent of SeriesId.
 	/// </summary>
-	sealed class FakeStores : ISymbolsStoreProvider, ISymbolsStore, ISymbolHistoryStoreProvider, ISymbolHistoryStore
+	sealed partial class FakeStores : ISymbolsStoreProvider, ISymbolsStore, ISymbolHistoryStoreProvider, ISymbolHistoryStore
 	{
 		public const string SeriesId = "GDP";
 

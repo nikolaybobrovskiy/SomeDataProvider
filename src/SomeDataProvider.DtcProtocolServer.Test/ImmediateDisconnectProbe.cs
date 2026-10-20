@@ -218,7 +218,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			}
 
 			ProbeServer(FakeStores stores, RecordingLoggerFactory logs, bool gate)
-				: base(IPAddress.Loopback, 0, true, stores, stores, logs)
+				: base(IPAddress.Loopback, 0, true, stores, stores, stores, logs)
 			{
 				_stores = stores;
 				_logs = logs;
@@ -277,7 +277,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			readonly bool _gate;
 
 			public ProbeSession(ProbeServer server, bool gate, FakeStores stores, RecordingLoggerFactory logs)
-				: base(server, true, stores, stores, logs)
+				: base(server, true, stores, stores, stores, logs)
 			{
 				_server = server;
 				_gate = gate;
