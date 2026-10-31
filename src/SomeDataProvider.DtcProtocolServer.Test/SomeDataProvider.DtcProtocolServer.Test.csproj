@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
+    <PackageReference Include="Dtc.Client" Version="[8.0.0-alpha.3]" />
+    <PackageReference Include="Dtc.Conformance" Version="[8.0.0-alpha.3]" />
     <PackageReference Include="NUnit" Version="$(NUnitVersion)" />
     <PackageReference Include="NUnit3TestAdapter" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
@@ -27,6 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SomeDataProvider.DtcProtocolServer\SomeDataProvider.DtcProtocolServer.csproj" />
+    <Compile Include="..\SomeDataProvider.DataStorage.TInvest.Test\ScriptedTInvestGateway.cs" Link="ScriptedTInvestGateway.cs" />
   </ItemGroup>
 
   <ItemGroup>

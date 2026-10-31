@@ -19,41 +19,56 @@ partial class Session
 {
 	async Task ProcessMarketDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 	{
-		await L.LogOperationAsync(async () =>
+		uint symbolId = 0;
+		try
 		{
-			var marketDataRequest = decoder.DecodeMarketDataRequest();
-			L.LogInformation("MarketDataRequest: {marketDataRequest}", marketDataRequest);
-			if (marketDataRequest.RequestAction != RequestActionEnum.SUBSCRIBE)
+			await L.LogOperationAsync(async () =>
 			{
-				throw new NotSupportedException($"MarketDataRequestAction '{marketDataRequest.RequestAction}' is not supported.");
-			}
-			var getSymbolsStoreResult = await _symbolsStoreProvider.GetSymbolsStoreAsync(marketDataRequest.Symbol, ct);
-			if (getSymbolsStoreResult == null)
-			{
-				L.LogInformation("Answer: MarketDataReject: NoSymbolStore");
-				encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Symbol store is found: {marketDataRequest.Symbol}.");
-			}
-			else
-			{
-				var (symbolsStore, symbolCode) = getSymbolsStoreResult.Value;
-				var symbol = await symbolsStore.GetSymbolAsync(symbolCode, ct);
-				if (symbol == null)
+				var marketDataRequest = decoder.DecodeMarketDataRequest();
+				symbolId = marketDataRequest.SymbolId;
+				L.LogInformation("MarketDataRequest: {marketDataRequest}", marketDataRequest);
+
+				if (marketDataRequest.RequestAction != RequestActionEnum.SUBSCRIBE)
 				{
-					L.LogInformation("Answer: MarketDataReject: NoSymbol");
-					encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Symbol is unknown: {symbolCode}.");
+					throw new NotSupportedException($"MarketDataRequestAction '{marketDataRequest.RequestAction}' is not supported.");
 				}
-				else if (!symbol.IsRealTime)
+				var getSymbolsStoreResult = await _symbolsStoreProvider.GetSymbolsStoreAsync(marketDataRequest.Symbol, marketDataRequest.Exchange, ct);
+				if (getSymbolsStoreResult == null)
 				{
-					L.LogInformation("Answer: MarketDataReject: NoRealTimeSupport");
-					encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Real-time market data is not supported for {marketDataRequest.Symbol}.");
+					L.LogInformation("Answer: MarketDataReject: NoSymbolStore");
+					encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, "Symbol is unknown or T-Invest source is not configured.");
 				}
 				else
 				{
-					L.LogInformation("Answer: MarketDataSnapshot");
-					encoder.EncodeMarketDataSnapshot(marketDataRequest.SymbolId, TradingStatusEnum.TRADING_STATUS_UNKNOWN, DateTime.Now);
+					var (symbolsStore, symbolCode) = getSymbolsStoreResult.Value;
+					var symbol = await symbolsStore.GetSymbolAsync(symbolCode, ct);
+					if (symbol == null)
+					{
+						L.LogInformation("Answer: MarketDataReject: NoSymbol");
+						encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Symbol is unknown: {marketDataRequest.Symbol}.");
+					}
+					else if (symbol.DataService == SomeDataProvider.DataStorage.Definitions.DataService.TInvest)
+					{
+						encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, "T-Invest market data is not implemented in this stage.");
+					}
+					else if (!symbol.IsRealTime)
+					{
+						L.LogInformation("Answer: MarketDataReject: NoRealTimeSupport");
+						encoder.EncodeMarketDataReject(marketDataRequest.SymbolId, $"Real-time market data is not supported for {marketDataRequest.Symbol}.");
+					}
+					else
+					{
+						L.LogInformation("Answer: MarketDataSnapshot");
+						encoder.EncodeMarketDataSnapshot(marketDataRequest.SymbolId, TradingStatusEnum.TRADING_STATUS_UNKNOWN, DateTime.Now);
+					}
 				}
-			}
+				SendResponse(encoder.GetEncodedMessage());
+			}, "ProcessMarketDataRequest()");
+		}
+		catch (SomeDataProvider.DataStorage.TInvest.TInvestRequestException ex)
+		{
+			encoder.EncodeMarketDataReject(symbolId, ex.Message);
 			SendResponse(encoder.GetEncodedMessage());
-		}, "ProcessMarketDataRequest()");
+		}
 	}
 }

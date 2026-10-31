@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>$(ModernFramework)</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <CodeAnalysisRuleSet>i:\Dropbox\SoftConfig\VisualStudio\NBCSharpRules.ruleset</CodeAnalysisRuleSet>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="i:\Dropbox\SoftConfig\VisualStudio\StyleCop.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
+    <PackageReference Include="NUnit" Version="$(NUnitVersion)" />
+    <PackageReference Include="NUnit3TestAdapter" Version="*" />
+    <ProjectReference Include="..\SomeDataProvider.DataStorage.TInvest\SomeDataProvider.DataStorage.TInvest.csproj" />
+    <ProjectReference Include="..\SomeDataProvider.DtcProtocolServer\SomeDataProvider.DtcProtocolServer.csproj" />
+    <Compile Include="..\SomeDataProvider.DtcProtocolServer.Test\ManualTimeProvider.cs" Link="ManualTimeProvider.cs" />
+  </ItemGroup>
+</Project>

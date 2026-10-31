@@ -17,31 +17,26 @@ partial class Session
 		var securityDefinitionRequest = decoder.DecodeSecurityDefinitionForSymbolRequest();
 		var requestId = securityDefinitionRequest.RequestId;
 		L.LogInformation("SecurityDefinitionForSymbolRequest: {securityDefinitionRequest}", securityDefinitionRequest);
-		var getSymbolsStoreResult = await _symbolsStoreProvider.GetSymbolsStoreAsync(securityDefinitionRequest.Symbol, ct);
-		if (getSymbolsStoreResult == null)
+		try
 		{
-			L.LogInformation("Answer: SecurityDefinitionReject: NoSymbolStore");
-			encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol store is found: {securityDefinitionRequest.Symbol}.");
-		}
-		else
-		{
-			var (symbolsStore, symbolCode) = getSymbolsStoreResult.Value;
-			var symbol = await symbolsStore.GetSymbolAsync(symbolCode, ct);
+			var route = await _symbolsStoreProvider.GetSymbolsStoreAsync(securityDefinitionRequest.Symbol, securityDefinitionRequest.Exchange, ct);
+			var symbol = route == null ? null : await route.Value.SymbolsStore.GetSymbolAsync(route.Value.SymbolCode, ct);
 			if (symbol == null)
 			{
-				L.LogInformation("Answer: SecurityDefinitionReject: NoSymbol");
-				encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol is unknown: {securityDefinitionRequest.Symbol}.");
-				//// encoder.EncodeNoSecurityDefinitionsFound(requestId);
+				encoder.EncodeSecurityDefinitionReject(requestId, "Symbol is unknown or T-Invest source is not configured.");
 			}
 			else
 			{
-				L.LogInformation("Answer: SecurityDefinitionResponse");
 				encoder.EncodeSecurityDefinitionResponse(new IMessageEncoder.EncodeSecurityDefinitionResponseArgs(requestId, symbol, true)
 				{
-					// Echo the requested symbol: the store's code lacks the data source prefix, such as "fred-".
 					Symbol = securityDefinitionRequest.Symbol,
+					Exchange = symbol.DataService == SomeDataProvider.DataStorage.Definitions.DataService.TInvest ? securityDefinitionRequest.Exchange : symbol.Exchange,
 				});
 			}
+		}
+		catch (SomeDataProvider.DataStorage.TInvest.TInvestRequestException ex)
+		{
+			encoder.EncodeSecurityDefinitionReject(requestId, ex.Message);
 		}
 		SendResponse(encoder.GetEncodedMessage());
 	}

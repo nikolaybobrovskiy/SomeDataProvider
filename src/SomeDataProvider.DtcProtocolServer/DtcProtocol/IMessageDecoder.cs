@@ -20,6 +20,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		MarketDataRequest DecodeMarketDataRequest();
 
+		uint DecodeMarketDepthSymbolId();
+
 		SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest();
 
 		SymbolSearchRequest DecodeSymbolSearchRequest();

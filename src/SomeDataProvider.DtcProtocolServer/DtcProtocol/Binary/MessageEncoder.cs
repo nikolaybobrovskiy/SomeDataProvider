@@ -61,6 +61,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			});
 		}
 
+		public virtual void EncodeMarketDepthReject(uint symbolId, string rejectText)
+		{
+			throw new NotImplementedException();
+		}
+
 		public virtual void EncodeSecurityDefinitionReject(int requestId, string rejectText)
 		{
 			throw new NotImplementedException();

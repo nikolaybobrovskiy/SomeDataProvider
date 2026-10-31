@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>$(ModernFramework)</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <CodeAnalysisRuleSet>i:\Dropbox\SoftConfig\VisualStudio\NBCSharpRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="i:\Dropbox\SoftConfig\VisualStudio\StyleCop.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Tinkoff.InvestApi" Version="[0.6.25]" />
+    <ProjectReference Include="..\SomeDataProvider.DataStorage.Definitions\SomeDataProvider.DataStorage.Definitions.csproj" />
+  </ItemGroup>
+</Project>

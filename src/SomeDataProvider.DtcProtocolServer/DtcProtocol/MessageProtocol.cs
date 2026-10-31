@@ -16,8 +16,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		public const EncodingEnum PreferredEncoding = EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS;
 
-		/// <summary>The text encoding of the server's strings: ASCII, which sends any other character as '?'.</summary>
-		public static readonly Encoding TextEncoding = System.Text.Encoding.ASCII;
+		/// <summary>UTF-8 preserves source names and queries; ASCII FRED text is byte-identical.</summary>
+		public static readonly Encoding TextEncoding = System.Text.Encoding.UTF8;
 
 		/// <summary>
 		/// The text encoding of the private series extension's strings: UTF-8, as Provider Profile v1 and the extension's

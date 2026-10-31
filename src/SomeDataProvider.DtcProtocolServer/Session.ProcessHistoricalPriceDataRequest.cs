@@ -19,33 +19,49 @@ partial class Session
 {
 	async Task ProcessHistoricalPriceDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 	{
-		await L.LogOperationAsync(async () =>
+		var requestId = 0;
+		try
 		{
-			var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
-			L.LogInformation("RequestedHistory: {historicalPriceDataRequest}", historicalPriceDataRequest);
-			var getSymbolsStoreResult = await _symbolsStoreProvider.GetSymbolsStoreAsync(historicalPriceDataRequest.Symbol, ct);
-			if (getSymbolsStoreResult == null)
+			await L.LogOperationAsync(async () =>
 			{
-				L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbolStore");
-				encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, $"Symbol store is found: {historicalPriceDataRequest.Symbol}.");
-				SendResponse(encoder.GetEncodedMessage());
-			}
-			else
-			{
-				var (symbolsStore, symbolCode) = getSymbolsStoreResult.Value;
-				var symbol = await symbolsStore.GetSymbolAsync(symbolCode, ct);
-				if (symbol == null)
+				var historicalPriceDataRequest = decoder.DecodeHistoricalPriceDataRequest();
+				requestId = historicalPriceDataRequest.RequestId;
+				L.LogInformation("RequestedHistory: {historicalPriceDataRequest}", historicalPriceDataRequest);
+
+				var getSymbolsStoreResult = await _symbolsStoreProvider.GetSymbolsStoreAsync(historicalPriceDataRequest.Symbol, historicalPriceDataRequest.Exchange, ct);
+				if (getSymbolsStoreResult == null)
 				{
-					L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
-					encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, $"Symbol is unknown: {symbolCode}.");
+					L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbolStore");
+					encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, "Symbol is unknown or T-Invest source is not configured.");
 					SendResponse(encoder.GetEncodedMessage());
 				}
 				else
 				{
-					await StreamHistoricalPriceData(historicalPriceDataRequest, symbol, ct);
+					var (symbolsStore, symbolCode) = getSymbolsStoreResult.Value;
+					var symbol = await symbolsStore.GetSymbolAsync(symbolCode, ct);
+					if (symbol == null)
+					{
+						L.LogInformation("Answer: HistoricalPriceDataReject: NoSymbol");
+						encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, $"Symbol is unknown: {historicalPriceDataRequest.Symbol}.");
+						SendResponse(encoder.GetEncodedMessage());
+					}
+					else if (symbol.DataService == DataService.TInvest)
+					{
+						encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, "T-Invest history is not implemented in this stage.");
+						SendResponse(encoder.GetEncodedMessage());
+					}
+					else
+					{
+						await StreamHistoricalPriceData(historicalPriceDataRequest, symbol, ct);
+					}
 				}
-			}
-		}, "ProcessHistoricalPriceDataRequest()");
+			}, "ProcessHistoricalPriceDataRequest()");
+		}
+		catch (SomeDataProvider.DataStorage.TInvest.TInvestRequestException ex)
+		{
+			encoder.EncodeHistoricalPriceDataReject(requestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, ex.Message);
+			SendResponse(encoder.GetEncodedMessage());
+		}
 	}
 
 	async Task StreamHistoricalPriceData(HistoricalPriceDataRequest historicalPriceDataRequest, ISymbol symbol, CancellationToken ct)

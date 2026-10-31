@@ -37,7 +37,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 				MarketDepthIsSupported = 0,
 				SecurityDefinitionsSupported = 1,
 				HistoricalPriceDataSupported = 1,
-				ResubscribeWhenMarketDataFeedAvailable = 1,
+				ResubscribeWhenMarketDataFeedAvailable = 0,
 				MarketDataSupported = 1,
 				OneHistoricalPriceDataRequestPerConnection = oneHistoricalPriceDataRequestPerConnection ? (byte)1 : (byte)0,
 			};
@@ -78,9 +78,18 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			Append(buffer.AsSpan(0, encoder.Complete()));
 		}
 
+		public override void EncodeMarketDepthReject(uint symbolId, string rejectText)
+		{
+			var message = new Dtc.Protocol.Vls.s_MarketDepthReject { SymbolID = symbolId };
+			var buffer = NewBuffer<Dtc.Protocol.Vls.s_MarketDepthReject>(rejectText);
+			var encoder = new DtcVlsEncoder<Dtc.Protocol.Vls.s_MarketDepthReject>(ref message, buffer);
+			encoder.AddString(ref message.RejectText, rejectText, MessageProtocol.TextEncoding);
+			Append(buffer.AsSpan(0, encoder.Complete()));
+		}
+
 		public override void EncodeSecurityDefinitionResponse(EncodeSecurityDefinitionResponseArgs args)
 		{
-			// SecurityType stays unset: the server has never sent the symbol's type.
+			// FRED keeps its unset type; T-Invest definitions carry the mapped kind.
 			var message = new VlsSecurityDefinitionResponse
 			{
 				RequestID = args.RequestId,
@@ -88,15 +97,20 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 				PriceDisplayFormat = args.PriceDisplayFormat,
 				IsFinalMessage = args.IsFinalMessage ? (byte)1 : (byte)0,
 				// The header's default says the symbol has market depth data, which this server does not send.
-				HasMarketDepthData = 0,
+				HasMarketDepthData = args.HasMarketDepth ? (byte)1 : (byte)0,
+				SecurityType = args.SecurityType,
+				CurrencyValuePerIncrement = (float)args.CurrencyValuePerIncrement,
+				ContractSize = (float)args.ContractSize,
+				SecurityExpirationDate = args.SecurityExpirationDate.HasValue ? checked((uint)new DateTimeOffset(args.SecurityExpirationDate.Value).ToUnixTimeSeconds()) : 0,
 				IsDelayed = args.IsDelayed ? (byte)1 : (byte)0,
 			};
-			var buffer = NewBuffer<VlsSecurityDefinitionResponse>(args.Symbol, args.Exchange, args.Description, args.Currency);
+			var buffer = NewBuffer<VlsSecurityDefinitionResponse>(args.Symbol, args.Exchange, args.Description, args.Currency, args.ExchangeSymbol);
 			var encoder = new DtcVlsEncoder<VlsSecurityDefinitionResponse>(ref message, buffer);
 			var textEncoding = MessageProtocol.TextEncoding;
 			encoder.AddString(ref message.Symbol, args.Symbol, textEncoding);
 			encoder.AddString(ref message.Exchange, args.Exchange, textEncoding);
 			encoder.AddString(ref message.Description, args.Description, textEncoding);
+			encoder.AddString(ref message.ExchangeSymbol, args.ExchangeSymbol, textEncoding);
 			encoder.AddString(ref message.Currency, args.Currency, textEncoding);
 			Append(buffer.AsSpan(0, encoder.Complete()));
 		}

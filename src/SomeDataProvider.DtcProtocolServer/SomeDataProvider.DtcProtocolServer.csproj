@@ -41,6 +41,7 @@
     <ProjectReference Include="$(NBLibRoot)\src\NBLib.Logging\NBLib.Logging.csproj" />
     <ProjectReference Include="..\SomeDataProvider.DataStorage.Definitions\SomeDataProvider.DataStorage.Definitions.csproj" />
     <ProjectReference Include="..\SomeDataProvider.DataStorage.Fred\SomeDataProvider.DataStorage.Fred.csproj" />
+    <ProjectReference Include="..\SomeDataProvider.DataStorage.TInvest\SomeDataProvider.DataStorage.TInvest.csproj" />
   </ItemGroup>
 
   <ItemGroup>

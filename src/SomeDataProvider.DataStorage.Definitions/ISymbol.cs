@@ -23,6 +23,16 @@ namespace SomeDataProvider.DataStorage.Definitions
 
 		bool IsRealTime { get; }
 
+		bool HasMarketDepth => false;
+
+		double CurrencyValuePerIncrement => 0;
+
+		double ContractSize => 0;
+
+		DateTime? SecurityExpirationDate => null;
+
+		string? ExchangeSymbol => null;
+
 		bool IsDelayed { get; }
 
 		bool IsDiscontinued { get; }

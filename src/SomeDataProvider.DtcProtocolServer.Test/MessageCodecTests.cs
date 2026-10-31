@@ -32,7 +32,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 	[TestFixture]
 	public class MessageCodecTests
 	{
-		static readonly Encoding Ascii = Encoding.ASCII;
+		static readonly Encoding Utf8 = Encoding.UTF8;
 
 		[TestCase(false)]
 		[TestCase(true)]
@@ -44,14 +44,14 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			var frame = encoder.GetEncodedMessage();
 			DtcVlsDecoder.Decode(frame, out VlsLogonResponse message);
 			Assert.That(message.BaseSize, Is.EqualTo(Unsafe.SizeOf<VlsLogonResponse>()));
-			Assert.That(Records.LogonResponse.FromVls(in message, frame, Ascii), Is.EqualTo(new Records.LogonResponse
+			Assert.That(Records.LogonResponse.FromVls(in message, frame, Utf8), Is.EqualTo(new Records.LogonResponse
 			{
 				Result = LogonStatusEnum.LOGON_SUCCESS,
 				ResultText = "Logon is successful.",
 				OrderCancelReplaceSupported = false,
 				SecurityDefinitionsSupported = true,
 				HistoricalPriceDataSupported = true,
-				ResubscribeWhenMarketDataFeedAvailable = true,
+				ResubscribeWhenMarketDataFeedAvailable = false,
 				MarketDepthIsSupported = false,
 				OneHistoricalPriceDataRequestPerConnection = historyOnly,
 				MarketDataSupported = true,
@@ -91,8 +91,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 				RequestID = 18,
 				Symbol = "AAPL",
 				Exchange = "NASDAQ",
-				// The server has never sent the symbol's type.
-				SecurityType = SecurityTypeEnum.SECURITY_TYPE_UNSET,
+				SecurityType = SecurityTypeEnum.SECURITY_TYPE_STOCK,
 				Description = "Apple Inc.",
 				MinPriceIncrement = 0.0001F,
 				PriceDisplayFormat = PriceDisplayFormatEnum.PRICE_DISPLAY_FORMAT_DECIMAL_4,
@@ -137,9 +136,9 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			Assert.That(() => NewEncoder().GetEncodedMessage(), Throws.InvalidOperationException);
 		}
 
-		// Text goes out as ASCII, as it always has: any other character becomes '?'.
+		// Standard DTC strings preserve UTF-8, including source names and search queries.
 		[TestCase("Symbol is unknown: fred-X.", "Symbol is unknown: fred-X.")]
-		[TestCase("Symbol is unknown: \u00c4\u20ac.", "Symbol is unknown: ??.")]
+		[TestCase("Symbol is unknown: \u00c4\u20ac.", "Symbol is unknown: \u00c4\u20ac.")]
 		public void HistoricalPriceDataReject_CarriesTheReasonAndText(string text, string expectedText)
 		{
 			var encoder = NewEncoder();
@@ -147,7 +146,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 
 			var frame = encoder.GetEncodedMessage();
 			DtcVlsDecoder.Decode(frame, out VlsHistoricalPriceDataReject message);
-			Assert.That(Records.HistoricalPriceDataReject.FromVls(in message, frame, Ascii), Is.EqualTo(new Records.HistoricalPriceDataReject
+			Assert.That(Records.HistoricalPriceDataReject.FromVls(in message, frame, Utf8), Is.EqualTo(new Records.HistoricalPriceDataReject
 			{
 				RequestID = 7,
 				RejectText = expectedText,
@@ -164,7 +163,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 
 			var frame = encoder.GetEncodedMessage();
 			DtcVlsDecoder.Decode(frame, out VlsMarketDataReject message);
-			Assert.That(Records.MarketDataReject.FromVls(in message, frame, Ascii), Is.EqualTo(new Records.MarketDataReject { SymbolID = 3, RejectText = text }));
+			Assert.That(Records.MarketDataReject.FromVls(in message, frame, Utf8), Is.EqualTo(new Records.MarketDataReject { SymbolID = 3, RejectText = text }));
 			if (text.Length == 0)
 				Assert.That(frame, Has.Length.EqualTo(Unsafe.SizeOf<VlsMarketDataReject>()), "An empty text is absent.");
 		}
@@ -177,7 +176,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 
 			var frame = encoder.GetEncodedMessage();
 			DtcVlsDecoder.Decode(frame, out VlsSecurityDefinitionReject message);
-			Assert.That(Records.SecurityDefinitionReject.FromVls(in message, frame, Ascii), Is.EqualTo(new Records.SecurityDefinitionReject
+			Assert.That(Records.SecurityDefinitionReject.FromVls(in message, frame, Utf8), Is.EqualTo(new Records.SecurityDefinitionReject
 			{
 				RequestID = 9,
 				RejectText = "Symbol is unknown: fred-X.",
@@ -191,7 +190,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			encoder.EncodeEncodingResponse(EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS);
 
 			DtcBinaryDecoder.Decode(encoder.GetEncodedMessage(), out s_EncodingResponse message);
-			Assert.That(Records.EncodingResponse.FromBinary(in message, Ascii), Is.EqualTo(new Records.EncodingResponse
+			Assert.That(Records.EncodingResponse.FromBinary(in message, Utf8), Is.EqualTo(new Records.EncodingResponse
 			{
 				ProtocolVersion = 8,
 				Encoding = EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS,
@@ -324,7 +323,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			encoder.EncodeSecurityDefinitionReject(request.RequestId, $"Symbol is unknown: {request.Symbol}.");
 			var reply = encoder.GetEncodedMessage();
 			DtcVlsDecoder.Decode(reply, out VlsSecurityDefinitionReject message);
-			Assert.That(Records.SecurityDefinitionReject.FromVls(in message, reply, Ascii).RejectText, Is.EqualTo($"Symbol is unknown: {request.Symbol}."));
+			Assert.That(Records.SecurityDefinitionReject.FromVls(in message, reply, Utf8).RejectText, Is.EqualTo($"Symbol is unknown: {request.Symbol}."));
 		}
 
 		[TestCase(DtcConstants.ENCODING_REQUEST, "EncodingRequest")]
@@ -381,7 +380,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		{
 			DtcVlsDecoder.Decode(frame, out VlsSecurityDefinitionResponse message);
 			Assert.That(message.BaseSize, Is.EqualTo(Unsafe.SizeOf<VlsSecurityDefinitionResponse>()));
-			return Records.SecurityDefinitionResponse.FromVls(in message, frame, Ascii);
+			return Records.SecurityDefinitionResponse.FromVls(in message, frame, Utf8);
 		}
 
 		static byte[] Encode<T>(in T message)
@@ -392,13 +391,13 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 			return frame;
 		}
 
-		static byte[] ToVls(Records.LogonRequest record) => ToVls(buffer => record.ToVls(buffer, Ascii));
+		static byte[] ToVls(Records.LogonRequest record) => ToVls(buffer => record.ToVls(buffer, Utf8));
 
-		static byte[] ToVls(Records.MarketDataRequest record) => ToVls(buffer => record.ToVls(buffer, Ascii));
+		static byte[] ToVls(Records.MarketDataRequest record) => ToVls(buffer => record.ToVls(buffer, Utf8));
 
-		static byte[] ToVls(Records.SecurityDefinitionForSymbolRequest record) => ToVls(buffer => record.ToVls(buffer, Ascii));
+		static byte[] ToVls(Records.SecurityDefinitionForSymbolRequest record) => ToVls(buffer => record.ToVls(buffer, Utf8));
 
-		static byte[] ToVls(Records.SymbolSearchRequest record) => ToVls(buffer => record.ToVls(buffer, Ascii));
+		static byte[] ToVls(Records.SymbolSearchRequest record) => ToVls(buffer => record.ToVls(buffer, Utf8));
 
 		static byte[] ToVls(Func<byte[], int> encode)
 		{

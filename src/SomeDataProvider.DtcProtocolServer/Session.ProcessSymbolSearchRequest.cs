@@ -45,21 +45,12 @@ partial class Session
 			L.LogInformation("Answer: SecurityDefinitionReject: EmptySearchText");
 			encoder.EncodeSecurityDefinitionReject(requestId, "SearchText must not be empty.");
 		}
-		else if (!string.IsNullOrEmpty(request.Exchange) || request.SecurityType != SecurityTypeEnum.SECURITY_TYPE_UNSET)
-		{
-			// Per the same field description, the search matches the specified Exchange and SecurityType too, not
-			// SearchText alone. Profile v1 symbols never carry an Exchange or a SecurityType other than unset (see
-			// SecurityDefinitionForSymbolRequest's own answers), so a request that constrains either cannot match
-			// anything; answer NoMatches without calling the store.
-			L.LogInformation("Answer: SecurityDefinitionResponse: NoMatches (Exchange or SecurityType constraint; Profile v1 has neither)");
-			encoder.EncodeNoSecurityDefinitionsFound(requestId);
-		}
 		else
 		{
 			try
 			{
 				var searchType = ToSymbolSearchType(request.SearchType);
-				var matches = await _symbolsStoreProvider.SearchSymbolsAsync(request.SearchText, searchType, MaxSymbolSearchResults, ct);
+				var matches = await _symbolsStoreProvider.SearchSymbolsAsync(request.SearchText, searchType, MaxSymbolSearchResults, request.Exchange, (SymbolType)request.SecurityType, ct);
 				if (matches.Count == 0)
 				{
 					L.LogInformation("Answer: SecurityDefinitionResponse: NoMatches");
@@ -82,7 +73,7 @@ partial class Session
 				// an invalid request), as opposed to the NoMatches response above for a well-formed search that
 				// simply found nothing.
 				L.LogException(ex, LogLevel.Warning, "Symbol search failed.");
-				encoder.EncodeSecurityDefinitionReject(requestId, $"Symbol search failed: {request.SearchText}.");
+				encoder.EncodeSecurityDefinitionReject(requestId, ex is SomeDataProvider.DataStorage.TInvest.TInvestRequestException ? ex.Message : "Symbol search failed.");
 			}
 		}
 		SendResponse(encoder.GetEncodedMessage());

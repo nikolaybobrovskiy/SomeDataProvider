@@ -42,6 +42,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
+		public virtual uint DecodeMarketDepthSymbolId()
+		{
+			DtcBinaryDecoder.Decode(Buffer.Span, out s_MarketDepthRequest request);
+			return request.SymbolID;
+		}
+
 		public virtual SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest()
 		{
 			throw new NotImplementedException();

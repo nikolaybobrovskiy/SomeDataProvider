@@ -7,6 +7,9 @@ namespace SomeDataProvider.DataStorage.Definitions
 		Stock = 2,
 		Forex = 3,
 		Index = 4,
+		StockOption = 6,
+		FuturesOption = 7,
+		IndexOption = 8,
 		Bond = 9
 	}
 }

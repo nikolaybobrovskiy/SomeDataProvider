@@ -5,5 +5,6 @@ namespace SomeDataProvider.DataStorage.Definitions
 		TextFile,
 		StatBureau,
 		Fred,
+		TInvest,
 	}
 }

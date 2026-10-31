@@ -28,6 +28,8 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeMarketDataReject(uint symbolId, string rejectText);
 
+		void EncodeMarketDepthReject(uint symbolId, string rejectText);
+
 		void EncodeMarketDataSnapshot(uint symbolId, TradingStatusEnum tradingStatus, DateTime lastTradeDateTime);
 
 		void EncodeSecurityDefinitionReject(int requestId, string rejectText);
@@ -78,6 +80,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 				Currency = symbol.Currency;
 				IsDelayed = symbol.IsDelayed;
 				MinPriceIncrement = symbol.MinPriceIncrement;
+				CurrencyValuePerIncrement = symbol.CurrencyValuePerIncrement;
+				ContractSize = symbol.ContractSize;
+				SecurityExpirationDate = symbol.SecurityExpirationDate;
+				ExchangeSymbol = symbol.ExchangeSymbol;
+				HasMarketDepth = symbol.HasMarketDepth;
 			}
 
 			public int RequestId { get; init; }
@@ -90,6 +97,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 			public float MinPriceIncrement { get; init; }
 			public string? Currency { get; init; }
 			public bool IsDelayed { get; init; }
+			public double CurrencyValuePerIncrement { get; init; }
+			public double ContractSize { get; init; }
+			public DateTime? SecurityExpirationDate { get; init; }
+			public string? ExchangeSymbol { get; init; }
+			public bool HasMarketDepth { get; init; }
 		}
 	}
 

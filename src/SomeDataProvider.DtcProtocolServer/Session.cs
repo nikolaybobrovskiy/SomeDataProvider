@@ -191,6 +191,10 @@ namespace SomeDataProvider.DtcProtocolServer
 								case DtcConstants.MARKET_DATA_REQUEST:
 									await ProcessMarketDataRequestAsync(decoder, encoder, ct);
 									break;
+								case DtcConstants.MARKET_DEPTH_REQUEST:
+									encoder.EncodeMarketDepthReject(decoder.DecodeMarketDepthSymbolId(), "Market depth is not implemented in this stage.");
+									SendResponse(encoder.GetEncodedMessage());
+									break;
 								case DtcConstants.SECURITY_DEFINITION_FOR_SYMBOL_REQUEST:
 									await ProcessSecurityDefinitionForSymbolRequestAsync(decoder, encoder, ct);
 									break;

@@ -19,6 +19,7 @@ namespace SomeDataProvider.DtcProtocolServer
 	using Serilog;
 
 	using SomeDataProvider.DataStorage.Definitions;
+	using SomeDataProvider.DataStorage.TInvest;
 	using SomeDataProvider.DtcProtocolServer.Data;
 
 	class Program
@@ -37,6 +38,8 @@ namespace SomeDataProvider.DtcProtocolServer
 			readonly object _storesProviderLock = new ();
 
 			StoresProvider? _storesProvider;
+			TInvestToken? _tInvestToken;
+			string? _tokenLoadFailure;
 
 			// https://medium.com/volosoft/asp-net-core-dependency-injection-best-practices-tips-tricks-c6e9c67f9d96
 			public AppBuilder(string[] cliArgs)
@@ -61,6 +64,11 @@ namespace SomeDataProvider.DtcProtocolServer
 			protected override void ConfigureServices(IServiceCollection services, IConfiguration configuration)
 			{
 				base.ConfigureServices(services, configuration);
+				var options = configuration.GetSection("StoresOptions:TInvest").Get<TInvestOptions>() ?? new TInvestOptions();
+				options.Validate();
+				try { _tInvestToken = new TInvestTokenSource().Load(options, configuration); }
+				catch (PlatformNotSupportedException) { _tokenLoadFailure = "CredentialManager requires Windows."; }
+				catch (Exception) { _tokenLoadFailure = "Token is missing or unreadable in the selected source."; }
 				services.AddSingleton<ISymbolsStoreProvider>(GetOrCreateStoresProvider);
 				services.AddSingleton<ISymbolHistoryStoreProvider>(GetOrCreateStoresProvider);
 				services.AddSingleton<ISeriesSource>(GetOrCreateStoresProvider);
@@ -70,14 +78,25 @@ namespace SomeDataProvider.DtcProtocolServer
 
 			protected override void ConfigureLogger(Application app, LoggerConfiguration serilogCfg)
 			{
-				serilogCfg.WriteTo.Console(
+				var sinks = new LoggerConfiguration().MinimumLevel.Verbose();
+				sinks.WriteTo.Console(
 					outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3} {ThreadId:d8}{OperationStartEnd:l}{Duration:l} {Message}{NewLine}{Exception}",
 					theme: ConsoleLogTheme.Default);
 				if (app.LogToLocalSeq)
 				{
-					serilogCfg.WriteTo.Logger(cfg => cfg
+					sinks.WriteTo.Logger(cfg => cfg
 						.WriteTo.Seq("http://localhost:5341", batchPostingLimit: 300));
 				}
+				serilogCfg.MinimumLevel.Override("Grpc.Net.Client", Serilog.Events.LogEventLevel.Warning);
+				serilogCfg.WriteTo.Sink(new TInvestRedactingSink(sinks.CreateLogger(), _tInvestToken));
+			}
+
+			protected override void ConfigureLoggerFactory(McMaster.Extensions.CommandLineUtils.CommandLineApplication selectedCommand, ILoggerFactory loggerFactory)
+			{
+				base.ConfigureLoggerFactory(selectedCommand, loggerFactory);
+				if (_tokenLoadFailure != null)
+					loggerFactory.CreateLogger<Program>().LogWarning("T-Invest source is not configured: {reason}", _tokenLoadFailure);
+				_storesProvider?.Initialize();
 			}
 
 			StoresProvider GetOrCreateStoresProvider(IServiceProvider serviceProvider)
@@ -89,7 +108,7 @@ namespace SomeDataProvider.DtcProtocolServer
 					// ReSharper disable once PossibleMultipleWriteAccessInDoubleCheckLocking
 					return _storesProvider = new StoresProvider(
 						serviceProvider.GetConfiguration<StoresProvider.StoresOptions>(),
-						serviceProvider.GetRequiredService<ILoggerFactory>());
+						serviceProvider.GetRequiredService<ILoggerFactory>(), _tInvestToken);
 				}
 			}
 
