@@ -48,7 +48,7 @@ partial class Session
 			var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
 			using (new Finally(() => encoder.TryDispose()))
 			{
-				encoder.EncodeHeartbeatMessage(0);
+				encoder.EncodeHeartbeatMessage(_marketQueue?.TakeDropped() ?? 0);
 				SendResponse(encoder.GetEncodedMessage());
 			}
 		}
@@ -85,6 +85,7 @@ partial class Session
 	{
 		if (_closing) return false;
 		_closing = true;
+		StopMarketSubscriptions();
 		StopHeartbeatTimers();
 		return true;
 	}

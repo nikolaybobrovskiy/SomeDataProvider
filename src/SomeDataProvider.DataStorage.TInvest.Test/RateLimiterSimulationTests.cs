@@ -7,12 +7,15 @@ using SomeDataProvider.DtcProtocolServer.Test;
 public class RateLimiterSimulationTests
 {
 	const string LongRunCategory = "TInvestLimiterSimulation";
-
 	[Test]
 	public void FixedSeedsKeepEveryInvariant()
 	{
 		var total = new LimiterSimulation.Outcome();
-		for (var seed = 1; seed <= 16; seed++) total.Add(new LimiterSimulation(LimiterSimulation.RandomScenario(seed, TimeSpan.FromMinutes(2)), seed).Run());
+		for (var seed = 1; seed <= 16; seed++)
+		{
+			total.Add(new LimiterSimulation(LimiterSimulation.RandomScenario(seed, TimeSpan.FromMinutes(2)), seed).Run());
+		}
+
 		TestContext.Out.WriteLine(total);
 		Assert.That(total.Violations, Is.Empty, string.Join("\n", total.Violations));
 		Assert.That(total.Plans, Is.GreaterThan(100), "The fixed seeds must exercise many plans.");
@@ -25,7 +28,11 @@ public class RateLimiterSimulationTests
 	public void LongRunKeepsEveryInvariant()
 	{
 		var total = new LimiterSimulation.Outcome();
-		for (var seed = 1; seed <= 200; seed++) total.Add(new LimiterSimulation(LimiterSimulation.RandomScenario(seed, TimeSpan.FromMinutes(10)), seed).Run());
+		for (var seed = 1; seed <= 200; seed++)
+		{
+			total.Add(new LimiterSimulation(LimiterSimulation.RandomScenario(seed, TimeSpan.FromMinutes(10)), seed).Run());
+		}
+
 		TestContext.Out.WriteLine(total);
 		Assert.That(total.Violations, Is.Empty, string.Join("\n", total.Violations));
 	}
@@ -37,7 +44,10 @@ public class RateLimiterSimulationTests
 		var result = new LimiterSimulation(new LimiterSimulation.Scenario
 		{
 			Duration = TimeSpan.FromSeconds(40),
-			Plans = new[] { (TimeSpan.Zero, calls) },
+			Plans = new[]
+			{
+				(TimeSpan.Zero, calls)
+			},
 			MaximumLatency = TimeSpan.FromMilliseconds(100),
 			Jitter = false,
 			MinimumLookupGap = TimeSpan.FromSeconds(1),
@@ -56,7 +66,11 @@ public class RateLimiterSimulationTests
 		var result = new LimiterSimulation(new LimiterSimulation.Scenario
 		{
 			Duration = TimeSpan.FromSeconds(60),
-			Plans = new[] { (TimeSpan.Zero, 200), (TimeSpan.Zero, 200) },
+			Plans = new[]
+			{
+				(TimeSpan.Zero, 200),
+				(TimeSpan.Zero, 200)
+			},
 			MaximumLatency = TimeSpan.FromMilliseconds(100),
 			Jitter = false,
 		}, 200).Run();
@@ -90,27 +104,38 @@ sealed class LimiterSimulation
 	readonly List<Admission> _calls = new();
 	readonly List<Plan> _plans = new();
 	readonly List<Lookup> _lookups = new();
+	readonly List<Lookup> _subscriptions = new();
 	readonly Queue<(long At, int Calls)> _fixedPlans = new();
 	readonly long _end;
 	int _capacity = MarketDataPerMinute;
 	long _blockedUntil;
 	long _nextArrival;
 	long _nextLookup;
+	long _nextSubscription;
 	int _ids;
-
 	public LimiterSimulation(Scenario scenario, int seed)
 	{
 		_scenario = scenario;
 		_random = new Random(seed);
 		_limiter = new TInvestRateLimiter(_clock);
 		_end = scenario.Duration.Ticks;
-		Result = new Outcome { Seed = seed, Scenarios = 1 };
+		Result = new Outcome
+		{
+			Seed = seed,
+			Scenarios = 1
+		};
 		if (scenario.Plans != null)
 		{
-			foreach (var (at, calls) in scenario.Plans.OrderBy(p => p.At)) _fixedPlans.Enqueue((at.Ticks, calls));
+			foreach (var (at, calls) in scenario.Plans.OrderBy(p => p.At))
+			{
+				_fixedPlans.Enqueue((at.Ticks, calls));
+			}
+
 			_nextArrival = _fixedPlans.Count > 0 ? _fixedPlans.Peek().At : long.MaxValue;
 		}
+
 		_nextLookup = scenario.FirstLookup.Ticks;
+		_nextSubscription = scenario.SubscriptionStorms ? 0 : long.MaxValue;
 	}
 
 	public Outcome Result { get; }
@@ -129,6 +154,7 @@ sealed class LimiterSimulation
 			LowLimitChance = 0.0003,
 			FailureChance = 0.002,
 			CancelChance = 0.002,
+			SubscriptionStorms = true,
 		};
 	}
 
@@ -137,33 +163,103 @@ sealed class LimiterSimulation
 		var started = System.Diagnostics.Stopwatch.StartNew();
 		while (true)
 		{
-			var next = Math.Min(Math.Min(_nextArrival, _nextLookup), Math.Min(_plans.Select(p => p.NextAt).DefaultIfEmpty(long.MaxValue).Min(),
-				_lookups.Select(l => l.NextAt).DefaultIfEmpty(long.MaxValue).Min()));
-			if (next >= _end) break;
-			if (next > Now) _clock.Advance(TimeSpan.FromTicks(next - Now));
+			var next = new[]
+			{
+				_nextArrival,
+				_nextLookup,
+				_nextSubscription,
+				_plans.Select(p => p.NextAt).DefaultIfEmpty(long.MaxValue).Min(),
+				_lookups.Select(l => l.NextAt).DefaultIfEmpty(long.MaxValue).Min(),
+				_subscriptions.Select(l => l.NextAt).DefaultIfEmpty(long.MaxValue).Min()
+			}.Min();
+			if (next >= _end)
+			{
+				break;
+			}
+
+			if (next > Now)
+			{
+				_clock.Advance(TimeSpan.FromTicks(next - Now));
+			}
+
 			if (_nextArrival == Now)
 			{
 				Arrive();
 				Check();
 			}
+
 			foreach (var plan in _plans.Where(p => p.NextAt == Now).ToArray())
 			{
-				if (plan.InFlight) Respond(plan);
-				else Attempt(plan);
+				if (plan.InFlight)
+				{
+					Respond(plan);
+				}
+				else
+				{
+					Attempt(plan);
+				}
+
 				Check();
 			}
+
 			if (_nextLookup == Now)
 			{
-				_lookups.Add(new Lookup { Start = Now, NextAt = Now });
+				_lookups.Add(new Lookup
+				{
+					Start = Now,
+					NextAt = Now
+				});
 				_nextLookup = Now + Uniform(_scenario.MinimumLookupGap.Ticks, _scenario.MaximumLookupGap.Ticks);
 			}
+
 			foreach (var lookup in _lookups.Where(l => l.NextAt == Now).ToArray())
 			{
 				TryLookup(lookup);
 				Check();
 			}
+
+			if (_nextSubscription == Now)
+			{
+				for (var i = 0; i < _random.Next(4, 15); i++)
+				{
+					_subscriptions.Add(new Lookup
+					{
+						Start = Now,
+						NextAt = Now
+					});
+				}
+
+				_nextSubscription = Now + Uniform(5 * Second, 15 * Second);
+			}
+
+			foreach (var subscription in _subscriptions.Where(l => l.NextAt == Now).ToArray())
+			{
+				var delay = _limiter.TryAcquire(TInvestLimitGroup.Subscriptions);
+				if (delay == TimeSpan.Zero)
+				{
+					Record(TInvestLimitGroup.Subscriptions, false);
+					Result.Subscriptions++;
+					_subscriptions.Remove(subscription);
+				}
+				else if (Now + delay.Ticks >= subscription.Start + 20 * Second)
+				{
+					Result.SubscriptionsRejected++;
+					_subscriptions.Remove(subscription);
+				}
+				else
+				{
+					subscription.NextAt = Now + delay.Ticks;
+				}
+
+				Check();
+			}
 		}
-		foreach (var plan in _plans.ToArray()) End(plan, () => Result.PlansUnfinished++);
+
+		foreach (var plan in _plans.ToArray())
+		{
+			End(plan, () => Result.PlansUnfinished++);
+		}
+
 		Check();
 		Result.SimulatedTicks = _end;
 		Result.Elapsed = started.Elapsed;
@@ -171,7 +267,6 @@ sealed class LimiterSimulation
 	}
 
 	static DateTimeOffset Clock(long ticks) => DateTimeOffset.UnixEpoch.AddTicks(ticks);
-
 	void Arrive()
 	{
 		int calls;
@@ -183,7 +278,11 @@ sealed class LimiterSimulation
 		else
 		{
 			_nextArrival = Now + Uniform(0, 6 * Second);
-			if (_plans.Count >= _scenario.MaximumPlansAtOnce) return;
+			if (_plans.Count >= _scenario.MaximumPlansAtOnce)
+			{
+				return;
+			}
+
 			calls = _random.Next(4) switch
 			{
 				0 => _random.Next(1, 11),
@@ -192,6 +291,7 @@ sealed class LimiterSimulation
 				_ => _random.Next(201, MaximumCandleCalls + 1),
 			};
 		}
+
 		TInvestRateLimiter.Reservation reservation;
 		var deadline = Now + (20 * Second);
 		var horizon = EarliestLastCall(_plans.Sum(p => p.Calls - p.Consumed), calls);
@@ -203,15 +303,18 @@ sealed class LimiterSimulation
 		{
 			Result.PlansRejected++;
 			if (_plans.Count == 0 && Now >= _blockedUntil && Count(TInvestLimitGroup.MarketData, 60 * Second) + calls <= _capacity)
+			{
 				Fail($"a {calls}-call plan was rejected though no plan was active and quota allowed it");
+			}
+
 			return;
 		}
+
 		if (horizon >= deadline)
 		{
-			Fail($"a {calls}-call plan was admitted though its last call cannot go before {TimeSpan.FromTicks(horizon).TotalSeconds:0.#######} s, after its deadline "
-				+ $"(blocked until {TimeSpan.FromTicks(_blockedUntil).TotalSeconds:0.#######} s, used {Count(TInvestLimitGroup.MarketData, 60 * Second)} of {_capacity}, "
-				+ $"booked {_plans.Sum(p => p.Calls - p.Consumed)})");
+			Fail($"a {calls}-call plan was admitted though its last call cannot go before {TimeSpan.FromTicks(horizon).TotalSeconds:0.#######} s, after its deadline " + $"(blocked until {TimeSpan.FromTicks(_blockedUntil).TotalSeconds:0.#######} s, used {Count(TInvestLimitGroup.MarketData, 60 * Second)} of {_capacity}, " + $"booked {_plans.Sum(p => p.Calls - p.Consumed)})");
 		}
+
 		Result.Plans++;
 		var latency = _scenario.MaximumLatency.Ticks;
 		_plans.Add(new Plan
@@ -233,19 +336,20 @@ sealed class LimiterSimulation
 				End(plan, () => Result.PlansCancelled++);
 				return;
 			}
+
 			plan.Waiting = true;
 			plan.RequestedAt = Now;
 			plan.Deadline = Now + (20 * Second);
 		}
+
 		using var cancel = new CancellationTokenSource();
-		var task = plan.Retry
-			? plan.Reservation.AcquireRetryAsync(_limiter, MaximumCandleCalls, Clock(plan.Deadline), cancel.Token)
-			: plan.Reservation.AcquireAsync(_limiter, Clock(plan.Deadline), cancel.Token);
+		var task = plan.Retry ? plan.Reservation.AcquireRetryAsync(_limiter, MaximumCandleCalls, Clock(plan.Deadline), cancel.Token) : plan.Reservation.AcquireAsync(_limiter, Clock(plan.Deadline), cancel.Token);
 		if (task.IsCompletedSuccessfully)
 		{
 			Admit(plan);
 			return;
 		}
+
 		if (task.IsCompleted)
 		{
 			if (task.Exception?.InnerException is not TInvestRequestException { Kind: TInvestFailureKind.Limit })
@@ -254,13 +358,13 @@ sealed class LimiterSimulation
 			}
 			else if (!SourceBlocked(plan))
 			{
-				Fail($"plan {plan.Id} missed its 20 s deadline without a source block (deadline {TimeSpan.FromTicks(plan.Deadline).TotalSeconds:0.#######} s, "
-					+ $"blocked until {TimeSpan.FromTicks(_blockedUntil).TotalSeconds:0.#######} s, used {Count(TInvestLimitGroup.MarketData, 60 * Second)}, "
-					+ $"booked by others {_plans.Where(p => p != plan).Sum(p => p.Calls - p.Consumed)}, retry {plan.Retry})");
+				Fail($"plan {plan.Id} missed its 20 s deadline without a source block (deadline {TimeSpan.FromTicks(plan.Deadline).TotalSeconds:0.#######} s, " + $"blocked until {TimeSpan.FromTicks(_blockedUntil).TotalSeconds:0.#######} s, used {Count(TInvestLimitGroup.MarketData, 60 * Second)}, " + $"booked by others {_plans.Where(p => p != plan).Sum(p => p.Calls - p.Consumed)}, retry {plan.Retry})");
 			}
+
 			End(plan, () => Result.PlansFailedDeadline++);
 			return;
 		}
+
 		cancel.Cancel();
 		try
 		{
@@ -269,9 +373,12 @@ sealed class LimiterSimulation
 		catch (OperationCanceledException)
 		{
 		}
+
 		Result.HistoryDenials++;
 		if (Count(null, Second, history: true) < HistoryPerSecond && Count(null, Second) < AddressPerSecond && !SourceBlocked(plan))
+		{
 			Fail($"plan {plan.Id} call {plan.Consumed + 1} waited on booked slots, not on actual calls");
+		}
 
 		// A real waiter wakes when the binding limit frees; polling only every 5 ms could overshoot its deadline.
 		var free = ExpectedFree();
@@ -282,10 +389,21 @@ sealed class LimiterSimulation
 	{
 		Record(TInvestLimitGroup.MarketData, true);
 		Result.HistoryCalls++;
-		if (plan.Retry) Result.Retries++;
-		else plan.Consumed++;
+		if (plan.Retry)
+		{
+			Result.Retries++;
+		}
+		else
+		{
+			plan.Consumed++;
+		}
+
 		Result.MaxHistoryWait = Math.Max(Result.MaxHistoryWait, Now - plan.RequestedAt);
-		if (plan.LastAdmission >= 0) plan.MaxGap = Math.Max(plan.MaxGap, Now - plan.LastAdmission);
+		if (plan.LastAdmission >= 0)
+		{
+			plan.MaxGap = Math.Max(plan.MaxGap, Now - plan.LastAdmission);
+		}
+
 		plan.LastAdmission = Now;
 		plan.Waiting = false;
 		plan.InFlight = true;
@@ -311,24 +429,30 @@ sealed class LimiterSimulation
 				plan.NextAt = Now;
 				return;
 			}
+
 			End(plan, () => Result.PlansFailedSource++);
 			return;
 		}
+
 		if (draw < _scenario.ExhaustedChance + _scenario.FailureChance)
 		{
 			End(plan, () => Result.PlansFailedSource++);
 			return;
 		}
+
 		var used = Count(TInvestLimitGroup.MarketData, 60 * Second);
 		if (Chance(_scenario.LowRemainingChance))
 		{
 			var reset = _random.Next(1, 61) * Second;
 			var remaining = Math.Max(0, _capacity - used - _random.Next(1, 21));
 			_limiter.Correct(TInvestLimitGroup.MarketData, 600, remaining, TimeSpan.FromTicks(reset));
-
 			// A header blocks until its reset only when it reports fewer calls than the window has left; with the window
 			// already full (also after a lower limit), the limiter waits for its own window instead.
-			if (remaining < _capacity - used) _blockedUntil = Math.Max(_blockedUntil, Now + reset);
+			if (remaining < _capacity - used)
+			{
+				_blockedUntil = Math.Max(_blockedUntil, Now + reset);
+			}
+
 			Result.LowRemaining++;
 		}
 		else if (Chance(_scenario.LowLimitChance))
@@ -343,12 +467,14 @@ sealed class LimiterSimulation
 		{
 			_limiter.Correct(TInvestLimitGroup.MarketData, 600, 600 - used, TimeSpan.FromSeconds(_random.Next(1, 61)));
 		}
+
 		plan.Retry = false;
 		if (++plan.Completed == plan.Calls)
 		{
 			End(plan, () => Result.PlansCompleted++);
 			return;
 		}
+
 		plan.NextAt = Now + Uniform(0, 5 * Millisecond);
 	}
 
@@ -360,13 +486,26 @@ sealed class LimiterSimulation
 			Record(TInvestLimitGroup.Instruments, false);
 			Result.Lookups++;
 			var wait = Now - lookup.Start;
-			if (wait == 0) Result.LookupsAtOnce++;
+			if (wait == 0)
+			{
+				Result.LookupsAtOnce++;
+			}
+
 			Result.MaxLookupWait = Math.Max(Result.MaxLookupWait, wait);
-			if (wait > Second) Fail($"a lookup waited {TimeSpan.FromTicks(wait).TotalSeconds:0.###} s");
+			if (wait > Second)
+			{
+				Fail($"a lookup waited {TimeSpan.FromTicks(wait).TotalSeconds:0.###} s");
+			}
+
 			_lookups.Remove(lookup);
 			return;
 		}
-		if (ControlSlotsFree()) Fail($"a lookup was denied for {delay.TotalSeconds:0.###} s while five control slots were free");
+
+		if (ControlSlotsFree())
+		{
+			Fail($"a lookup was denied for {delay.TotalSeconds:0.###} s while five control slots were free");
+		}
+
 		if (Now + delay.Ticks >= lookup.Start + (8 * Second))
 		{
 			Result.LookupsFailed++;
@@ -374,6 +513,7 @@ sealed class LimiterSimulation
 			_lookups.Remove(lookup);
 			return;
 		}
+
 		lookup.NextAt = Now + delay.Ticks;
 	}
 
@@ -387,52 +527,101 @@ sealed class LimiterSimulation
 
 	void Check()
 	{
+		var traffic = _limiter.InspectTraffic();
+		CheckEveryWindow(traffic.History, HistoryPerSecond, Second, "actual-plus-booked history address");
+		CheckEveryWindow(traffic.Address, AddressPerSecond, Second, "actual-plus-booked address");
+		CheckEveryWindow(traffic.MarketData, MarketDataPerMinute, 60 * Second, "actual-plus-booked market data");
+		CheckEveryWindow(Times(60 * Second, group: TInvestLimitGroup.Subscriptions), 90, 60 * Second, "subscriptions");
 		Result.Steps++;
 		var history = Count(null, Second, history: true);
 		var address = Count(null, Second);
-		if (history > HistoryPerSecond) Fail($"{history} history calls in one rolling second");
-		if (address > AddressPerSecond) Fail($"{address} calls from the address in one rolling second");
-		if (Count(TInvestLimitGroup.MarketData, 60 * Second) > MarketDataPerMinute) Fail("market-data service window exceeded");
-		if (Count(TInvestLimitGroup.Instruments, 60 * Second) > InstrumentsPerMinute) Fail("instruments service window exceeded");
+		if (history > HistoryPerSecond)
+		{
+			Fail($"{history} history calls in one rolling second");
+		}
+
+		if (address > AddressPerSecond)
+		{
+			Fail($"{address} calls from the address in one rolling second");
+		}
+
+		if (Count(TInvestLimitGroup.MarketData, 60 * Second) > MarketDataPerMinute)
+		{
+			Fail("market-data service window exceeded");
+		}
+
+		if (Count(TInvestLimitGroup.Instruments, 60 * Second) > InstrumentsPerMinute)
+		{
+			Fail("instruments service window exceeded");
+		}
+
 		var probe = _limiter.Probe(TInvestLimitGroup.Instruments);
 		if (probe != TimeSpan.Zero && ControlSlotsFree())
+		{
 			Fail($"others see no free control slot ({probe.TotalSeconds:0.#######} s) though fewer than five went out");
-		if (_plans.Count == 0 && address < AddressPerSecond && Now >= _blockedUntil
-			&& Count(TInvestLimitGroup.MarketData, 60 * Second) < _capacity && _limiter.Probe(TInvestLimitGroup.MarketData) != TimeSpan.Zero)
+		}
+
+		if (_plans.Count == 0 && address < AddressPerSecond && Now >= _blockedUntil && Count(TInvestLimitGroup.MarketData, 60 * Second) < _capacity && _limiter.Probe(TInvestLimitGroup.MarketData) != TimeSpan.Zero)
+		{
 			Fail("an ended plan left slots behind");
+		}
 	}
 
-	bool ControlSlotsFree() => Count(null, Second, history: false) < AddressPerSecond - HistoryPerSecond && Count(null, Second) < AddressPerSecond
-		&& Count(TInvestLimitGroup.Instruments, 60 * Second) < InstrumentsPerMinute;
-
-	/// <summary>
-	/// True when a quota block or the service window can hold back <paramref name="plan"/>'s call: the window holds
-	/// every actual call and the other plans' booked calls, never the plan's own.
-	/// </summary>
-	bool SourceBlocked(Plan plan) => Now < _blockedUntil
-		|| Count(TInvestLimitGroup.MarketData, 60 * Second) + _plans.Where(p => p != plan).Sum(p => p.Calls - p.Consumed) >= _capacity;
-
-	/// <summary>
-	/// A lower bound on when the last of <paramref name="calls"/> new booked calls can go, queued behind
-	/// <paramref name="booked"/> calls already booked: the quota block, 40 history and 45 calls per rolling second, and
-	/// the market-data window, from the actual calls so far. A plan admitted past its deadline breaks A-5.
-	/// </summary>
-	long EarliestLastCall(int booked, int calls)
+	void CheckEveryWindow(IReadOnlyList<long> sorted, int capacity, long duration, string name)
 	{
-		if (calls == 0) return Now;
+		for (var first = 0; first + capacity < sorted.Count; first++)
+		{
+			if (sorted[first + capacity] - sorted[first] < duration)
+			{
+				Fail($"{name}: rolling window exceeds {capacity}");
+			}
+		}
+	}
+
+	bool ControlSlotsFree() => Count(null, Second, history: false) < AddressPerSecond - HistoryPerSecond && Count(null, Second) < AddressPerSecond && Count(TInvestLimitGroup.Instruments, 60 * Second) < InstrumentsPerMinute;
+	/// <summary>
+		/// True when a quota block or the service window can hold back <paramref name = "plan"/>'s call: the window holds
+		/// every actual call and the other plans' booked calls, never the plan's own.
+		/// </summary>
+	    bool SourceBlocked(Plan plan) => Now < _blockedUntil || Count(TInvestLimitGroup.MarketData, 60 * Second) + _plans.Where(p => p != plan).Sum(p => p.Calls - p.Consumed) >= _capacity;
+	/// <summary>
+		/// A lower bound on when the last of <paramref name = "calls"/> new booked calls can go, queued behind
+		/// <paramref name = "booked"/> calls already booked: the quota block, 40 history and 45 calls per rolling second, and
+		/// the market-data window, from the actual calls so far. A plan admitted past its deadline breaks A-5.
+		/// </summary>
+	    long EarliestLastCall(int booked, int calls)
+	{
+		if (calls == 0)
+		{
+			return Now;
+		}
+
 		var history = Times(Second, history: true);
 		var address = Times(Second);
 		var service = Times(60 * Second, group: TInvestLimitGroup.MarketData);
 		var at = Math.Max(Now, _blockedUntil);
 		for (var i = 0; i < booked + calls; i++)
 		{
-			if (history.Count >= HistoryPerSecond) at = Math.Max(at, history[^HistoryPerSecond] + Second);
-			if (address.Count >= AddressPerSecond) at = Math.Max(at, address[^AddressPerSecond] + Second);
-			if (service.Count >= _capacity) at = Math.Max(at, service[^_capacity] + (60 * Second));
+			if (history.Count >= HistoryPerSecond)
+			{
+				at = Math.Max(at, history[^HistoryPerSecond] + Second);
+			}
+
+			if (address.Count >= AddressPerSecond)
+			{
+				at = Math.Max(at, address[^AddressPerSecond] + Second);
+			}
+
+			if (service.Count >= _capacity)
+			{
+				at = Math.Max(at, service[^_capacity] + (60 * Second));
+			}
+
 			history.Add(at);
 			address.Add(at);
 			service.Add(at);
 		}
+
 		return at;
 	}
 
@@ -440,9 +629,17 @@ sealed class LimiterSimulation
 	{
 		var at = Math.Max(Now, _blockedUntil);
 		var history = Times(Second, history: true);
-		if (history.Count >= HistoryPerSecond) at = Math.Max(at, history[^HistoryPerSecond] + Second);
+		if (history.Count >= HistoryPerSecond)
+		{
+			at = Math.Max(at, history[^HistoryPerSecond] + Second);
+		}
+
 		var address = Times(Second);
-		if (address.Count >= AddressPerSecond) at = Math.Max(at, address[^AddressPerSecond] + Second);
+		if (address.Count >= AddressPerSecond)
+		{
+			at = Math.Max(at, address[^AddressPerSecond] + Second);
+		}
+
 		return at;
 	}
 
@@ -451,8 +648,12 @@ sealed class LimiterSimulation
 		var times = new List<long>();
 		for (var i = _calls.Count - 1; i >= 0 && _calls[i].At > Now - window; i--)
 		{
-			if ((history == null || _calls[i].History == history) && (group == null || _calls[i].Group == group)) times.Insert(0, _calls[i].At);
+			if ((history == null || _calls[i].History == history) && (group == null || _calls[i].Group == group))
+			{
+				times.Insert(0, _calls[i].At);
+			}
 		}
+
 		return times;
 	}
 
@@ -460,7 +661,10 @@ sealed class LimiterSimulation
 	{
 		// A lower limit header cannot undo calls already sent, so the lowered window is checked on admission.
 		if (group == TInvestLimitGroup.MarketData && Count(group, 60 * Second) >= _capacity)
+		{
 			Fail($"a market-data call was admitted with the lowered window of {_capacity} full");
+		}
+
 		_calls.Add(new Admission(Now, group, history));
 	}
 
@@ -470,53 +674,46 @@ sealed class LimiterSimulation
 		for (var i = _calls.Count - 1; i >= 0 && _calls[i].At > Now - window; i--)
 		{
 			var call = _calls[i];
-			if ((group == null || call.Group == group) && (history == null || call.History == history)) count++;
+			if ((group == null || call.Group == group) && (history == null || call.History == history))
+			{
+				count++;
+			}
 		}
+
 		return count;
 	}
 
 	void Fail(string message)
 	{
 		Result.ViolationCount++;
-		if (Result.Violations.Count < 20) Result.Violations.Add($"seed {Result.Seed} at {TimeSpan.FromTicks(Now).TotalSeconds:0.#######} s: {message}");
+		if (Result.Violations.Count < 20)
+		{
+			Result.Violations.Add($"seed {Result.Seed} at {TimeSpan.FromTicks(Now).TotalSeconds:0.#######} s: {message}");
+		}
 	}
 
 	bool Chance(double probability) => probability > 0 && _random.NextDouble() < probability;
-
 	long Uniform(long minimum, long maximum) => maximum <= minimum ? minimum : minimum + _random.NextInt64(maximum - minimum);
-
 	readonly record struct Admission(long At, TInvestLimitGroup Group, bool History);
-
 	public sealed record Scenario
 	{
 		public TimeSpan Duration { get; init; } = TimeSpan.FromMinutes(2);
-
 		/// <summary>Fixed plan arrivals; null draws random plans of 1 to 400 calls.</summary>
-		public IReadOnlyList<(TimeSpan At, int Calls)>? Plans { get; init; }
-
+		        public IReadOnlyList<(TimeSpan At, int Calls)>? Plans { get; init; }
 		public int MaximumPlansAtOnce { get; init; } = 3;
-
 		public TimeSpan MaximumLatency { get; init; } = TimeSpan.FromMilliseconds(200);
-
 		/// <summary>True draws a base latency per plan plus per-call jitter; false draws each latency uniformly.</summary>
-		public bool Jitter { get; init; } = true;
-
+		        public bool Jitter { get; init; } = true;
 		public TimeSpan FirstLookup { get; init; } = TimeSpan.FromMilliseconds(500);
-
 		public TimeSpan MinimumLookupGap { get; init; } = TimeSpan.FromMilliseconds(500);
-
 		public TimeSpan MaximumLookupGap { get; init; } = TimeSpan.FromSeconds(2);
-
 		public double ExhaustedChance { get; init; }
-
 		public double LowRemainingChance { get; init; }
-
 		/// <summary>Chance per answer of a header with a lower limit of 300 to 599 calls a minute.</summary>
-		public double LowLimitChance { get; init; }
-
+		        public double LowLimitChance { get; init; }
 		public double FailureChance { get; init; }
-
 		public double CancelChance { get; init; }
+		public bool SubscriptionStorms { get; init; }
 	}
 
 	public sealed class Outcome
@@ -540,6 +737,8 @@ sealed class LimiterSimulation
 		public long LowRemaining { get; set; }
 		public long LowLimits { get; set; }
 		public long Lookups { get; set; }
+		public long Subscriptions { get; set; }
+		public long SubscriptionsRejected { get; set; }
 		public long LookupsAtOnce { get; set; }
 		public long LookupsFailed { get; set; }
 		public long MaxLookupWait { get; set; }
@@ -569,24 +768,26 @@ sealed class LimiterSimulation
 			LowRemaining += other.LowRemaining;
 			LowLimits += other.LowLimits;
 			Lookups += other.Lookups;
+			Subscriptions += other.Subscriptions;
+			SubscriptionsRejected += other.SubscriptionsRejected;
 			LookupsAtOnce += other.LookupsAtOnce;
 			LookupsFailed += other.LookupsFailed;
 			MaxLookupWait = Math.Max(MaxLookupWait, other.MaxLookupWait);
 			MaxHistoryWait = Math.Max(MaxHistoryWait, other.MaxHistoryWait);
 			MaxPlanGap = Math.Max(MaxPlanGap, other.MaxPlanGap);
 			ViolationCount += other.ViolationCount;
-			if (other.ViolationCount > 0) FailingSeeds.Add(other.Seed);
-			foreach (var violation in other.Violations.Take(Math.Max(0, 20 - Violations.Count))) Violations.Add(violation);
+			if (other.ViolationCount > 0)
+			{
+				FailingSeeds.Add(other.Seed);
+			}
+
+			foreach (var violation in other.Violations.Take(Math.Max(0, 20 - Violations.Count)))
+			{
+				Violations.Add(violation);
+			}
 		}
 
-		public override string ToString() =>
-			$"scenarios {Scenarios}, steps {Steps}, simulated {TimeSpan.FromTicks(SimulatedTicks).TotalMinutes:0.#} min, elapsed {Elapsed.TotalSeconds:0.#} s; "
-			+ $"plans {Plans} (rejected {PlansRejected}, completed {PlansCompleted}, cancelled {PlansCancelled}, source failures {PlansFailedSource}, "
-			+ $"deadline failures {PlansFailedDeadline}, unfinished {PlansUnfinished}); history calls {HistoryCalls} (retries {Retries}, polls denied {HistoryDenials}), "
-			+ $"exhausted {Exhausted}, low remaining headers {LowRemaining}, lower limit headers {LowLimits}; lookups {Lookups} (at once {LookupsAtOnce}, failed {LookupsFailed}), "
-			+ $"max lookup wait {TimeSpan.FromTicks(MaxLookupWait).TotalSeconds:0.###} s, max history wait {TimeSpan.FromTicks(MaxHistoryWait).TotalSeconds:0.###} s, "
-			+ $"max plan gap {TimeSpan.FromTicks(MaxPlanGap).TotalSeconds:0.###} s; violations {ViolationCount}"
-			+ (FailingSeeds.Count > 0 ? $" in seeds {string.Join(", ", FailingSeeds)}" : string.Empty);
+		public override string ToString() => $"scenarios {Scenarios}, steps {Steps}, simulated {TimeSpan.FromTicks(SimulatedTicks).TotalMinutes:0.#} min, elapsed {Elapsed.TotalSeconds:0.#} s; " + $"plans {Plans} (rejected {PlansRejected}, completed {PlansCompleted}, cancelled {PlansCancelled}, source failures {PlansFailedSource}, " + $"deadline failures {PlansFailedDeadline}, unfinished {PlansUnfinished}); history calls {HistoryCalls} (retries {Retries}, polls denied {HistoryDenials}), " + $"exhausted {Exhausted}, low remaining headers {LowRemaining}, lower limit headers {LowLimits}; lookups {Lookups} (at once {LookupsAtOnce}, failed {LookupsFailed}), " + $"max lookup wait {TimeSpan.FromTicks(MaxLookupWait).TotalSeconds:0.###} s, max history wait {TimeSpan.FromTicks(MaxHistoryWait).TotalSeconds:0.###} s, " + $"max plan gap {TimeSpan.FromTicks(MaxPlanGap).TotalSeconds:0.###} s; subscriptions {Subscriptions} (deadline rejects {SubscriptionsRejected}); violations {ViolationCount}" + (FailingSeeds.Count > 0 ? $" in seeds {string.Join(", ", FailingSeeds)}" : string.Empty);
 	}
 
 	sealed class Plan

@@ -20,7 +20,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 	/// The encoder appends each message it encodes to its buffer, so <see cref="GetEncodedMessage"/> returns every message
 	/// encoded so far, one after another.
 	/// </remarks>
-	class MessageEncoder : IMessageEncoder
+	partial class MessageEncoder : IMessageEncoder
 	{
 		byte[]? _bytes;
 
@@ -31,7 +31,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			Append(new s_EncodingResponse { Encoding = encoding });
 		}
 
-		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection)
+		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false)
 		{
 			throw new NotImplementedException();
 		}

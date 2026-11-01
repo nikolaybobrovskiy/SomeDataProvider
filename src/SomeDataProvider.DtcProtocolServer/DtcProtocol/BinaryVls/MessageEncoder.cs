@@ -27,7 +27,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 	/// </summary>
 	class MessageEncoder : Binary.MessageEncoder
 	{
-		public override void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection)
+		public override void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false)
 		{
 			var message = new VlsLogonResponse
 			{
@@ -37,7 +37,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 				MarketDepthIsSupported = 0,
 				SecurityDefinitionsSupported = 1,
 				HistoricalPriceDataSupported = 1,
-				ResubscribeWhenMarketDataFeedAvailable = 0,
+				ResubscribeWhenMarketDataFeedAvailable = resubscribeWhenFeedAvailable ? (byte)1 : (byte)0,
 				MarketDataSupported = 1,
 				OneHistoricalPriceDataRequestPerConnection = oneHistoricalPriceDataRequestPerConnection ? (byte)1 : (byte)0,
 			};

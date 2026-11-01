@@ -13,6 +13,8 @@ using NBLib.Logging;
 using SomeDataProvider.DataStorage.Definitions;
 using SomeDataProvider.DataStorage.TInvest;
 
+using SomeDataProvider.DtcProtocolServer.Market;
+
 sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStoreProvider, IDisposable
 {
 	public const string DataSourceFredPrefix = "fred";
@@ -56,9 +58,13 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 		_lazyFredStore = new(() => fredStore ?? throw new InvalidOperationException("No test FRED store."));
 		_tInvestStore = tInvestStore;
 		_tInvestEnvironment = "sandbox";
+		MarketDataHub = new(tInvestStore.Gateway, tInvestStore.Options, tInvestStore.Clock, persistRecording: false);
+		WatchListTask = MarketDataHub.StartWatchListAsync(tInvestStore);
 	}
 
+	public TInvestMarketDataHub? MarketDataHub { get; private set; }
 	public string SourcesDescription => _tInvestStore == null ? "FRED" : $"FRED, T-Invest ({_tInvestEnvironment})";
+	internal Task WatchListTask { get; private set; } = Task.CompletedTask;
 
 	DataStorage.Fred.Store FredStore => _lazyFredStore.Value;
 
@@ -75,6 +81,10 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 			gateway = _createGateway();
 			TInvestStartup.CheckAsync(gateway, options, DateTimeOffset.UtcNow.AddSeconds(8)).GetAwaiter().GetResult();
 			_tInvestStore = new TInvestStore(gateway, options);
+			MarketDataHub = new(gateway, options);
+			MarketDataHub.Diagnostic += text => _l.LogInformation("T-Invest live: {status}; gRPC {grpcStatus}, code {code}.", text, (gateway as SdkTInvestGateway)?.LastFailureStatus, (gateway as SdkTInvestGateway)?.LastFailureCode);
+			MarketDataHub.WatchListRetrying += name => _l.LogWarning("T-Invest watch-list entry is unavailable; retrying in 30 seconds: {symbol}", name);
+			WatchListTask = MarketDataHub.StartWatchListAsync(_tInvestStore);
 			_tInvestEnvironment = options.Environment.ToLowerInvariant();
 			_l.LogInformation("T-Invest source: {environment}, token from {source}; startup check passed.", options.Environment, options.TokenSource);
 		}
@@ -113,7 +123,7 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 		var classCode = code[(separator + 1)..];
 		// Discover a cold class code through an exact lookup, not a guessed ticker-only match.
 		// Both successful discovery and misses share the store's cache (negative entries: ten minutes).
-		var symbol = await _tInvestStore.ResolveAsync(ticker, classCode, DateTimeOffset.UtcNow.AddSeconds(8), cancellationToken);
+		var symbol = await _tInvestStore.ResolveAsync(ticker, classCode, _tInvestStore.Clock.GetUtcNow().AddSeconds(8), cancellationToken);
 		return symbol == null ? null : (_tInvestStore, TInvestStore.LookupCode(ticker, classCode));
 	}
 
@@ -153,6 +163,7 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 
 	public void Dispose()
 	{
+		MarketDataHub?.Dispose();
 		if (_lazyFredStore.IsValueCreated) _lazyFredStore.Value.Dispose();
 		_tInvestStore?.Dispose();
 	}

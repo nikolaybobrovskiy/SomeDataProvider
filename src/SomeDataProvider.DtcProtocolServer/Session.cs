@@ -88,6 +88,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		protected override void OnSent(long sent, long pending)
 		{
 			L.LogDebug("BytesSent: {sent}/{pending}", sent, pending);
+			if (pending == 0) ThreadPool.QueueUserWorkItem(_ => MarketSendCompleted());
 		}
 
 		protected override void OnDisconnected()

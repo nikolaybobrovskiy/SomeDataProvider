@@ -118,6 +118,27 @@ public sealed class TInvestRateLimiter
 	/// <summary>Returns the wait <see cref="TryAcquire"/> would report now without admitting a call; it only drops expired calls.</summary>
 	internal TimeSpan Probe(TInvestLimitGroup group) => Admit(group, false);
 
+	/// <summary>Effective actual-plus-booked address traffic, in monotonic clock ticks, for invariant checks.</summary>
+	internal (IReadOnlyList<long> History, IReadOnlyList<long> Address, IReadOnlyList<long> MarketData) InspectTraffic()
+	{
+		lock (_lock)
+		{
+			var now = _clock.GetTimestamp();
+			PruneAll(now);
+			var (history, address) = Actual();
+			var lane = Lane(now, Booked());
+			// Service bookings also move after slow calls and quota corrections. Their original reservation times
+			// are ordering keys, not promises to send into an already-full service window.
+			var service = new Dictionary<Window, List<long>>();
+			var at = now;
+			foreach (var booked in _windows.Values.SelectMany(w => w.Calls.Where(s => s.Reserved).Select(s => (Window: w, s.At))).OrderBy(b => b.At))
+				at = Book(history, address, service, booked.Window, at);
+			var market = service.GetValueOrDefault(_windows[TInvestLimitGroup.MarketData]) ?? _windows[TInvestLimitGroup.MarketData].Calls.Where(s => !s.Reserved).Select(s => s.At).ToList();
+			var actual = Actual();
+			return (actual.History.Concat(lane).Order().ToArray(), actual.Address.Concat(lane).Order().ToArray(), market.Order().ToArray());
+		}
+	}
+
 	static TInvestRequestException Limited(TimeSpan delay) => new($"T-Invest request limit reached; retry in {Math.Clamp((int)Math.Ceiling(delay.TotalSeconds), 1, 300)} s.", TInvestFailureKind.Limit);
 
 	TimeSpan Admit(TInvestLimitGroup group, bool record)

@@ -11,8 +11,11 @@ using Microsoft.Extensions.Logging;
 using Tinkoff.InvestApi.V1;
 
 /// <summary>The only bridge implementation that depends on SDK types.</summary>
-public sealed class SdkTInvestGateway : ITInvestGateway
+public sealed partial class SdkTInvestGateway : ITInvestGateway
 {
+	// Keep the single public trust anchor alive for all channels; never change the OS root stores.
+	static readonly Lazy<X509Certificate2> BundledRoot = new(LoadBundledRoot);
+
 	readonly GrpcChannel? _channel;
 	readonly InstrumentsService.InstrumentsServiceClient _instruments;
 	readonly UsersService.UsersServiceClient _users;
@@ -22,6 +25,8 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 	readonly TimeProvider _clock;
 	readonly ILogger<SdkTInvestGateway>? _logger;
 	readonly TInvestToken? _token;
+	readonly bool _includeDealer;
+	readonly CallInvoker _marketInvoker;
 	readonly int _maximumCandleCalls;
 
 	public SdkTInvestGateway(TInvestToken token, TInvestOptions options, TInvestRateLimiter limiter, TimeProvider? clock = null, ILogger<SdkTInvestGateway>? logger = null)
@@ -34,6 +39,7 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 		options.Validate();
 		_logger = logger;
 		_maximumCandleCalls = options.MaxCandleCallsPerRequest;
+		_includeDealer = options.IncludeDealerTrades;
 		_token = token;
 		_limiter = limiter;
 		_clock = clock ?? TimeProvider.System;
@@ -57,18 +63,21 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 		_instruments = new InstrumentsService.InstrumentsServiceClient(invoker);
 		_users = new UsersService.UsersServiceClient(invoker);
 		_marketData = new MarketDataService.MarketDataServiceClient(invoker);
+		_marketInvoker = invoker;
 	}
 
 	internal SdkTInvestGateway(CallInvoker invoker, TInvestOptions options, TInvestRateLimiter limiter, TimeProvider clock)
 	{
 		options.Validate();
 		_maximumCandleCalls = options.MaxCandleCallsPerRequest;
+		_includeDealer = options.IncludeDealerTrades;
 		_limiter = limiter;
 		_clock = clock;
 		_sandbox = options.IsSandbox;
 		_instruments = new InstrumentsService.InstrumentsServiceClient(invoker);
 		_users = new UsersService.UsersServiceClient(invoker);
 		_marketData = new MarketDataService.MarketDataServiceClient(invoker);
+		_marketInvoker = invoker;
 	}
 
 	public string? LastFailureStatus { get; private set; }
@@ -177,31 +186,41 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 	internal static string Endpoint(TInvestOptions options) => options.IsSandbox
 		? "https://sandbox-invest-public-api.tbank.ru:443" : "https://invest-public-api.tbank.ru:443";
 
-	internal static bool ValidateCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors errors)
+	internal static bool ValidateCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors errors) =>
+		certificate != null && errors == SslPolicyErrors.None;
+
+	internal static SocketsHttpHandler CreateHandler() => CreateHandler(BundledRoot.Value);
+
+	internal static SocketsHttpHandler CreateHandler(X509Certificate2 root)
 	{
-		if (errors == SslPolicyErrors.None) return true;
-		// Do not accept a wrong host or missing certificate under the SDK's extra root.
-		if (errors != SslPolicyErrors.RemoteCertificateChainErrors || certificate is not X509Certificate2 serverCertificate) return false;
-		using var stream = typeof(Tinkoff.InvestApi.InvestApiSettings).Assembly.GetManifestResourceStream("Tinkoff.InvestApi.Resources.Certificates.Russian_Trusted_Root_CA.cer");
-		if (stream == null) return false;
-		using var bytes = new MemoryStream();
-		stream.CopyTo(bytes);
-		using var root = X509CertificateLoader.LoadCertificate(bytes.ToArray());
-		using var validation = new X509Chain();
-		validation.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-		validation.ChainPolicy.CustomTrustStore.Add(root);
-		validation.ChainPolicy.ApplicationPolicy.Add(new System.Security.Cryptography.Oid("1.3.6.1.5.5.7.3.1"));
-		validation.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-		if (chain != null)
-			foreach (var element in chain.ChainElements) validation.ChainPolicy.ExtraStore.Add(element.Certificate);
-		return validation.Build(serverCertificate);
+		var policy = new X509ChainPolicy
+		{
+			TrustMode = X509ChainTrustMode.CustomRootTrust,
+			DisableCertificateDownloads = true,
+			RevocationMode = X509RevocationMode.NoCheck,
+		};
+		policy.CustomTrustStore.Add(root);
+		policy.ApplicationPolicy.Add(new System.Security.Cryptography.Oid("1.3.6.1.5.5.7.3.1"));
+		return new SocketsHttpHandler
+		{
+			EnableMultipleHttp2Connections = true,
+			SslOptions = new SslClientAuthenticationOptions
+			{
+				CertificateChainPolicy = policy,
+				// The native validation above checks both this chain policy and the host name.
+				RemoteCertificateValidationCallback = ValidateCertificate,
+			},
+		};
 	}
 
-	static SocketsHttpHandler CreateHandler() => new()
+	static X509Certificate2 LoadBundledRoot()
 	{
-		EnableMultipleHttp2Connections = true,
-		SslOptions = new SslClientAuthenticationOptions { RemoteCertificateValidationCallback = ValidateCertificate },
-	};
+		using var stream = typeof(Tinkoff.InvestApi.InvestApiSettings).Assembly.GetManifestResourceStream("Tinkoff.InvestApi.Resources.Certificates.Russian_Trusted_Root_CA.cer")
+			?? throw new InvalidOperationException("The pinned T-Invest trust anchor is missing from the SDK.");
+		using var bytes = new MemoryStream();
+		stream.CopyTo(bytes);
+		return X509CertificateLoader.LoadCertificate(bytes.ToArray());
+	}
 
 	static TInvestInstrumentKind Kind(InstrumentType kind) => kind switch
 	{

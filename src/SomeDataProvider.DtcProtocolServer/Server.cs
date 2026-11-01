@@ -47,6 +47,8 @@ namespace SomeDataProvider.DtcProtocolServer
 			L = loggerFactory.CreateLogger<Server>();
 		}
 
+		internal Market.TInvestMarketDataHub? MarketDataHub => (_symbolsStoreProvider as StoresProvider)?.MarketDataHub;
+
 		internal TimeProvider TimeProvider { get; }
 
 		ILogger<Server> L { get; }

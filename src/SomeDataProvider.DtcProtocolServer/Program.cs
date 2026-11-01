@@ -64,7 +64,7 @@ namespace SomeDataProvider.DtcProtocolServer
 			protected override void ConfigureServices(IServiceCollection services, IConfiguration configuration)
 			{
 				base.ConfigureServices(services, configuration);
-				var options = configuration.GetSection("StoresOptions:TInvest").Get<TInvestOptions>() ?? new TInvestOptions();
+				var options = Data.TInvestConfiguration.Read(configuration);
 				options.Validate();
 				try { _tInvestToken = new TInvestTokenSource().Load(options, configuration); }
 				catch (PlatformNotSupportedException) { _tokenLoadFailure = "CredentialManager requires Windows."; }

@@ -24,6 +24,10 @@ public sealed partial class TInvestStore : ISymbolsStore, IDisposable
 		_refreshTimer = _clock.CreateTimer(_ => RefreshTask = RefreshAsync(), null, UntilRefresh(), Timeout.InfiniteTimeSpan);
 	}
 
+	public ITInvestGateway Gateway => _gateway;
+	public TInvestOptions Options => _options;
+	public TimeProvider Clock => _clock;
+
 	internal Task RefreshTask { get; private set; } = Task.CompletedTask;
 
 	public static string LookupCode(string ticker, string classCode) => ticker + "\t" + classCode;

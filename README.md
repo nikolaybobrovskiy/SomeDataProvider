@@ -39,10 +39,10 @@ Currently implemented data sources:
   -  Graph should be display as:\
   ![Screenshot](https://raw.githubusercontent.com/nikolaybobrovskiy/SomeDataProvider/master/blob/ExampleFredSymbolChart.png?raw=true)
 
-## T-Invest instruments, search and bar history
+## T-Invest instruments, search, bar history and live data
 
-T-Invest is a second, optional source. It provides complete security definitions, symbol search and bar history.
-Live market data, depth, tick history and trading are not implemented for it yet; those requests are rejected.
+T-Invest is a second, optional source. It provides complete security definitions, symbol search, bar history,
+live trades and best bid/ask. Depth, tick history and trading are not implemented yet; those requests are rejected.
 FRED and the private series extension are unchanged; series requests remain FRED-only.
 The source is off in the shipped `appsettings.json` (`TokenSource` is empty).
 
@@ -72,7 +72,11 @@ Settings under `StoresOptions:TInvest` (all are validated at startup):
 | `CredentialTarget` | omitted | 1–256 characters, not all whitespace, no control characters; omitted selects `SomeDataProvider/TInvest/<Environment>` |
 | `SearchOnlyApiTradeable` | `true` | JSON boolean `true` or `false` |
 | `MaxCandleCallsPerRequest` | `400` | integer 1–400, including time pages and any quota retry attempts |
-| `IncludeDealerTrades` | `false` | JSON boolean `true` or `false`; include dealer/weekend candles when true |
+| `IncludeDealerTrades` | `false` | JSON boolean `true` or `false`; include dealer/weekend trades and candles when true |
+| `MaxStreams` | `4` | integer 1–32; each stream holds at most 150 instruments (300 trade/book subscriptions; info is free) |
+| `StreamSilenceTimeout` | `00:03:00` | TimeSpan `00:00:30`–`00:15:00`, inclusive; no message of any kind for this long breaks the stream |
+| `SessionQueueLimit` | `50000` | integer 128–100000 market updates per DTC session; control messages are never dropped |
+| `RecordSymbols` | `[]` | array of unique `TICKER-CLASSCODE` strings, 3–128 ASCII letters/digits/`.`/`_`/`-` each; split at the last `-`, both parts required; no `fred` prefix; at most `150 × MaxStreams` entries |
 
 The `Token` value is read only by the File source: it must be nonempty and not whitespace. Invalid setting
 values fail startup with the setting name; errors never include the token. Endpoints are fixed TLS endpoints:
@@ -86,6 +90,8 @@ Sierra Chart Symbol Settings:
   with pattern matching off and no separate exchange. `SYNTH-TESTCC` illustrates the shape, not a real instrument.
 - Use category `T-Invest`, the same generic sub-client and historical server addresses as the FRED entry,
   and set Supports Market Depth to not supported for this stage.
+- Set Real-Time Data Client to `generic sub-clients` and Generic Sub-Client Server Address to
+  `127.0.0.1:50001` (or the configured streaming listener, not the history-only listener).
 - Set Historical Data Server to `127.0.0.1:50001` (or your configured history listener address).
 - Set Historical Daily Data Source and Historical Intraday Data Source to `DTC historical data server`.
 - Bar downloads need a supported storage interval instead of 1 Tick or 1 Second. Sierra Chart's
@@ -93,14 +99,21 @@ Sierra Chart Symbol Settings:
   controls this, not the chart's display period; 1 Minute is supported. This is a global setting affecting
   other charts too, so use a separate Sierra Chart installation if their storage must stay at 1 Tick.
   The bridge never changes Sierra Chart settings. Tick requests still receive a stage reject.
-- Daily and supported intraday bar charts are usable now. Live updates and DOM requests still receive explicit
-  stage-not-implemented rejects; history is refreshed by downloading it again.
+- Daily and supported intraday bar charts, live trades, best bid/ask and Time and Sales are usable now.
+  DOM requests still receive a stage reject. Tick-storage history downloads still reject until the tick-history stage.
+- After this stage is committed, check V2 compatibility in Sierra Chart: open one configured T-Invest symbol
+  during exchange trading, verify that Time and Sales receives new exchange trades and that best bid/ask changes.
+  A quiet/closed exchange is not a failed V2 check. If subscription succeeds but these updates do not appear,
+  report the Sierra Chart version and Message Log text; a per-session legacy-message fallback is a separate follow-up,
+  not enabled speculatively. This server does not change Sierra Chart settings or files.
 
 DTC clients can instead send a ticker and class code as separate Symbol and Exchange fields. Definitions echo
 whichever form the request used. Bare tickers are never guessed. On the first combined request after restart,
 the bridge tries an exact `GetInstrumentBy` lookup for that ticker/suffix; misses are cached for ten minutes.
 Successful definitions are cached and refreshed daily at 03:00 UTC. Failed refreshes are retried on demand;
-expired entries are never served. No bulk instrument-list calls are used.
+expired entries are never served. No bulk instrument-list calls are used. Current live subscriptions keep the UID
+resolved when they opened: a daily definition refresh that reassigns a ticker to another UID does not migrate them.
+Resubscribe the chart to resolve the new UID; restart the bridge to refresh a watch-list subscription in that case.
 
 Search returns T-Invest matches first, then FRED (unless an exchange or security type restricts it).
 A `fred-` search stays FRED-only. Results filter empty class codes, unsupported kinds and, by default,
@@ -109,6 +122,78 @@ Only complete definitions are sent: up to 20 cold instruments hydrated within an
 and up to 50 already-cached rows. Futures and bonds need a second metadata call, and options also resolve their underlying position, so fewer rows
 can fit. The last row is final, not a promise that all upstream matches were returned.
 A selected result can be looked up exactly without losing its price increment or currency.
+
+### Live subscriptions, recording and outages (stage 3)
+
+Live data is supported for shares, ETFs, bonds, futures and currencies; options remain definitions-only.
+Sessions share reference-counted subscriptions by instrument UID. Each instrument uses exchange trades,
+an exchange depth-1 book for best bid/ask, and trading status. Changes coalesce for 20 ms into one request per kind;
+all streams and reconnects share the subscription and address limits below. A subscribe or snapshot-only request
+gets its snapshot or a reject within 20 seconds, including lookup and admission. An unsubscribe releases only that
+session's reference. Snapshot-only requests use cached state or the three unary calls, never create a stream subscription,
+and do not cancel an existing live subscription with the same SymbolID.
+
+Quiet instruments bootstrap from `GetLastPrices`, `GetOrderBook` and `GetTradingStatus`; later subscribers use
+the shared current state. Missing fields stay unset. Live trades and bid/ask use DTC V2 messages with microsecond
+timestamps (source nanoseconds are truncated, never rounded or made unique). Quantities are lots multiplied by
+the instrument's lot size. Buy trades are at ask, sells at bid, unknown direction is unset. Equal microsecond trade
+times are legal and are not deduplicated. Best bid/ask is sent only on a price or quantity change; empty sides have unset prices and zero quantities.
+
+Trading status mapping (both snapshots and `TRADING_SYMBOL_STATUS`):
+
+| T-Invest status | DTC status |
+|---|---|
+| NormalTrading, SessionOpen | OPEN |
+| OpeningPeriod, OpeningAuctionPeriod, SessionAssigned | PRE_OPEN |
+| BreakInTrading | TRADING_HALT |
+| NotAvailableForTrading, ClosingPeriod, SessionClose | CLOSE |
+| Unspecified, ClosingAuction, DiscreteAuction, DarkPoolAuction, TradingAtClosingAuctionPrice, StabilizationAuction, all dealer-only statuses, any future unknown value | UNKNOWN |
+
+`IncludeDealerTrades=false` excludes dealer/weekend prints from the stream and snapshot last prices, as well as candles.
+The tick recorder always records exchange trades only, regardless of that display option. To start recording without
+a connected DTC client, set a watch list in the local T-Invest section, for example `"RecordSymbols": ["SYNTH-TESTCC"]`
+(invented symbol; replace it with your own). Initial lookup/subscription failures are retried every 30 seconds;
+they prove no coverage. Watch-list admission does not spend unary snapshot calls. Once admitted, the watch list keeps
+its references until shutdown and follows stream reconnects.
+
+The recorder writes outside the repository under `%LOCALAPPDATA%/SomeDataProvider/tinvest-today/<hashed-uid>/`:
+UTC-day `.bin` files preserve source nanoseconds and lots, and `.coverage.json` files describe live intervals.
+Ticks and conservative coverage are flushed every second. Coverage stops at the last received stream message minus
+a one-second latency margin, never at the watchdog's later detection time. A broken stream or restart leaves a hole,
+even if no trade was observed. Disk work is separate from hub delivery; old-day handles close at midnight, and only
+changed manifests are written. A failed disk write or recorder-queue overflow stops extending recorded coverage.
+Answering tick history, merging the last hour,
+and archive-driven cleanup belong to the later tick-history stage; recording now does not make tick downloads available.
+
+During a T-Invest outage, affected symbols receive feed-unavailable once; FRED stays usable. The hub reconnects
+with 1, 2, 4 … 30-second backoff and ±20% jitter, resubscribes through the shared quota, and verifies the subscriptions
+with `GetMySubscriptions`; omitted subscription kinds are empty after a bounded collection interval. A mismatch is
+retried once, then stays unavailable while delayed retries run every 30 seconds. Local quota deferrals reject only
+waiting subscribers at their deadline, not healthy streams. Successful symbols
+receive feed-available; logon advertises `ResubscribeWhenMarketDataFeedAvailable=1`, so DTC clients resubscribe with their
+existing SymbolIDs and get fresh snapshots. No unsolicited restoration snapshot is pushed. Sierra Chart may show a data
+interruption; until tick history lands, missing live ticks cannot be backfilled through this server.
+
+The stream requests 10-second idle pings. T-Invest sends them only while no data flows, so active samples
+without pings are inconclusive for Q-3, not evidence of a broken stream. On November 1, 2026 the bounded sandbox
+sample received six pings, with intervals of 10,999, 11,000, 11,000, 11,001 and 11,000 ms; the longest gap between
+any two messages was 11,001 ms. No trades or quotes arrived, but the snapshot status was DealerNormalTrading,
+which the conservative quiet-stream rule excludes. The check was therefore inconclusive, not a qualifying Q-3 pass.
+The 180-second default remains provisional; the production quiet-stream check in the tick-history stage must
+confirm it. No more sandbox retries are authorized. Any upstream message, not just a ping, proves liveness.
+The explicit `SamplesLiveStreamThroughHub` sandbox test samples for 70 seconds after subscription (at most 110 seconds
+overall). Every run prints subscription statuses, counts by kind, snapshot trading-status name, elapsed time,
+attempts, ping count/intervals and the longest gap between upstream messages; no market payload values are printed.
+A quiet sample has no trades or quotes and a known non-normal-trading status; it requires at least three pings,
+and the default timeout must exceed three times the longest ping interval. An active or unknown-status sample
+is inconclusive for Q-3. Select the test with
+`--filter FullyQualifiedName~SamplesLiveStreamThroughHub` and the same sandbox variables/helper described below.
+
+Slow DTC sessions have separate bounded market-update queues; control frames (snapshots, rejects, feed/trading status,
+heartbeats and history) are not dropped. A full queue drops new market updates for that session only. Each heartbeat's
+`NumDroppedMessages` is the count since the previous heartbeat: one drop reports 1, then 0 if no new drop, then 1 again
+for a new later drop. Upstream gaps are feed status, never an invented drop count. A dropped best quote is resent with
+its latest values when room returns, even if the source does not change again. Queued values are purged on unsubscribe.
 
 Limits use shared rolling windows at 90%: instruments 180/minute, market data 540/minute, users 90/minute,
 subscriptions 90/minute, archives 27/minute, and all attempts 45/second. Response rate-limit headers can reduce
@@ -121,6 +206,15 @@ Gateway construction follows approved amendment A-7 (task `t_2288470e`, user app
 it builds one authenticated gRPC channel and the SDK's generated service clients directly. The pinned
 `Tinkoff.InvestApi` `[0.6.25]` factory hides three retries, bypassing bridge admission; it is deliberately not used.
 There is no retrying SDK invoker or channel retry policy. Each upstream attempt passes through the shared limiter.
+Both sandbox and production TLS use only the SDK's bundled Russian Trusted Root CA as their custom trust anchor,
+not the machine's root store. Certificate downloads and revocation network checks are disabled. The native chain
+policy still requires server-authentication usage, a valid chain to that root and the correct host name; a missing
+certificate is rejected. No OS trust-store change or accept-all callback is used.
+The stream sandbox check reports DNS, connect, TLS and first-answer timings without inspecting event payloads;
+incomplete startup steps are reported explicitly. These diagnostics are test-only. The November 1 sample measured
+DNS 3 ms, connect 2 ms, TLS 63 ms and first answer at 186 ms; access took 195 ms, definition 58 ms and subscription
+240 ms (494 ms startup total). A prior eight-second startup timeout remains unexplained; the production startup
+uses the same eight-second budget. The token-free TLS preflight received HTTP 404 in 261 ms through this handler.
 
 Offline checks (no FRED or T-Invest calls):
 
@@ -188,7 +282,10 @@ record and no post-header reject, including other work if a client multiplexes h
 Clients should use a dedicated history connection, discard an incomplete download and retry it.
 
 A seeded simulation checks the limiter on a fake clock with concurrent downloads, slow and failing calls,
-lookups, quota corrections and exhausted quota. The normal test run includes a short fixed-seed run. The long
+lookups, subscription/reconnect storms, quota corrections and exhausted quota. It checks every rolling window of
+actual-plus-booked address/history traffic and the effective service schedule, not only the window ending now.
+Booked times move with actual progress and source quota blocks; original reservation timestamps are ordering keys,
+not fixed send times. The normal test run includes a short fixed-seed run. The long
 run (200 seeds of ten simulated minutes each) is local and on demand only:
 
 ```

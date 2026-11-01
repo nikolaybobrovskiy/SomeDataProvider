@@ -66,12 +66,12 @@ public class TInvestWireTests
 		Assert.That(client.LogonResponse!.ResultText, Does.Contain("FRED, T-Invest (sandbox)"));
 		Assert.That(client.LogonResponse.SymbolExchangeDelimiter, Is.Empty);
 		Assert.That(client.Capabilities!.MarketDepthIsSupported, Is.False);
-		Assert.That(client.Capabilities.ResubscribeWhenMarketDataFeedAvailable, Is.False);
+		Assert.That(client.Capabilities.ResubscribeWhenMarketDataFeedAvailable, Is.True);
 		Assert.That(client.Capabilities.TradingIsSupported, Is.False);
 	}
 
 	[Test]
-	public async Task SearchThenExactUsesCompleteClientCacheAndSubscriptionGetsCleanStageReject()
+	public async Task SearchThenExactUsesCompleteClientCacheAndLiveSubscriptionCompletes()
 	{
 		using var gateway = new ScriptedTInvestGateway();
 		gateway.Instruments.AddRange(Enumerable.Range(0, 50).Select(i => ScriptedTInvestGateway.Invent("SYNTH" + i)));
@@ -85,8 +85,8 @@ public class TInvestWireTests
 		var exact = (await client.GetSecurityDefinitionAsync(rows[0].Symbol, rows[0].Exchange))!;
 		Assert.That(exact.MinPriceIncrement, Is.GreaterThan(0));
 		Assert.That(gateway.Lookups.Count, Is.EqualTo(calls));
-		var reject = Assert.ThrowsAsync<DtcMarketDataRejectedException>(() => client.SubscribeMarketDataAsync(rows[0].Symbol, rows[0].Exchange));
-		Assert.That(reject!.Message, Does.Contain("not implemented in this stage"));
+		var subscription = await client.SubscribeMarketDataAsync(rows[0].Symbol, rows[0].Exchange);
+		Assert.That(subscription, Is.GreaterThan(0));
 	}
 
 	[TestCase(102, 103)]
@@ -183,7 +183,7 @@ sealed class TInvestTestHost : IDisposable
 
 	public void WaitUntilConnected() => Assert.That(_server.Connected.Wait(TimeSpan.FromSeconds(10)), Is.True, "The test server did not finish accepting the connection.");
 
-	public DtcClient CreateClient() => new(new DtcClientSettings
+	public DtcClient CreateClient(int heartbeatInterval = 10) => new(new DtcClientSettings
 	{
 		Host = "127.0.0.1",
 		Port = Port,
@@ -192,6 +192,7 @@ sealed class TInvestTestHost : IDisposable
 		Encoding = EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS,
 		SynchronizeTrading = false,
 		Reconnect = false,
+		HeartbeatIntervalInSeconds = heartbeatInterval,
 	});
 
 	public void Dispose()

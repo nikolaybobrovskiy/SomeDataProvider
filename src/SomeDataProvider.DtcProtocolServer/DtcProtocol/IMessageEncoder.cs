@@ -10,6 +10,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 	using Dtc.Protocol.Private;
 
 	using SomeDataProvider.DataStorage.Definitions;
+	using SomeDataProvider.DataStorage.TInvest;
 	using SomeDataProvider.DtcProtocolServer.Data;
 
 	// https://www.sierrachart.com/index.php?page=doc/DTCMessageDocumentation.php
@@ -20,7 +21,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeEncodingResponse(EncodingEnum encoding);
 
-		void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection);
+		void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false);
 
 		void EncodeHeartbeatMessage(uint numDroppedMessages);
 
@@ -31,6 +32,12 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		void EncodeMarketDepthReject(uint symbolId, string rejectText);
 
 		void EncodeMarketDataSnapshot(uint symbolId, TradingStatusEnum tradingStatus, DateTime lastTradeDateTime);
+
+		void EncodeTInvestSnapshot(uint symbolId, TInvestMarketSnapshot snapshot, int lot);
+
+		void EncodeTInvestUpdate(uint symbolId, TInvestMarketEvent update, int lot);
+
+		void EncodeFeedStatus(uint symbolId, bool available);
 
 		void EncodeSecurityDefinitionReject(int requestId, string rejectText);
 

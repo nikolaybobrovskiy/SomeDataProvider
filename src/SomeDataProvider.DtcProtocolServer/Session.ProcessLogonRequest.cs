@@ -21,7 +21,7 @@ partial class Session
 		{
 			if (_closing) return;
 			L.LogInformation("Answer: LogonSuccess");
-			encoder.EncodeLogonResponse(LogonStatusEnum.LOGON_SUCCESS, $"Logon is successful; sources: {_symbolsStoreProvider.SourcesDescription}.", _onlyHistoryServer);
+			encoder.EncodeLogonResponse(LogonStatusEnum.LOGON_SUCCESS, $"Logon is successful; sources: {_symbolsStoreProvider.SourcesDescription}.", _onlyHistoryServer, ((Server)Server).MarketDataHub != null);
 			if (SendResponse(encoder.GetEncodedMessage()))
 				StartHeartbeatTimers(Math.Clamp(logonRequest.HeartbeatIntervalInSeconds, 0, 300));
 		}

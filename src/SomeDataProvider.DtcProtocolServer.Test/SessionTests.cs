@@ -306,6 +306,8 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 				_ownsServer = ownsServer;
 			}
 
+			public Session ServerSession => (Session)_server.LastSession!;
+
 			public bool IsSessionConnected => _server.LastSession?.IsConnected == true;
 
 			public void Send(byte[] message) => _stream.Write(message);

@@ -18,12 +18,12 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 	public string? LastQuery { get; private set; }
 	public Func<string, string, CancellationToken, Task<TInvestInstrument?>>? Resolve { get; set; }
 	public TInvestAccess Access { get; set; } = new(true, new[] { true });
+	public Func<CancellationToken, Task<ITInvestMarketDataStream>>? OpenStream { get; set; }
+	public Func<string, CancellationToken, Task<TInvestMarketSnapshot>>? Snapshot { get; set; }
+	public List<ScriptedMarketDataStream> Streams { get; } = new();
 
-	public static TInvestInstrument Invent(string ticker = "SYNTH", string classCode = "TESTCC", TInvestInstrumentKind kind = TInvestInstrumentKind.Share) =>
-		new(new(ticker, classCode, "invented-uid-" + ticker, "Invented instrument", kind, 10, true), 0.01m, "zzz", 0.25m, 1000m, 5m);
-
+	public static TInvestInstrument Invent(string ticker = "SYNTH", string classCode = "TESTCC", TInvestInstrumentKind kind = TInvestInstrumentKind.Share) => new(new(ticker, classCode, "invented-uid-" + ticker, "Invented instrument", kind, 10, true), 0.01m, "zzz", 0.25m, 1000m, 5m);
 	public Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult(Access);
-
 	public Task<TInvestInstrument?> GetInstrumentAsync(string ticker, string classCode, DateTimeOffset deadline, CancellationToken cancellationToken)
 	{
 		Lookups.Add((ticker, classCode));
@@ -37,13 +37,25 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 		return Task.FromResult<IReadOnlyList<TInvestInstrumentShort>>(Instruments.Select(i => i.Short).ToArray());
 	}
 
+	public Task<ITInvestMarketDataStream> OpenMarketDataStreamAsync(CancellationToken cancellationToken)
+	{
+		if (OpenStream != null)
+		{
+			return OpenStream(cancellationToken);
+		}
+
+		var stream = new ScriptedMarketDataStream();
+		lock (Streams)
+			Streams.Add(stream);
+		return Task.FromResult<ITInvestMarketDataStream>(stream);
+	}
+
+	public Task<TInvestMarketSnapshot> GetMarketSnapshotAsync(string uid, bool includeDealer, DateTimeOffset deadline, CancellationToken cancellationToken) => Snapshot?.Invoke(uid, cancellationToken) ?? Task.FromResult(new TInvestMarketSnapshot());
 	public void Dispose()
 	{
 	}
 
-	public Task<TInvestRateLimiter.Reservation> ReserveCandlesAsync(int calls, DateTimeOffset deadline, CancellationToken cancellationToken) =>
-		Limiter.ReserveAsync(TInvestLimitGroup.MarketData, calls, deadline, cancellationToken);
-
+	public Task<TInvestRateLimiter.Reservation> ReserveCandlesAsync(int calls, DateTimeOffset deadline, CancellationToken cancellationToken) => Limiter.ReserveAsync(TInvestLimitGroup.MarketData, calls, deadline, cancellationToken);
 	public async Task<IReadOnlyList<TInvestCandle>> GetCandlesAsync(TInvestCandleRequest request, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken)
 	{
 		await reservation.AcquireAsync(Limiter, deadline, cancellationToken);
