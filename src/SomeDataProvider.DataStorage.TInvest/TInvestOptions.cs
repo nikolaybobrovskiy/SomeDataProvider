@@ -11,6 +11,11 @@ public sealed class TInvestOptions
 
 	public bool SearchOnlyApiTradeable { get; init; } = true;
 
+	/// <summary>1-400 upstream candle calls per DTC request, including planned pages.</summary>
+	public int MaxCandleCallsPerRequest { get; init; } = 400;
+
+	public bool IncludeDealerTrades { get; init; }
+
 	public bool Enabled => TokenSource.Length != 0;
 
 	public bool IsSandbox => Environment == "Sandbox";
@@ -19,6 +24,8 @@ public sealed class TInvestOptions
 
 	public void Validate()
 	{
+		if (MaxCandleCallsPerRequest is < 1 or > 400)
+			throw new ArgumentException("TInvest:MaxCandleCallsPerRequest must be 1-400.");
 		if (TokenSource is not ("" or "CredentialManager" or "Environment" or "File"))
 			throw new ArgumentException("TInvest:TokenSource must be empty, CredentialManager, Environment or File.");
 		if (Environment is not ("Production" or "Sandbox"))

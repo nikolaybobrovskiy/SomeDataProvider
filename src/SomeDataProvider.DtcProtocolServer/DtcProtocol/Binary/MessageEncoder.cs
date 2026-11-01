@@ -41,7 +41,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			Append(new s_Heartbeat { NumDroppedMessages = numDroppedMessages });
 		}
 
-		public virtual void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText)
+		public virtual void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText, int retrySeconds = 0)
 		{
 			throw new NotImplementedException();
 		}

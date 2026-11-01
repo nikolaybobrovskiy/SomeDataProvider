@@ -39,10 +39,10 @@ Currently implemented data sources:
   -  Graph should be display as:\
   ![Screenshot](https://raw.githubusercontent.com/nikolaybobrovskiy/SomeDataProvider/master/blob/ExampleFredSymbolChart.png?raw=true)
 
-## T-Invest instruments and search (stage 2)
+## T-Invest instruments, search and bar history
 
-T-Invest is a second, optional source. This stage provides complete security definitions and symbol search.
-Live market data, depth, history and trading are not implemented for it yet; those requests are rejected.
+T-Invest is a second, optional source. It provides complete security definitions, symbol search and bar history.
+Live market data, depth, tick history and trading are not implemented for it yet; those requests are rejected.
 FRED and the private series extension are unchanged; series requests remain FRED-only.
 The source is off in the shipped `appsettings.json` (`TokenSource` is empty).
 
@@ -71,6 +71,8 @@ Settings under `StoresOptions:TInvest` (all are validated at startup):
 | `Environment` | `Production` | `Production` or `Sandbox`; case-sensitive |
 | `CredentialTarget` | omitted | 1–256 characters, not all whitespace, no control characters; omitted selects `SomeDataProvider/TInvest/<Environment>` |
 | `SearchOnlyApiTradeable` | `true` | JSON boolean `true` or `false` |
+| `MaxCandleCallsPerRequest` | `400` | integer 1–400, including time pages and any quota retry attempts |
+| `IncludeDealerTrades` | `false` | JSON boolean `true` or `false`; include dealer/weekend candles when true |
 
 The `Token` value is read only by the File source: it must be nonempty and not whitespace. Invalid setting
 values fail startup with the setting name; errors never include the token. Endpoints are fixed TLS endpoints:
@@ -84,8 +86,15 @@ Sierra Chart Symbol Settings:
   with pattern matching off and no separate exchange. `SYNTH-TESTCC` illustrates the shape, not a real instrument.
 - Use category `T-Invest`, the same generic sub-client and historical server addresses as the FRED entry,
   and set Supports Market Depth to not supported for this stage.
-- Search/definitions are usable now. Chart data and DOM requests receive explicit stage-not-implemented rejects.
-  After the later stages land, enable their settings as documented then.
+- Set Historical Data Server to `127.0.0.1:50001` (or your configured history listener address).
+- Set Historical Daily Data Source and Historical Intraday Data Source to `DTC historical data server`.
+- Bar downloads need a supported storage interval instead of 1 Tick or 1 Second. Sierra Chart's
+  Global Settings > Data/Trade Service Settings > Common Settings > Intraday Data Storage Time Unit
+  controls this, not the chart's display period; 1 Minute is supported. This is a global setting affecting
+  other charts too, so use a separate Sierra Chart installation if their storage must stay at 1 Tick.
+  The bridge never changes Sierra Chart settings. Tick requests still receive a stage reject.
+- Daily and supported intraday bar charts are usable now. Live updates and DOM requests still receive explicit
+  stage-not-implemented rejects; history is refreshed by downloading it again.
 
 DTC clients can instead send a ticker and class code as separate Symbol and Exchange fields. Definitions echo
 whichever form the request used. Bare tickers are never guessed. On the first combined request after restart,
@@ -127,6 +136,55 @@ with `tools/with-credential.ps1 -Target SomeDataProvider/TInvest/Sandbox -Variab
 followed by `dotnet test src/SomeDataProvider.DtcProtocolServer.Test --no-build --no-restore --filter Category=TInvestSandbox`.
 Invoke the helper with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File`. It reads Credential Manager
 without printing the value and clears the child environment afterwards. Output is structural only.
+
+### T-Invest history limits (stage 5a)
+
+Bounds are whole UTC seconds and half-open `[start, end)`: a candle at the end belongs to the next piece.
+Start 0 selects the earliest available candle date. For second candles this is the later of the 30-day retention
+boundary (rounded up to a whole second) and the instrument's first-minute candle date; missing instrument metadata
+uses that retention boundary. An earlier explicit start is clamped to the instrument's first candle date,
+but an explicitly requested second-candle start older than 30 days is rejected before clamping.
+End 0 or a future end selects the current frontier and permits the newest unfinished candle as the last record.
+Closed requests contain complete candles only. OHLC prices retain their source units; volumes are lots multiplied
+by the instrument's lot size, and the trade count is 0 because candles do not supply it. FRED's bounds are unchanged.
+
+| Interval | API maximum period | Maximum candles per time page |
+|---|---|---|
+| 5 / 10 seconds | 200 minutes | 2,500 / 1,250 |
+| 30 seconds | 20 hours | 2,500 |
+| 1 / 2 / 3 minutes | 1 day | 2,400 / 1,200 / 750 |
+| 5 / 10 minutes | 1 week | 2,400 / 1,200 |
+| 15 / 30 minutes | 3 weeks | 2,400 / 1,200 |
+| 1 / 2 / 4 hours | 3 calendar months | 2,400 / 2,400 / 700 |
+| 1 day | 6 calendar years | 2,400 |
+| 1 week | 5 calendar years | 300 |
+| 1 month, if requested by a DTC client | 10 calendar years | 120 |
+
+Intraday time pages also split at UTC midnight. Pages are sized in advance so even a continuously traded
+instrument cannot exceed the candle cap. The API rejects combining `limit` with an explicit candle source
+(30220), so the gateway omits `limit` and enforces the cap with these time bounds. Candles are exchange-only
+unless `IncludeDealerTrades` is true. Second candles are restricted to the last 30 days; older requests reject
+before the header. Intraday availability starts at `first_1min_candle_date`; daily/weekly/monthly availability
+starts at `first_1day_candle_date`. Missing earliest-date metadata requires an explicit start for minute and
+higher intervals; second candles instead use the retention boundary as described above.
+
+The 400-call default fits a year of minute bars (at most 366 UTC-day pages). Longer ranges, unsupported intervals
+(including 1, 2 and 4 seconds) and invalid bounds reject before the header. Reduce the requested range to retry.
+Every planned call reserves shared service and address quota before the header. If that plan cannot fit inside
+the shared windows, the request is not admitted. Historical calls, including quota retries, are paced at 40
+of the 45 address slots per second, leaving five for definitions and other control calls. Server quota corrections compare against
+actual upstream admissions, not unused reservations. If a reservation cannot finish within
+the 20-second admission budget, the answer is a DTC retry-in reject with 1–300 seconds, not partial history.
+If reported source quota is smaller than a plan's call count, the same plan continues to receive retry-in;
+request a shorter range instead. No fixed setting can override a lower upstream quota.
+After the header a source failure or a wait longer than 20 seconds closes the entire DTC connection with no final
+record and no post-header reject, including other work if a client multiplexes history on the main listener.
+Clients should use a dedicated history connection, discard an incomplete download and retry it.
+
+The explicit `ReadsOneMinuteDayThroughBridgeHistoryReader` sandbox check downloads one recent weekday of
+1-minute exchange candles through the production history reader. Output contains only counts, ordering flags
+and first/last times relative to the day, never prices or volumes. It uses the same environment variables and
+credential helper as the definition/search check above; select it by `--filter FullyQualifiedName~ReadsOneMinuteDayThroughBridgeHistoryReader`.
 
 ## Session lifetime and heartbeats
 `LOGOFF` from a client closes its connection immediately, stops its timers, and cancels any running requests,

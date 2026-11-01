@@ -47,12 +47,13 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			Append(buffer.AsSpan(0, encoder.Complete()));
 		}
 
-		public override void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText)
+		public override void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText, int retrySeconds = 0)
 		{
 			var message = new VlsHistoricalPriceDataReject
 			{
 				RequestID = requestId,
 				RejectReasonCode = rejectReasonCode,
+				RetryTimeInSeconds = (ushort)retrySeconds,
 			};
 			var buffer = NewBuffer<VlsHistoricalPriceDataReject>(rejectText);
 			var encoder = new DtcVlsEncoder<VlsHistoricalPriceDataReject>(ref message, buffer);

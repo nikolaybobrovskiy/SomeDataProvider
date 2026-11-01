@@ -166,10 +166,10 @@ sealed class TInvestTestHost : IDisposable
 	readonly StoresProvider _provider;
 	readonly ConnectedServer _server;
 
-	public TInvestTestHost(ITInvestGateway gateway)
+	public TInvestTestHost(ITInvestGateway gateway, TimeProvider? clock = null, TInvestOptions? options = null)
 	{
-		_provider = new StoresProvider(null, new TInvestStore(gateway, new TInvestOptions()), NullLoggerFactory.Instance);
-		_server = new ConnectedServer(_provider);
+		_provider = new StoresProvider(null, new TInvestStore(gateway, options ?? new TInvestOptions(), clock), NullLoggerFactory.Instance);
+		_server = new ConnectedServer(_provider, clock);
 		if (!_server.Start()) throw new InvalidOperationException("Loopback test server could not start.");
 	}
 
@@ -201,7 +201,7 @@ sealed class TInvestTestHost : IDisposable
 		_provider.Dispose();
 	}
 
-	sealed class ConnectedServer(StoresProvider provider) : Server(IPAddress.Loopback, 0, false, provider, provider, provider, NullLoggerFactory.Instance)
+	sealed class ConnectedServer(StoresProvider provider, TimeProvider? clock) : Server(IPAddress.Loopback, 0, false, provider, provider, provider, NullLoggerFactory.Instance, clock)
 	{
 		public ManualResetEventSlim Connected { get; } = new();
 

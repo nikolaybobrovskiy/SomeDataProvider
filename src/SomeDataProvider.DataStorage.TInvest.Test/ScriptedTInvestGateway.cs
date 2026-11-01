@@ -12,6 +12,9 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 	public List<(string Ticker, string ClassCode)> Lookups { get; } = new();
 	public List<TInvestInstrument> Instruments { get; } = new();
 	public int Searches { get; private set; }
+	public TInvestRateLimiter Limiter { get; set; } = new();
+	public List<TInvestCandleRequest> CandleRequests { get; } = new();
+	public Func<TInvestCandleRequest, CancellationToken, Task<IReadOnlyList<TInvestCandle>>>? Candles { get; set; }
 	public string? LastQuery { get; private set; }
 	public Func<string, string, CancellationToken, Task<TInvestInstrument?>>? Resolve { get; set; }
 	public TInvestAccess Access { get; set; } = new(true, new[] { true });
@@ -36,5 +39,15 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 
 	public void Dispose()
 	{
+	}
+
+	public Task<TInvestRateLimiter.Reservation> ReserveCandlesAsync(int calls, DateTimeOffset deadline, CancellationToken cancellationToken) =>
+		Limiter.ReserveAsync(TInvestLimitGroup.MarketData, calls, deadline, cancellationToken);
+
+	public async Task<IReadOnlyList<TInvestCandle>> GetCandlesAsync(TInvestCandleRequest request, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken)
+	{
+		await reservation.AcquireAsync(Limiter, deadline, cancellationToken);
+		CandleRequests.Add(request);
+		return Candles == null ? Array.Empty<TInvestCandle>() : await Candles(request, cancellationToken);
 	}
 }

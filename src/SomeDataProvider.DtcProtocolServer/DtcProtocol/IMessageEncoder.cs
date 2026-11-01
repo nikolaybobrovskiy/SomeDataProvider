@@ -24,7 +24,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeHeartbeatMessage(uint numDroppedMessages);
 
-		void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText);
+		void EncodeHistoricalPriceDataReject(int requestId, HistoricalPriceDataRejectReasonCodeEnum rejectReasonCode, string rejectText, int retrySeconds = 0);
 
 		void EncodeMarketDataReject(uint symbolId, string rejectText);
 

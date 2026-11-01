@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using NBLib.CodeFlow;
 
 using SomeDataProvider.DataStorage.Definitions;
+using SomeDataProvider.DataStorage.TInvest;
 using SomeDataProvider.DtcProtocolServer.DtcProtocol;
 
 /// <summary>
@@ -41,7 +42,8 @@ static class HistoricalPriceDataStreamer
 		IMessageEncoderFactory encoderFactory,
 		Action<byte[]> send,
 		ILogger logger,
-		CancellationToken ct)
+		CancellationToken ct,
+		Action? headerSent = null)
 	{
 		var batch = await ReadNextNonEmptyBatchAsync(reader, logger, ct);
 		var noRecordsToReturn = batch == null;
@@ -51,9 +53,11 @@ static class HistoricalPriceDataStreamer
 			encoderFactory,
 			send,
 			encoder => encoder.EncodeHistoricalPriceDataResponseHeader(requestId, recordInterval, false, noRecordsToReturn, 1));
+		headerSent?.Invoke();
 
 		while (batch != null)
 		{
+			if (reader is TInvestHistoryReader timed) timed.ReadDeadline = timed.Clock.GetUtcNow().AddSeconds(20);
 			var nextBatch = batch.HasMore ? await ReadNextNonEmptyBatchAsync(reader, logger, ct) : null;
 			var isFinalBatch = nextBatch == null;
 			var records = batch.Records;

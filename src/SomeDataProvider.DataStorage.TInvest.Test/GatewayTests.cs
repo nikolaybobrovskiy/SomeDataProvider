@@ -253,6 +253,88 @@ public class GatewayTests
 		Assert.That(invoker.Calls, Is.EqualTo(3));
 	}
 
+	[TestCase(false)]
+	[TestCase(true)]
+	public async Task RealChannelDeadlineWithoutCallerCancellationIsALimit(bool candles)
+	{
+		using var handler = new HangingHandler();
+		using var gateway = new SdkTInvestGateway(new TInvestToken("invented-credential"), new TInvestOptions { Environment = "Sandbox" }, new TInvestRateLimiter(), null, handler);
+		using var reservation = await gateway.ReserveCandlesAsync(1, DateTimeOffset.UtcNow.AddSeconds(20), default);
+		// gRPC's native deadline uses wall time; no sleeps or network are involved.
+		// Check the actual channel semantics too: both RPC status fallbacks remain defensive in CallAsync.
+		var invoker = gateway.Channel!.CreateCallInvoker();
+		Assert.CatchAsync<OperationCanceledException>(async () =>
+		{
+			var expires = DateTime.UtcNow.AddSeconds(1);
+			if (candles) await new MarketDataService.MarketDataServiceClient(invoker).GetCandlesAsync(new GetCandlesRequest(), deadline: expires);
+			else await new InstrumentsService.InstrumentsServiceClient(invoker).GetInstrumentByAsync(new InstrumentRequest(), deadline: expires);
+		});
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(1);
+		var error = Assert.ThrowsAsync<TInvestRequestException>(async () =>
+		{
+			if (candles) await gateway.GetCandlesAsync(new("invented-uid", DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow, 60, 2400, false), reservation, deadline, default);
+			else await gateway.GetInstrumentAsync("SYNTH", "TESTCC", deadline, default);
+		});
+		Assert.That(error!.Kind, Is.EqualTo(TInvestFailureKind.Limit));
+		Assert.That(handler.Requests, Is.EqualTo(2));
+	}
+
+	[TestCase(false)]
+	[TestCase(true)]
+	public async Task CandleGatewayUsesReservedSlotAndMapsRequestAndResponse(bool dealer)
+	{
+		var clock = new ManualTimeProvider();
+		var limiter = new TInvestRateLimiter(clock);
+		var from = clock.GetUtcNow().AddDays(-1);
+		var invoker = new ScriptedInvoker((_, _) => new GetCandlesResponse
+		{
+			Candles =
+			{
+				new HistoricCandle
+				{
+					Time = Timestamp.FromDateTimeOffset(from), Open = new Quotation { Units = 11 }, Close = new Quotation { Units = 12 },
+					High = new Quotation { Units = 14 }, Low = new Quotation { Units = 10 }, Volume = 7, IsComplete = true, CandleSource = CandleSource.Exchange,
+				},
+			},
+		});
+		using var gateway = new SdkTInvestGateway(invoker, new(), limiter, clock);
+		using var reservation = await gateway.ReserveCandlesAsync(1, clock.GetUtcNow().AddSeconds(20), default);
+		var rows = await gateway.GetCandlesAsync(new("invented-uid", from, clock.GetUtcNow(), 60, 2400, dealer), reservation, clock.GetUtcNow().AddSeconds(20), default);
+		var request = (GetCandlesRequest)invoker.Requests.Single();
+		Assert.That(request.InstrumentId, Is.EqualTo("invented-uid"));
+		Assert.That(request.Interval, Is.EqualTo(CandleInterval._1Min));
+		Assert.That(request.HasLimit, Is.False, "API 30220 forbids limit with candle_source_type; the planner bounds page duration.");
+		Assert.That(request.CandleSourceType, Is.EqualTo(dealer ? GetCandlesRequest.Types.CandleSource.IncludeWeekend : GetCandlesRequest.Types.CandleSource.Exchange));
+		Assert.That(rows.Single(), Is.EqualTo(CandleHistoryTests.Candle(from)));
+		var available = 0;
+		while (limiter.TryAcquire(TInvestLimitGroup.Users) == TimeSpan.Zero) available++;
+		Assert.That(available, Is.EqualTo(44), "Reserved admission is consumed once, not twice.");
+	}
+	[TestCase(1, false)]
+	[TestCase(2, false)]
+	[TestCase(2, true)]
+	public async Task CandleRetriesStayInsideCallCapAndEveryAttemptUsesSharedQuota(int cap, bool failsAgain)
+	{
+		var clock = new ManualTimeProvider();
+		var limiter = new TInvestRateLimiter(clock);
+		var invoker = new ScriptedInvoker((_, n) => n == 1 || failsAgain
+			? throw new RpcException(new Status(StatusCode.ResourceExhausted, "80002"), Reset(1)) : new GetCandlesResponse());
+		using var gateway = new SdkTInvestGateway(invoker, new() { MaxCandleCallsPerRequest = cap }, limiter, clock);
+		using var reservation = await gateway.ReserveCandlesAsync(1, clock.GetUtcNow().AddSeconds(20), default);
+		var task = gateway.GetCandlesAsync(new("invented-uid", clock.GetUtcNow().AddHours(-1), clock.GetUtcNow(), 60, 2400, false), reservation, clock.GetUtcNow().AddSeconds(20), default);
+		clock.Advance(TimeSpan.FromSeconds(1));
+		if (cap == 1 || failsAgain)
+		{
+			var error = Assert.ThrowsAsync<TInvestRequestException>(async () => await task.WaitAsync(TimeSpan.FromSeconds(5)));
+			Assert.That(error!.Kind, Is.EqualTo(TInvestFailureKind.Limit));
+		}
+		else
+		{
+			Assert.That(await task.WaitAsync(TimeSpan.FromSeconds(5)), Is.Empty);
+		}
+		Assert.That(invoker.Calls, Is.EqualTo(cap));
+	}
+
 	static Metadata Reset(int seconds) => new() { { "x-ratelimit-reset", seconds.ToString(System.Globalization.CultureInfo.InvariantCulture) } };
 	static SdkTInvestGateway NewGateway(CallInvoker invoker, ManualTimeProvider clock) => new(invoker, new TInvestOptions(), new TInvestRateLimiter(clock), clock);
 

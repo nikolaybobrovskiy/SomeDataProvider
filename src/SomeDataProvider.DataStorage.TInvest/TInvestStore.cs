@@ -3,7 +3,7 @@ namespace SomeDataProvider.DataStorage.TInvest;
 using SomeDataProvider.DataStorage.Definitions;
 
 /// <summary>Complete definitions only, refreshed daily at 03:00 UTC and on use after a failed refresh.</summary>
-public sealed class TInvestStore : ISymbolsStore, IDisposable
+public sealed partial class TInvestStore : ISymbolsStore, IDisposable
 {
 	readonly ITInvestGateway _gateway;
 	readonly TInvestOptions _options;

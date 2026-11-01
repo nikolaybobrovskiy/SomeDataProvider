@@ -3,6 +3,7 @@
 
 namespace SomeDataProvider.DtcProtocolServer;
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using NBLib.Logging;
 
 using SomeDataProvider.DataStorage.Definitions;
+using SomeDataProvider.DataStorage.TInvest;
 using SomeDataProvider.DtcProtocolServer.DtcProtocol;
 
 partial class Session
@@ -20,6 +22,7 @@ partial class Session
 	async Task ProcessHistoricalPriceDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 	{
 		var requestId = 0;
+		var historyDeadline = _timeProvider.GetUtcNow().AddSeconds(20);
 		try
 		{
 			await L.LogOperationAsync(async () =>
@@ -47,8 +50,7 @@ partial class Session
 					}
 					else if (symbol.DataService == DataService.TInvest)
 					{
-						encoder.EncodeHistoricalPriceDataReject(historicalPriceDataRequest.RequestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, "T-Invest history is not implemented in this stage.");
-						SendResponse(encoder.GetEncodedMessage());
+						await StreamTInvestHistoryAsync(historicalPriceDataRequest, (TInvestSymbol)symbol, (TInvestStore)symbolsStore, historyDeadline, ct);
 					}
 					else
 					{
@@ -59,8 +61,36 @@ partial class Session
 		}
 		catch (SomeDataProvider.DataStorage.TInvest.TInvestRequestException ex)
 		{
-			encoder.EncodeHistoricalPriceDataReject(requestId, HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, ex.Message);
+			var limited = ex.Kind == TInvestFailureKind.Limit;
+			var retry = System.Text.RegularExpressions.Regex.Match(ex.Message, @"retry in ([0-9]+) s");
+			var seconds = retry.Success ? Math.Clamp(int.Parse(retry.Groups[1].Value), 1, 300) : 1;
+			encoder.EncodeHistoricalPriceDataReject(requestId, limited ? HistoricalPriceDataRejectReasonCodeEnum.HPDR_UNABLE_TO_SERVE_DATA_RETRY_IN_SPECIFIED_SECONDS : HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, ex.Message, limited ? seconds : 0);
 			SendResponse(encoder.GetEncodedMessage());
+		}
+	}
+
+	async Task StreamTInvestHistoryAsync(HistoricalPriceDataRequest request, TInvestSymbol symbol, TInvestStore store, DateTimeOffset deadline, CancellationToken ct)
+	{
+		if (request.RecordInterval == HistoricalDataIntervalEnum.INTERVAL_TICK)
+			throw new TInvestRequestException("T-Invest tick history is not implemented in this stage.", TInvestFailureKind.Unsupported);
+		var sentHeader = false;
+		try
+		{
+			using var reader = await store.CreateCandleReaderAsync(symbol, (int)request.RecordInterval, request.StartDateTime, request.EndDateTime, deadline, ct);
+			reader.ReadDeadline = deadline;
+			await HistoricalPriceDataStreamer.StreamAsync(reader, request.RequestId, request.RecordInterval,
+				_currentMessageProtocol.MessageEncoderFactory, bytes => SendResponse(bytes), L, ct, () => sentHeader = true);
+		}
+		catch (Exception ex) when (sentHeader)
+		{
+			L.LogWarning("T-Invest history connection closed after header; failure kind {kind}.", ex is TInvestRequestException bridge ? bridge.Kind.ToString() : ex.GetType().Name);
+			CloseSession();
+		}
+		catch (Exception ex) when (ex is not TInvestRequestException && !ct.IsCancellationRequested)
+		{
+			// Do not include exception messages: they can contain upstream data or credentials.
+			L.LogWarning("T-Invest history failed before header; exception type {type}.", ex.GetType().Name);
+			throw new TInvestRequestException("T-Invest source request failed.");
 		}
 	}
 

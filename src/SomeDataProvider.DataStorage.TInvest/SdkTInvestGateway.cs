@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
@@ -15,11 +16,13 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 	readonly GrpcChannel? _channel;
 	readonly InstrumentsService.InstrumentsServiceClient _instruments;
 	readonly UsersService.UsersServiceClient _users;
+	readonly MarketDataService.MarketDataServiceClient _marketData;
 	readonly TInvestRateLimiter _limiter;
 	readonly bool _sandbox;
 	readonly TimeProvider _clock;
 	readonly ILogger<SdkTInvestGateway>? _logger;
 	readonly TInvestToken? _token;
+	readonly int _maximumCandleCalls;
 
 	public SdkTInvestGateway(TInvestToken token, TInvestOptions options, TInvestRateLimiter limiter, TimeProvider? clock = null, ILogger<SdkTInvestGateway>? logger = null)
 		: this(token, options, limiter, clock, null, logger)
@@ -30,6 +33,7 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 	{
 		options.Validate();
 		_logger = logger;
+		_maximumCandleCalls = options.MaxCandleCallsPerRequest;
 		_token = token;
 		_limiter = limiter;
 		_clock = clock ?? TimeProvider.System;
@@ -52,19 +56,24 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 		var invoker = _channel.CreateCallInvoker();
 		_instruments = new InstrumentsService.InstrumentsServiceClient(invoker);
 		_users = new UsersService.UsersServiceClient(invoker);
+		_marketData = new MarketDataService.MarketDataServiceClient(invoker);
 	}
 
 	internal SdkTInvestGateway(CallInvoker invoker, TInvestOptions options, TInvestRateLimiter limiter, TimeProvider clock)
 	{
 		options.Validate();
+		_maximumCandleCalls = options.MaxCandleCallsPerRequest;
 		_limiter = limiter;
 		_clock = clock;
 		_sandbox = options.IsSandbox;
 		_instruments = new InstrumentsService.InstrumentsServiceClient(invoker);
 		_users = new UsersService.UsersServiceClient(invoker);
+		_marketData = new MarketDataService.MarketDataServiceClient(invoker);
 	}
 
 	public string? LastFailureStatus { get; private set; }
+	public string? LastFailureCode { get; private set; }
+	internal GrpcChannel? Channel => _channel;
 
 	public async Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken)
 	{
@@ -88,7 +97,8 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 		catch (InstrumentMissingException) { return null; }
 		var i = response.Instrument;
 		var shortInstrument = new TInvestInstrumentShort(i.Ticker, i.ClassCode, i.Uid, i.Name, Kind(i.InstrumentKind), i.Lot, i.ApiTradeAvailableFlag);
-		var instrument = new TInvestInstrument(shortInstrument, Decimal(i.MinPriceIncrement), i.Currency, Figi: i.Figi);
+		var instrument = new TInvestInstrument(shortInstrument, Decimal(i.MinPriceIncrement), i.Currency, Figi: i.Figi,
+			FirstMinuteCandle: i.First1MinCandleDate?.ToDateTimeOffset(), FirstDailyCandle: i.First1DayCandleDate?.ToDateTimeOffset());
 		var request = new InstrumentRequest { IdType = InstrumentIdType.Uid, Id = i.Uid };
 		if (i.InstrumentKind == InstrumentType.Futures)
 		{
@@ -132,6 +142,34 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 	{
 		var response = await CallAsync(TInvestLimitGroup.Instruments, () => _instruments.FindInstrumentAsync(new FindInstrumentRequest { Query = query }, deadline: deadline.UtcDateTime, cancellationToken: cancellationToken), deadline, cancellationToken).ConfigureAwait(false);
 		return response.Instruments.Select(i => new TInvestInstrumentShort(i.Ticker, i.ClassCode, i.Uid, i.Name, Kind(i.InstrumentKind), i.Lot, i.ApiTradeAvailableFlag)).ToArray();
+	}
+
+	public Task<TInvestRateLimiter.Reservation> ReserveCandlesAsync(int calls, DateTimeOffset deadline, CancellationToken cancellationToken) =>
+		_limiter.ReserveAsync(TInvestLimitGroup.MarketData, calls, deadline, cancellationToken);
+
+	public async Task<IReadOnlyList<TInvestCandle>> GetCandlesAsync(TInvestCandleRequest request, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken)
+	{
+		var interval = request.IntervalSeconds switch
+		{
+			5 => CandleInterval._5Sec, 10 => CandleInterval._10Sec, 30 => CandleInterval._30Sec,
+			60 => CandleInterval._1Min, 120 => CandleInterval._2Min, 180 => CandleInterval._3Min,
+			300 => CandleInterval._5Min, 600 => CandleInterval._10Min, 900 => CandleInterval._15Min,
+			1800 => CandleInterval._30Min, 3600 => CandleInterval.Hour, 7200 => CandleInterval._2Hour,
+			14400 => CandleInterval._4Hour, 86400 => CandleInterval.Day, 604800 => CandleInterval.Week,
+			2592000 => CandleInterval.Month,
+			_ => throw new TInvestRequestException("Interval not supported by T-Invest.", TInvestFailureKind.Unsupported),
+		};
+		var response = await CallAsync(TInvestLimitGroup.MarketData, () => _marketData.GetCandlesAsync(new GetCandlesRequest
+		{
+			InstrumentId = request.Uid,
+			From = Timestamp.FromDateTimeOffset(request.Start),
+			To = Timestamp.FromDateTimeOffset(request.End),
+			Interval = interval,
+			// API error 30220 forbids limit with an explicit source. Time pages enforce the cap instead.
+			CandleSourceType = request.IncludeDealer ? GetCandlesRequest.Types.CandleSource.IncludeWeekend : GetCandlesRequest.Types.CandleSource.Exchange,
+		}, deadline: deadline.UtcDateTime, cancellationToken: cancellationToken), deadline, cancellationToken, reservation: reservation).ConfigureAwait(false);
+		return response.Candles.Select(c => new TInvestCandle(c.Time.ToDateTimeOffset(), (double)Decimal(c.Open), (double)Decimal(c.High),
+			(double)Decimal(c.Low), (double)Decimal(c.Close), c.Volume, c.IsComplete, c.CandleSource == CandleSource.Exchange)).ToArray();
 	}
 
 	public void Dispose() => _channel?.Dispose();
@@ -179,11 +217,13 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 	static decimal Decimal(Quotation? value) => value == null ? 0 : value.Units + value.Nano / 1_000_000_000m;
 	static decimal Money(MoneyValue? value) => value == null ? 0 : value.Units + value.Nano / 1_000_000_000m;
 
-	async Task<T> CallAsync<T>(TInvestLimitGroup group, Func<AsyncUnaryCall<T>> createCall, DateTimeOffset deadline, CancellationToken cancellationToken, bool allowNotFound = false)
+	async Task<T> CallAsync<T>(TInvestLimitGroup group, Func<AsyncUnaryCall<T>> createCall, DateTimeOffset deadline, CancellationToken cancellationToken, bool allowNotFound = false, TInvestRateLimiter.Reservation? reservation = null)
 	{
 		for (var attempt = 0; ; attempt++)
 		{
-			await _limiter.AcquireAsync(group, deadline, cancellationToken).ConfigureAwait(false);
+			if (attempt == 0 && reservation != null) await reservation.AcquireAsync(_limiter, deadline, cancellationToken).ConfigureAwait(false);
+			else if (reservation != null) await reservation.AcquireRetryAsync(_limiter, _maximumCandleCalls, deadline, cancellationToken).ConfigureAwait(false);
+			else await _limiter.AcquireAsync(group, deadline, cancellationToken).ConfigureAwait(false);
 			Metadata? responseHeaders = null;
 			try
 			{
@@ -192,16 +232,26 @@ public sealed class SdkTInvestGateway : ITInvestGateway
 				Correct(group, responseHeaders, false);
 				return await call.ResponseAsync.ConfigureAwait(false);
 			}
+			catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+			{
+				LastFailureStatus = StatusCode.DeadlineExceeded.ToString();
+				throw new TInvestRequestException("T-Invest request limit reached; retry in 1 s.", TInvestFailureKind.Limit);
+			}
 			catch (RpcException ex)
 			{
 				LastFailureStatus = ex.StatusCode.ToString();
+				LastFailureCode = Regex.Match(_token?.Redact(ex.Status.Detail) ?? ex.Status.Detail, @"\b[0-9]{5}\b", RegexOptions.CultureInvariant).Value;
 				if (ex.StatusCode is StatusCode.Cancelled or StatusCode.DeadlineExceeded)
 				{
 					if (cancellationToken.IsCancellationRequested) throw new OperationCanceledException(cancellationToken);
 					if (ex.StatusCode == StatusCode.DeadlineExceeded || _clock.GetUtcNow() >= deadline)
 						throw new TInvestRequestException("T-Invest request limit reached; retry in 1 s.", TInvestFailureKind.Limit);
 				}
-				if (allowNotFound && ex.StatusCode is StatusCode.NotFound or StatusCode.InvalidArgument) throw new InstrumentMissingException();
+				if (allowNotFound && ex.StatusCode is StatusCode.NotFound or StatusCode.InvalidArgument)
+				{
+					_logger?.LogDebug("T-Invest identifier lookup returned {status}.", LastFailureStatus);
+					throw new InstrumentMissingException();
+				}
 				var number = Regex.Match(_token?.Redact(ex.Status.Detail) ?? ex.Status.Detail, @"\b[0-9]{5}\b", RegexOptions.CultureInvariant).Value;
 				var message = Regex.Replace(_token?.Redact(ex.Trailers.GetValue("message") ?? string.Empty) ?? string.Empty, @"t\.[A-Za-z0-9_-]{40,}", "<redacted>", RegexOptions.CultureInvariant);
 				_logger?.LogWarning("T-Invest upstream request failed: {status}, code {code}, message {message}", LastFailureStatus, number, message);
