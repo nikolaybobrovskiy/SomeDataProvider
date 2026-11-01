@@ -171,15 +171,29 @@ higher intervals; second candles instead use the retention boundary as described
 The 400-call default fits a year of minute bars (at most 366 UTC-day pages). Longer ranges, unsupported intervals
 (including 1, 2 and 4 seconds) and invalid bounds reject before the header. Reduce the requested range to retry.
 Every planned call reserves shared service and address quota before the header. If that plan cannot fit inside
-the shared windows, the request is not admitted. Historical calls, including quota retries, are paced at 40
-of the 45 address slots per second, leaving five for definitions and other control calls. Server quota corrections compare against
-actual upstream admissions, not unused reservations. If a reservation cannot finish within
-the 20-second admission budget, the answer is a DTC retry-in reject with 1–300 seconds, not partial history.
+the shared windows, the request is not admitted. History downloads use at most 40 of the 45 calls per second,
+including quota retries, and leave five for definitions and other control calls, also while a download runs
+late: each history call counts once, as a booked call until it is sent and as an actual call afterwards. The
+booked calls of all downloads form one queue paced at 40 per second from now, so concurrent downloads share that
+pace and neither waits behind the other's booked calls. A new download is admitted only if every booked call,
+its own included, fits its admission budget at that pace, after any source quota block and within the service
+window. Unused booked calls keep their service and address quota until the download ends or fails; a download
+never waits behind its own booked calls, also after a header lowers the service limit. Server quota corrections
+compare against actual upstream admissions, not unused reservations. If a reservation cannot finish within the
+20-second admission budget, the answer is a DTC retry-in reject with 1–300 seconds, not partial history.
 If reported source quota is smaller than a plan's call count, the same plan continues to receive retry-in;
 request a shorter range instead. No fixed setting can override a lower upstream quota.
 After the header a source failure or a wait longer than 20 seconds closes the entire DTC connection with no final
 record and no post-header reject, including other work if a client multiplexes history on the main listener.
 Clients should use a dedicated history connection, discard an incomplete download and retry it.
+
+A seeded simulation checks the limiter on a fake clock with concurrent downloads, slow and failing calls,
+lookups, quota corrections and exhausted quota. The normal test run includes a short fixed-seed run. The long
+run (200 seeds of ten simulated minutes each) is local and on demand only:
+
+```
+dotnet test src/SomeDataProvider.DataStorage.TInvest.Test --no-build --no-restore --filter Category=TInvestLimiterSimulation
+```
 
 The explicit `ReadsOneMinuteDayThroughBridgeHistoryReader` sandbox check downloads one recent weekday of
 1-minute exchange candles through the production history reader. Output contains only counts, ordering flags

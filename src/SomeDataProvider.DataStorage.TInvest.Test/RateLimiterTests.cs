@@ -77,4 +77,31 @@ public class RateLimiterTests
 		Assert.ThrowsAsync<OperationCanceledException>(() => limiter.AcquireAsync(TInvestLimitGroup.Instruments, clock.GetUtcNow().AddSeconds(8), cancelled.Token));
 		Assert.That(clock.ActiveTimers, Is.Zero);
 	}
+
+	[Test]
+	public async Task SubMillisecondGapInTheDeadlinesLastMillisecondWaitsInsteadOfFailing()
+	{
+		var clock = new ManualTimeProvider();
+		var limiter = new TInvestRateLimiter(clock);
+		var deadline = clock.GetUtcNow().AddSeconds(8);
+		clock.Advance(TimeSpan.FromSeconds(7) - TimeSpan.FromTicks(3000));
+		for (var i = 0; i < 45; i++) Assert.That(limiter.TryAcquire(TInvestLimitGroup.Users), Is.EqualTo(TimeSpan.Zero));
+		clock.Advance(TimeSpan.FromSeconds(1) - TimeSpan.FromTicks(5000));
+		Assert.That(deadline - clock.GetUtcNow(), Is.EqualTo(TimeSpan.FromTicks(8000)), "0.8 ms of the budget is left.");
+		Assert.That(limiter.TryAcquire(TInvestLimitGroup.Instruments), Is.EqualTo(TimeSpan.FromTicks(5000)), "The address frees in 0.5 ms.");
+		var acquire = limiter.AcquireAsync(TInvestLimitGroup.Instruments, deadline, default);
+		Assert.That(acquire.IsCompleted, Is.False, "A wait that ends before the deadline is not rounded past it.");
+		clock.Advance(TimeSpan.FromTicks(5000));
+		await acquire.WaitAsync(TimeSpan.FromSeconds(5));
+	}
+
+	[Test]
+	public void WaitEndingAtTheDeadlineStillFails()
+	{
+		var clock = new ManualTimeProvider();
+		var limiter = new TInvestRateLimiter(clock);
+		for (var i = 0; i < 45; i++) Assert.That(limiter.TryAcquire(TInvestLimitGroup.Users), Is.EqualTo(TimeSpan.Zero));
+		var error = Assert.ThrowsAsync<TInvestRequestException>(() => limiter.AcquireAsync(TInvestLimitGroup.Instruments, clock.GetUtcNow().AddSeconds(1), default));
+		Assert.That(error!.Kind, Is.EqualTo(TInvestFailureKind.Limit));
+	}
 }
