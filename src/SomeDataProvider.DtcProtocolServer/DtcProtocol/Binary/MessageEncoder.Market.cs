@@ -66,6 +66,30 @@ partial class MessageEncoder
 		}
 	}
 
+	public void EncodeMarketDepthSnapshotLevel(uint symbolId, AtBidOrAskEnum8 side, float price, float quantity, ushort level, FinalUpdateInBatchEnum finalUpdateInBatch) => Append(new s_MarketDepthSnapshotLevelFloat
+	{
+		SymbolID = symbolId,
+		Side = side,
+		Price = price,
+		Quantity = quantity,
+		NumOrders = 0,
+		Level = level,
+		FinalUpdateInBatch = finalUpdateInBatch,
+	});
+
+	public void EncodeMarketDepthUpdateLevel(uint symbolId, long dateTimeMilliseconds, AtBidOrAskEnum8 side, MarketDepthUpdateTypeEnum updateType, double price, double quantity, ushort level, FinalUpdateInBatchEnum finalUpdateInBatch) => Append(new s_MarketDepthUpdateLevelV2
+	{
+		SymbolID = symbolId,
+		DateTime = dateTimeMilliseconds,
+		Price = price,
+		Quantity = quantity,
+		NumOrders = 0,
+		Level = level,
+		Side = side,
+		UpdateType = updateType,
+		FinalUpdateInBatch = finalUpdateInBatch,
+	});
+
 	public void EncodeFeedStatus(uint symbolId, bool available) => Append(new s_MarketDataFeedSymbolStatus
 	{
 		SymbolID = symbolId,

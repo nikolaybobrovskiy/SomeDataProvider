@@ -2,6 +2,7 @@ namespace SomeDataProvider.DtcProtocolServer.Test;
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,6 +83,91 @@ public class TInvestStreamRegressionTests
 		await TInvestMarketDataHubTests.Pump(clock, () => ready.Contains("invented-anchor"));
 		Assert.That(errors, Is.Empty);
 		Assert.That(stream.Disposed, Is.False);
+		upstream.Dispose();
+		await upstream.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+	}
+
+	[Test]
+	public async Task DesiredChangeDuringFirstVerificationIsSyncedBeforeAvailabilityIsWithdrawn()
+	{
+		var clock = new ManualTimeProvider();
+		var stream = new ScriptedMarketDataStream();
+		var anchor = ScriptedTInvestGateway.Invent("ANCHOR").Short.Uid;
+		var late = ScriptedTInvestGateway.Invent("LATE").Short.Uid;
+		using var gateway = new ScriptedTInvestGateway
+		{
+			OpenStream = _ => Task.FromResult<ITInvestMarketDataStream>(stream)
+		};
+		var statuses = new ConcurrentQueue<(string Uid, bool Available)>();
+		using var upstream = new UpstreamStream(gateway, clock, TimeSpan.FromSeconds(180), _ =>
+		{
+		}, (uid, available) => statuses.Enqueue((uid, available)), (_, _) =>
+		{
+		}, () => 0.5);
+		var changed = 0;
+		stream.Sending = (request, _) =>
+		{
+			if (request.Kind == TInvestSubscriptionKind.All && Interlocked.Exchange(ref changed, 1) == 0)
+			{
+				upstream.SetDesired(new Dictionary<string, int>
+				{
+					[anchor] = 1,
+					[late] = 1
+				});
+			}
+		};
+
+		upstream.SetDesired(new Dictionary<string, int> { [anchor] = 1 });
+		await TInvestMarketDataHubTests.Pump(clock, () => statuses.Any(status => status.Uid == late && status.Available));
+
+		Assert.That(statuses.Any(status => status.Uid == late && !status.Available), Is.False);
+		Assert.That(Requests(stream).Count(request => request.Kind == TInvestSubscriptionKind.Book && request.Subscribe && request.Uids.Contains(late)), Is.EqualTo(1));
+		upstream.Dispose();
+		await upstream.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+	}
+
+	[Test]
+	public async Task DesiredChangeDuringSecondVerificationIsSyncedBeforeAvailabilityIsWithdrawn()
+	{
+		var clock = new ManualTimeProvider();
+		var stream = new ScriptedMarketDataStream();
+		var anchor = ScriptedTInvestGateway.Invent("ANCHOR").Short.Uid;
+		var late = ScriptedTInvestGateway.Invent("LATE").Short.Uid;
+		var failedBookAttempts = 0;
+		stream.Status = (kind, _) => kind == TInvestSubscriptionKind.Book && Interlocked.Increment(ref failedBookAttempts) <= 2
+			? TInvestSubscriptionStatus.InternalError
+			: TInvestSubscriptionStatus.Success;
+		using var gateway = new ScriptedTInvestGateway
+		{
+			OpenStream = _ => Task.FromResult<ITInvestMarketDataStream>(stream)
+		};
+		var statuses = new ConcurrentQueue<(string Uid, bool Available)>();
+		using var upstream = new UpstreamStream(gateway, clock, TimeSpan.FromSeconds(180), _ =>
+		{
+		}, (uid, available) => statuses.Enqueue((uid, available)), (_, _) =>
+		{
+		}, () => 0.5);
+		var verificationQueries = 0;
+		stream.Sending = (request, _) =>
+		{
+			if (request.Kind == TInvestSubscriptionKind.All && Interlocked.Increment(ref verificationQueries) == 2)
+			{
+				upstream.SetDesired(new Dictionary<string, int>
+				{
+					[anchor] = 1,
+					[late] = 1
+				});
+			}
+		};
+
+		upstream.SetDesired(new Dictionary<string, int> { [anchor] = 1 });
+		await TInvestMarketDataHubTests.Pump(clock, () => statuses.Any(status => status.Uid == late));
+
+		Assert.That(verificationQueries, Is.GreaterThanOrEqualTo(2));
+		Assert.That(statuses.Any(status => status.Uid == late && !status.Available), Is.False);
+		Assert.That(statuses.Any(status => status.Uid == late && status.Available), Is.True);
+		Assert.That(failedBookAttempts, Is.EqualTo(4));
+		Assert.That(Requests(stream).Count(request => request.Kind == TInvestSubscriptionKind.Book && request.Subscribe && request.Uids.Contains(late)), Is.EqualTo(1));
 		upstream.Dispose();
 		await upstream.Completion.WaitAsync(TimeSpan.FromSeconds(5));
 	}

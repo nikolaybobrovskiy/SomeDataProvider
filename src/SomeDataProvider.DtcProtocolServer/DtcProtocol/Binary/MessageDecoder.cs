@@ -9,6 +9,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 	using Dtc.Protocol.Private;
 
 	using LogonRequestRecord = Dtc.Protocol.Messages.LogonRequest;
+	using MarketDepthRequestRecord = Dtc.Protocol.Messages.MarketDepthRequest;
 
 	class MessageDecoder : IMessageDecoder
 	{
@@ -42,10 +43,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			throw new NotImplementedException();
 		}
 
-		public virtual uint DecodeMarketDepthSymbolId()
+		public virtual MarketDepthRequest DecodeMarketDepthRequest()
 		{
 			DtcBinaryDecoder.Decode(Buffer.Span, out s_MarketDepthRequest request);
-			return request.SymbolID;
+			var decoded = MarketDepthRequestRecord.FromBinary(in request, MessageProtocol.TextEncoding);
+			return new MarketDepthRequest(decoded.RequestAction, decoded.SymbolID, decoded.Symbol, decoded.Exchange, decoded.NumLevels);
 		}
 
 		public virtual SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest()

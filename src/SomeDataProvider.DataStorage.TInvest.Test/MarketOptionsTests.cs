@@ -18,6 +18,23 @@ public class MarketOptionsTests
 	{
 		MaxStreams = value
 	}.Validate())!.Message, Does.Contain("MaxStreams"));
+	[TestCase(1)]
+	[TestCase(10)]
+	[TestCase(20)]
+	[TestCase(30)]
+	[TestCase(40)]
+	[TestCase(50)]
+	public void MaxDepthAcceptsSupportedValues(int value) => Assert.DoesNotThrow(() => new TInvestOptions
+	{
+		MaxDepth = value
+	}.Validate());
+	[TestCase(0)]
+	[TestCase(15)]
+	[TestCase(51)]
+	public void MaxDepthRejectsUnsupportedValues(int value) => Assert.That(Assert.Throws<ArgumentException>(() => new TInvestOptions
+	{
+		MaxDepth = value
+	}.Validate())!.Message, Does.Contain("MaxDepth"));
 	[TestCase(30)]
 	[TestCase(900)]
 	public void SilenceRange(int seconds) => Assert.DoesNotThrow(() => new TInvestOptions
@@ -108,6 +125,7 @@ public class MarketOptionsTests
 							Assert.DoesNotThrow(() => new TInvestOptions
 							{
 								MaxStreams = streams,
+								MaxDepth = full ? 50 : 1,
 								StreamSilenceTimeout = TimeSpan.FromSeconds(silence),
 								SessionQueueLimit = queue,
 								IncludeDealerTrades = dealer,

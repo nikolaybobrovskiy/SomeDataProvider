@@ -21,7 +21,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeEncodingResponse(EncodingEnum encoding);
 
-		void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false);
+		void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false, bool marketDepthSupported = false);
 
 		void EncodeHeartbeatMessage(uint numDroppedMessages);
 
@@ -36,6 +36,10 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 		void EncodeTInvestSnapshot(uint symbolId, TInvestMarketSnapshot snapshot, int lot);
 
 		void EncodeTInvestUpdate(uint symbolId, TInvestMarketEvent update, int lot);
+
+		void EncodeMarketDepthSnapshotLevel(uint symbolId, AtBidOrAskEnum8 side, float price, float quantity, ushort level, FinalUpdateInBatchEnum finalUpdateInBatch);
+
+		void EncodeMarketDepthUpdateLevel(uint symbolId, long dateTimeMilliseconds, AtBidOrAskEnum8 side, MarketDepthUpdateTypeEnum updateType, double price, double quantity, ushort level, FinalUpdateInBatchEnum finalUpdateInBatch);
 
 		void EncodeFeedStatus(uint symbolId, bool available);
 

@@ -69,10 +69,12 @@ public readonly record struct TInvestTimestamp(long Seconds, int Nanos)
 public abstract record TInvestMarketEvent;
 public sealed record TInvestTrade(string Uid, TInvestTimestamp Time, double Price, long Lots, TInvestDirection Direction, bool IsExchange) : TInvestMarketEvent;
 public sealed record TInvestQuote(string Uid, TInvestTimestamp Time, double? Bid, long? BidLots, double? Ask, long? AskLots, bool Consistent = true) : TInvestMarketEvent;
+public sealed record TInvestBookLevel(double Price, long Lots);
+public sealed record TInvestOrderBook(string Uid, TInvestTimestamp Time, int Depth, IReadOnlyList<TInvestBookLevel> Bids, IReadOnlyList<TInvestBookLevel> Asks, bool IsConsistent = true) : TInvestMarketEvent;
 public sealed record TInvestStatus(string Uid, TInvestTradingStatus Status) : TInvestMarketEvent;
 public sealed record TInvestPing : TInvestMarketEvent;
 public sealed record TInvestOtherMessage : TInvestMarketEvent;
-public sealed record TInvestSubscriptionElement(string Uid, TInvestSubscriptionStatus Status);
+public sealed record TInvestSubscriptionElement(string Uid, TInvestSubscriptionStatus Status, int Depth = 0);
 public sealed record TInvestSubscriptionReply(TInvestSubscriptionKind Kind, IReadOnlyList<TInvestSubscriptionElement> Elements) : TInvestMarketEvent;
-public sealed record TInvestStreamRequest(TInvestSubscriptionKind Kind, IReadOnlyList<string> Uids, bool Subscribe = true, Func<string, bool>? IsWanted = null);
+public sealed record TInvestStreamRequest(TInvestSubscriptionKind Kind, IReadOnlyList<string> Uids, bool Subscribe = true, Func<string, bool>? IsWanted = null, int Depth = 1);
 public sealed record TInvestMarketSnapshot(double? LastPrice = null, TInvestTimestamp? LastTime = null, TInvestQuote? Quote = null, TInvestTradingStatus Status = TInvestTradingStatus.Unspecified, long? LastLots = null);

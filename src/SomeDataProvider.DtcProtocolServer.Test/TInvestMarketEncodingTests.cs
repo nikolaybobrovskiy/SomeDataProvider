@@ -60,4 +60,31 @@ public class TInvestMarketEncodingTests
 		Assert.That(quote.AskQuantity, Is.Zero);
 		Assert.That(quote.DateTime, Is.EqualTo(100_123_456L));
 	}
+
+	[TestCase(false)]
+	[TestCase(true)]
+	public void DepthSnapshotAndUpdateUseCompatibleDtcFramesInBothEncodings(bool vls)
+	{
+		IMessageEncoder encoder = vls ? new VlsEncoder() : new BinaryEncoder();
+		encoder.EncodeMarketDepthSnapshotLevel(7, AtBidOrAskEnum8.AT_BID_8, 101.25f, 30, 2, FinalUpdateInBatchEnum.FINAL_UPDATE_TRUE);
+		DtcBinaryDecoder.Decode(encoder.GetEncodedMessage(), out s_MarketDepthSnapshotLevelFloat snapshot);
+		Assert.That(snapshot.SymbolID, Is.EqualTo(7));
+		Assert.That(snapshot.Side, Is.EqualTo(AtBidOrAskEnum8.AT_BID_8));
+		Assert.That(snapshot.Price, Is.EqualTo(101.25f));
+		Assert.That(snapshot.Quantity, Is.EqualTo(30));
+		Assert.That(snapshot.Level, Is.EqualTo(2));
+		Assert.That(snapshot.FinalUpdateInBatch, Is.EqualTo(FinalUpdateInBatchEnum.FINAL_UPDATE_TRUE));
+
+		IMessageEncoder updateEncoder = vls ? new VlsEncoder() : new BinaryEncoder();
+		updateEncoder.EncodeMarketDepthUpdateLevel(7, 100_123, AtBidOrAskEnum8.AT_ASK_8, MarketDepthUpdateTypeEnum.MARKET_DEPTH_INSERT_LEVEL, 102.5, 40, 1, FinalUpdateInBatchEnum.FINAL_UPDATE_TRUE);
+		DtcBinaryDecoder.Decode(updateEncoder.GetEncodedMessage(), out s_MarketDepthUpdateLevelV2 update);
+		Assert.That(update.SymbolID, Is.EqualTo(7));
+		Assert.That(update.DateTime, Is.EqualTo(100_123));
+		Assert.That(update.Side, Is.EqualTo(AtBidOrAskEnum8.AT_ASK_8));
+		Assert.That(update.UpdateType, Is.EqualTo(MarketDepthUpdateTypeEnum.MARKET_DEPTH_INSERT_LEVEL));
+		Assert.That(update.Price, Is.EqualTo(102.5));
+		Assert.That(update.Quantity, Is.EqualTo(40));
+		Assert.That(update.Level, Is.EqualTo(1));
+		Assert.That(update.FinalUpdateInBatch, Is.EqualTo(FinalUpdateInBatchEnum.FINAL_UPDATE_TRUE));
+	}
 }

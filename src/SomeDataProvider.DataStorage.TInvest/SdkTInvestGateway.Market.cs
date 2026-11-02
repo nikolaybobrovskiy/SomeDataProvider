@@ -54,6 +54,20 @@ public sealed partial class SdkTInvestGateway
 		return new(last?.Price == null ? null : (double)Decimal(last.Price), Time(last?.Time), Quote(uid, book.OrderbookTs, book.Bids, book.Asks), Trading(status.TradingStatus));
 	}
 
+	public async Task<TInvestOrderBook> GetOrderBookAsync(string uid, int depth, DateTimeOffset deadline, CancellationToken cancellationToken)
+	{
+		if (depth is < 1 or > 50)
+		{
+			throw new ArgumentOutOfRangeException(nameof(depth));
+		}
+		var response = await CallAsync(TInvestLimitGroup.MarketData, () => _marketData.GetOrderBookAsync(new GetOrderBookRequest
+		{
+			InstrumentId = uid,
+			Depth = depth
+		}, deadline: deadline.UtcDateTime, cancellationToken: cancellationToken), deadline, cancellationToken).ConfigureAwait(false);
+		return Book(response.InstrumentUid, response.Depth, response.OrderbookTs, response.Bids, response.Asks);
+	}
+
 	static TInvestTimestamp? Time(Timestamp? time) => time == null ? null : new(time.Seconds, time.Nanos);
 	static TInvestTradingStatus Trading(SecurityTradingStatus status) => System.Enum.IsDefined(typeof(TInvestTradingStatus), (int)status) ? (TInvestTradingStatus)(int)status : TInvestTradingStatus.Unspecified;
 	static TInvestQuote Quote(string uid, Timestamp? time, IEnumerable<Order> bids, IEnumerable<Order> asks, bool consistent = true)
@@ -61,6 +75,21 @@ public sealed partial class SdkTInvestGateway
 		var bid = bids.FirstOrDefault();
 		var ask = asks.FirstOrDefault();
 		return new(uid, Time(time) ?? default, bid?.Price == null ? null : (double)Decimal(bid.Price), bid?.Quantity, ask?.Price == null ? null : (double)Decimal(ask.Price), ask?.Quantity, consistent);
+	}
+
+	static TInvestOrderBook Book(string uid, int depth, Timestamp? time, IEnumerable<Order> bids, IEnumerable<Order> asks, bool consistent = true)
+	{
+		var mappedBids = BookLevels(bids, depth, out var bidsConsistent);
+		var mappedAsks = BookLevels(asks, depth, out var asksConsistent);
+		return new(uid, Time(time) ?? default, depth, mappedBids, mappedAsks, consistent && bidsConsistent && asksConsistent);
+	}
+
+	static TInvestBookLevel[] BookLevels(IEnumerable<Order> orders, int depth, out bool consistent)
+	{
+		var source = orders.Take(depth).ToArray();
+		var levels = source.Where(order => order.Price != null).Select(order => new TInvestBookLevel((double)Decimal(order.Price!), order.Quantity)).ToArray();
+		consistent = source.All(order => order.Price != null && order.Quantity > 0) && levels.Select(level => level.Price).Distinct().Count() == levels.Length;
+		return levels;
 	}
 
 	Exception StreamFailure(RpcException ex)
@@ -119,7 +148,7 @@ public sealed partial class SdkTInvestGateway
 					message.SubscribeOrderBookRequest.Instruments.AddRange(uids.Select(uid => new OrderBookInstrument
 					{
 						InstrumentId = uid,
-						Depth = 1,
+						Depth = request.Depth,
 						OrderBookType = OrderBookType.Exchange
 					}));
 					break;
@@ -153,10 +182,10 @@ public sealed partial class SdkTInvestGateway
 				{
 					MarketDataResponse.PayloadOneofCase.Ping => new TInvestPing(),
 					MarketDataResponse.PayloadOneofCase.Trade => new TInvestTrade(response.Trade.InstrumentUid, Time(response.Trade.Time) ?? default, (double)Decimal(response.Trade.Price), response.Trade.Quantity, response.Trade.Direction == TradeDirection.Buy ? TInvestDirection.Buy : response.Trade.Direction == TradeDirection.Sell ? TInvestDirection.Sell : TInvestDirection.Unknown, response.Trade.TradeSource == TradeSourceType.TradeSourceExchange),
-					MarketDataResponse.PayloadOneofCase.Orderbook => Quote(response.Orderbook.InstrumentUid, response.Orderbook.Time, response.Orderbook.Bids, response.Orderbook.Asks, response.Orderbook.IsConsistent),
+					MarketDataResponse.PayloadOneofCase.Orderbook => Book(response.Orderbook.InstrumentUid, response.Orderbook.Depth, response.Orderbook.Time, response.Orderbook.Bids, response.Orderbook.Asks, response.Orderbook.IsConsistent),
 					MarketDataResponse.PayloadOneofCase.TradingStatus => new TInvestStatus(response.TradingStatus.InstrumentUid, Trading(response.TradingStatus.TradingStatus_)),
 					MarketDataResponse.PayloadOneofCase.SubscribeTradesResponse => new TInvestSubscriptionReply(TInvestSubscriptionKind.Trades, response.SubscribeTradesResponse.TradeSubscriptions.Select(e => new TInvestSubscriptionElement(e.InstrumentUid, (TInvestSubscriptionStatus)(int)e.SubscriptionStatus)).ToArray()),
-					MarketDataResponse.PayloadOneofCase.SubscribeOrderBookResponse => new TInvestSubscriptionReply(TInvestSubscriptionKind.Book, response.SubscribeOrderBookResponse.OrderBookSubscriptions.Select(e => new TInvestSubscriptionElement(e.InstrumentUid, (TInvestSubscriptionStatus)(int)e.SubscriptionStatus)).ToArray()),
+					MarketDataResponse.PayloadOneofCase.SubscribeOrderBookResponse => new TInvestSubscriptionReply(TInvestSubscriptionKind.Book, response.SubscribeOrderBookResponse.OrderBookSubscriptions.Select(e => new TInvestSubscriptionElement(e.InstrumentUid, (TInvestSubscriptionStatus)(int)e.SubscriptionStatus, e.Depth)).ToArray()),
 					MarketDataResponse.PayloadOneofCase.SubscribeInfoResponse => new TInvestSubscriptionReply(TInvestSubscriptionKind.Info, response.SubscribeInfoResponse.InfoSubscriptions.Select(e => new TInvestSubscriptionElement(e.InstrumentUid, (TInvestSubscriptionStatus)(int)e.SubscriptionStatus)).ToArray()),
 					_ => new TInvestOtherMessage(), // Other payloads prove liveness but are not pings.
 				};

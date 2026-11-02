@@ -158,6 +158,12 @@ public partial class TInvestSandboxTests
 			return inner.GetMarketSnapshotAsync(uid, includeDealer, deadline, cancellationToken);
 		}
 
+		public Task<TInvestOrderBook> GetOrderBookAsync(string uid, int depth, DateTimeOffset deadline, CancellationToken cancellationToken)
+		{
+			Admit(6);
+			return inner.GetOrderBookAsync(uid, depth, deadline, cancellationToken);
+		}
+
 		public void Dispose() => inner.Dispose();
 		public Task<TInvestRateLimiter.Reservation> ReserveCandlesAsync(int calls, DateTimeOffset deadline, CancellationToken cancellationToken) => inner.ReserveCandlesAsync(calls, deadline, cancellationToken);
 		public Task<System.Collections.Generic.IReadOnlyList<TInvestCandle>> GetCandlesAsync(TInvestCandleRequest request, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken)

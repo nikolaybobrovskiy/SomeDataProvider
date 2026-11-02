@@ -10,6 +10,8 @@ public sealed class TInvestOptions
 	    public int MaxCandleCallsPerRequest { get; init; } = 400;
 	public bool IncludeDealerTrades { get; init; }
 	public int MaxStreams { get; init; } = 4;
+	/// <summary>Maximum upstream and downstream order-book levels per side: 1, 10, 20, 30, 40 or 50.</summary>
+	public int MaxDepth { get; init; } = 50;
 	public TimeSpan StreamSilenceTimeout { get; init; } = TimeSpan.FromSeconds(180);
 	public int SessionQueueLimit { get; init; } = 50_000;
 	public string[] RecordSymbols { get; init; } = Array.Empty<string>();
@@ -22,6 +24,11 @@ public sealed class TInvestOptions
 		if (MaxStreams is < 1 or > 32)
 		{
 			throw new ArgumentException("TInvest:MaxStreams must be 1-32.");
+		}
+
+		if (MaxDepth is not (1 or 10 or 20 or 30 or 40 or 50))
+		{
+			throw new ArgumentException("TInvest:MaxDepth must be 1, 10, 20, 30, 40 or 50.");
 		}
 
 		if (StreamSilenceTimeout < TimeSpan.FromSeconds(30) || StreamSilenceTimeout > TimeSpan.FromSeconds(900))

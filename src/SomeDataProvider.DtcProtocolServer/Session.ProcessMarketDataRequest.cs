@@ -40,7 +40,7 @@ partial class Session
 
 			var previous = _marketSubscriptions.GetValueOrDefault(symbolId);
 			previous?.Stop.Cancel();
-			_marketQueue?.Remove(symbolId);
+			_marketQueue?.RemoveMarketData(symbolId);
 			state = new(CancellationTokenSource.CreateLinkedTokenSource(ct), previous);
 			_marketSubscriptions[symbolId] = state;
 		}
@@ -72,6 +72,7 @@ partial class Session
 				throw new TInvestRequestException($"Real-time market data is not supported for {request.Symbol}.");
 			}
 
+			state.Symbol = tInvest;
 			var snapshotOnly = request.RequestAction == RequestActionEnum.SNAPSHOT;
 			var subscription = await hub.SubscribeAsync(tInvest, e => ReceiveMarketEvent(symbolId, state, tInvest.Instrument.Short.Lot, e), until, cancel.Token, snapshotOnly).ConfigureAwait(false);
 			lock (_sessionLock)
@@ -175,7 +176,7 @@ partial class Session
 					state.Answered = true;
 					break;
 				case HubFeedStatus feed:
-					_marketQueue?.Remove(symbolId);
+					_marketQueue?.RemoveMarketData(symbolId);
 					encoder.EncodeFeedStatus(symbolId, feed.Available);
 					SendResponse(encoder.GetEncodedMessage());
 					break;
@@ -233,7 +234,7 @@ partial class Session
 			old.Dispose();
 		}
 
-		_marketQueue?.Remove(symbolId);
+		_marketQueue?.RemoveMarketData(symbolId);
 	}
 
 	void StopMarketSubscriptions()
@@ -244,6 +245,7 @@ partial class Session
 		}
 
 		_marketSubscriptions.Clear();
+		StopDepthSubscriptions();
 		_marketQueue?.Clear();
 	}
 
@@ -260,6 +262,7 @@ partial class Session
 		public CancellationTokenSource Stop { get; }
 		public CancellationToken Token { get; }
 		public bool Answered { get; set; }
+		public TInvestSymbol? Symbol { get; set; }
 		public MarketSubscription? Previous { get; set; }
 		public TInvestMarketDataHub.Subscription? Subscription { get; set; }
 

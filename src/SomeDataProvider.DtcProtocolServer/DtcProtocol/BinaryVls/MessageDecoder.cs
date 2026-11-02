@@ -71,11 +71,11 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 			return new SecurityDefinitionForSymbolRequest(r.RequestID, GetString(frame, r.Symbol), GetString(frame, r.Exchange));
 		}
 
-		public override uint DecodeMarketDepthSymbolId()
+		public override MarketDepthRequest DecodeMarketDepthRequest()
 		{
 			var frame = Buffer.Span;
 			DtcVlsDecoder.Decode(frame, out s_MarketDepthRequest r);
-			return r.SymbolID;
+			return new MarketDepthRequest(r.RequestAction, r.SymbolID, GetString(frame, r.Symbol), GetString(frame, r.Exchange), r.NumLevels);
 		}
 
 		public override SymbolSearchRequest DecodeSymbolSearchRequest()

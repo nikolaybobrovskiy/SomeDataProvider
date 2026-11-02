@@ -48,6 +48,35 @@ public class TInvestConfigurationTests
 		Assert.Throws<ArgumentException>(() => TInvestConfiguration.Read(configuration));
 	}
 
+	[TestCase(1)]
+	[TestCase(10)]
+	[TestCase(20)]
+	[TestCase(30)]
+	[TestCase(40)]
+	[TestCase(50)]
+	public void MaxDepthAcceptsSupportedValues(int value)
+	{
+		using var configuration = (ConfigurationRoot)new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+		{
+			["StoresOptions:TInvest:MaxDepth"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+		}).Build();
+		Assert.That(TInvestConfiguration.Read(configuration).MaxDepth, Is.EqualTo(value));
+	}
+
+	[TestCase("not-an-integer")]
+	[TestCase("15")]
+	public void MaxDepthRejectsInvalidConfiguration(string value)
+	{
+		using var configuration = (ConfigurationRoot)new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+		{
+			["StoresOptions:TInvest:MaxDepth"] = value
+		}).Build();
+
+		var error = Assert.Catch<Exception>(() => TInvestConfiguration.Read(configuration));
+		Assert.That(error, Is.Not.Null);
+		Assert.That(error!.ToString(), Does.Contain("MaxDepth"));
+	}
+
 	[TestCase("MaxStreams", "{\"Value\":8}")]
 	[TestCase("MaxStreams", "[8]")]
 	[TestCase("MaxStreams", "{}")]

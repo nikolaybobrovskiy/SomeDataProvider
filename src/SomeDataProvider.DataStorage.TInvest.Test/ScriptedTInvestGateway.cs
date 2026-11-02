@@ -20,6 +20,8 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 	public TInvestAccess Access { get; set; } = new(true, new[] { true });
 	public Func<CancellationToken, Task<ITInvestMarketDataStream>>? OpenStream { get; set; }
 	public Func<string, CancellationToken, Task<TInvestMarketSnapshot>>? Snapshot { get; set; }
+	public Func<string, int, CancellationToken, Task<TInvestOrderBook>>? OrderBook { get; set; }
+	public List<(string Uid, int Depth)> OrderBookRequests { get; } = new();
 	public List<ScriptedMarketDataStream> Streams { get; } = new();
 
 	public static TInvestInstrument Invent(string ticker = "SYNTH", string classCode = "TESTCC", TInvestInstrumentKind kind = TInvestInstrumentKind.Share) => new(new(ticker, classCode, "invented-uid-" + ticker, "Invented instrument", kind, 10, true), 0.01m, "zzz", 0.25m, 1000m, 5m);
@@ -51,6 +53,11 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 	}
 
 	public Task<TInvestMarketSnapshot> GetMarketSnapshotAsync(string uid, bool includeDealer, DateTimeOffset deadline, CancellationToken cancellationToken) => Snapshot?.Invoke(uid, cancellationToken) ?? Task.FromResult(new TInvestMarketSnapshot());
+	public Task<TInvestOrderBook> GetOrderBookAsync(string uid, int depth, DateTimeOffset deadline, CancellationToken cancellationToken)
+	{
+		OrderBookRequests.Add((uid, depth));
+		return OrderBook?.Invoke(uid, depth, cancellationToken) ?? Task.FromResult(new TInvestOrderBook(uid, default, depth, Array.Empty<TInvestBookLevel>(), Array.Empty<TInvestBookLevel>()));
+	}
 	public void Dispose()
 	{
 	}

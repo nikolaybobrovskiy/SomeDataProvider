@@ -42,7 +42,7 @@ Currently implemented data sources:
 ## T-Invest instruments, search, bar history and live data
 
 T-Invest is a second, optional source. It provides complete security definitions, symbol search, bar history,
-live trades and best bid/ask. Depth, tick history and trading are not implemented yet; those requests are rejected.
+live trades, best bid/ask and market depth. Tick history and trading are not implemented yet; those requests are rejected.
 FRED and the private series extension are unchanged; series requests remain FRED-only.
 The source is off in the shipped `appsettings.json` (`TokenSource` is empty).
 
@@ -74,6 +74,7 @@ Settings under `StoresOptions:TInvest` (all are validated at startup):
 | `MaxCandleCallsPerRequest` | `400` | integer 1–400, including time pages and any quota retry attempts |
 | `IncludeDealerTrades` | `false` | JSON boolean `true` or `false`; include dealer/weekend trades and candles when true |
 | `MaxStreams` | `4` | integer 1–32; each stream holds at most 150 instruments (300 trade/book subscriptions; info is free) |
+| `MaxDepth` | `50` | 1, 10, 20, 30, 40 or 50; maximum upstream and downstream order-book levels per side |
 | `StreamSilenceTimeout` | `00:03:00` | TimeSpan `00:00:30`–`00:15:00`, inclusive; no message of any kind for this long breaks the stream |
 | `SessionQueueLimit` | `50000` | integer 128–100000 market updates per DTC session; control messages are never dropped |
 | `RecordSymbols` | `[]` | array of unique `TICKER-CLASSCODE` strings, 3–128 ASCII letters/digits/`.`/`_`/`-` each; split at the last `-`, both parts required; no `fred` prefix; at most `150 × MaxStreams` entries |
@@ -89,7 +90,7 @@ Sierra Chart Symbol Settings:
 - Keep the existing `fred-~` entry. Add each T-Invest instrument as one combined `TICKER-CLASSCODE` symbol,
   with pattern matching off and no separate exchange. `SYNTH-TESTCC` illustrates the shape, not a real instrument.
 - Use category `T-Invest`, the same generic sub-client and historical server addresses as the FRED entry,
-  and set Supports Market Depth to not supported for this stage.
+  and enable `Supports Market Depth` for eligible shares, ETFs, bonds, futures and currencies. Options do not advertise depth.
 - Set Real-Time Data Client to `generic sub-clients` and Generic Sub-Client Server Address to
   `127.0.0.1:50001` (or the configured streaming listener, not the history-only listener).
 - Set Historical Data Server to `127.0.0.1:50001` (or your configured history listener address).
@@ -99,12 +100,12 @@ Sierra Chart Symbol Settings:
   controls this, not the chart's display period; 1 Minute is supported. This is a global setting affecting
   other charts too, so use a separate Sierra Chart installation if their storage must stay at 1 Tick.
   The bridge never changes Sierra Chart settings. Tick requests still receive a stage reject.
-- Daily and supported intraday bar charts, live trades, best bid/ask and Time and Sales are usable now.
-  DOM requests still receive a stage reject. Tick-storage history downloads still reject until the tick-history stage.
-- After this stage is committed, check V2 compatibility in Sierra Chart: open one configured T-Invest symbol
-  during exchange trading, verify that Time and Sales receives new exchange trades and that best bid/ask changes.
-  A quiet/closed exchange is not a failed V2 check. If subscription succeeds but these updates do not appear,
-  report the Sierra Chart version and Message Log text; a per-session legacy-message fallback is a separate follow-up,
+- Daily and supported intraday bar charts, live trades, best bid/ask, DOM and Time and Sales are usable now.
+  Tick-storage history downloads still reject until the tick-history stage.
+- After this stage is committed, check the bridge in Sierra Chart: open one configured T-Invest symbol during exchange
+  trading, verify Time and Sales and best bid/ask updates, then open its DOM and confirm the requested depth is populated.
+  A quiet/closed exchange may leave the DOM unchanged; it is not evidence that depth encoding failed. If a subscription
+  rejects, report the Sierra Chart version and Message Log text; a legacy-message fallback is a separate follow-up,
   not enabled speculatively. This server does not change Sierra Chart settings or files.
 
 DTC clients can instead send a ticker and class code as separate Symbol and Exchange fields. Definitions echo
@@ -138,6 +139,23 @@ the shared current state. Missing fields stay unset. Live trades and bid/ask use
 timestamps (source nanoseconds are truncated, never rounded or made unique). Quantities are lots multiplied by
 the instrument's lot size. Buy trades are at ask, sells at bid, unknown direction is unset. Equal microsecond trade
 times are legal and are not deduplicated. Best bid/ask is sent only on a price or quantity change; empty sides have unset prices and zero quantities.
+
+### Market depth and DOM (stage 4)
+
+Market depth is available for shares, ETFs, bonds, futures and currencies; option definitions do not advertise it.
+`TInvest:MaxDepth` defaults to 50 and accepts only `1`, `10`, `20`, `30`, `40` or `50`; other values are rejected at startup. A DTC request with `NumLevels=0` asks for 10; other requests are capped by `MaxDepth`. Shared upstream book subscriptions round client demand up to 1, 10, 20, 30, 40 or 50, then cap the result at `MaxDepth`. Each client receives no more than its requested level count.
+
+A quiet book is bootstrapped by unary `GetOrderBook` within the subscription's 20-second deadline. Stream books older
+than the current book are ignored. An inconsistent book invalidates the current DOM state; incremental updates are
+suppressed until a consistent full book arrives, then clients receive a complete snapshot. When a deeper client joins a
+symbol already used for best bid/ask, the shared upstream book is resubscribed at the higher depth and its new snapshot
+updates both the DOM and derived best bid/ask.
+
+Every DTC snapshot is one atomic batch: the first frame has `FINAL_UPDATE_BEGIN_BATCH` and the last has
+`FINAL_UPDATE_TRUE`, including empty and one-level books. A depth update uses DTC V2 timestamps in milliseconds;
+quantities are lots multiplied by the instrument lot size. If a session's bounded queue cannot retain a complete depth
+update, it replaces that symbol's queued deltas with the latest full snapshot and sends that snapshot before any later
+depth update. These local drops contribute to the next heartbeat's `NumDroppedMessages` count.
 
 Trading status mapping (both snapshots and `TRADING_SYMBOL_STATUS`):
 
@@ -193,7 +211,9 @@ Slow DTC sessions have separate bounded market-update queues; control frames (sn
 heartbeats and history) are not dropped. A full queue drops new market updates for that session only. Each heartbeat's
 `NumDroppedMessages` is the count since the previous heartbeat: one drop reports 1, then 0 if no new drop, then 1 again
 for a new later drop. Upstream gaps are feed status, never an invented drop count. A dropped best quote is resent with
-its latest values when room returns, even if the source does not change again. Queued values are purged on unsubscribe.
+its latest values when room returns, even if the source does not change again. A local depth drop removes that symbol's
+queued deltas and keeps only its latest full snapshot; the snapshot batch is sent before later depth updates for that symbol.
+Queued values are purged on unsubscribe.
 
 Limits use shared rolling windows at 90%: instruments 180/minute, market data 540/minute, users 90/minute,
 subscriptions 90/minute, archives 27/minute, and all attempts 45/second. Response rate-limit headers can reduce

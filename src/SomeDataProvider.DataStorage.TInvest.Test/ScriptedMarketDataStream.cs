@@ -12,8 +12,10 @@ public sealed class ScriptedMarketDataStream : ITInvestMarketDataStream
 {
 	readonly Channel<TInvestMarketEvent> _events = Channel.CreateUnbounded<TInvestMarketEvent>();
 	readonly Dictionary<TInvestSubscriptionKind, HashSet<string>> _actual = new();
+	readonly HashSet<(string Uid, int Depth)> _bookDepths = new();
 	public List<TInvestStreamRequest> Requests { get; } = new();
 	public Func<TInvestSubscriptionKind, string, TInvestSubscriptionStatus>? Status { get; set; }
+	public Func<TInvestStreamRequest, string, TInvestSubscriptionStatus>? RequestStatus { get; set; }
 	public Action<TInvestStreamRequest, ScriptedMarketDataStream>? Sending { get; set; }
 	public bool AutoReply { get; set; } = true;
 	public bool OmitEmptyKinds { get; set; }
@@ -54,7 +56,15 @@ public sealed class ScriptedMarketDataStream : ITInvestMarketDataStream
 				)
 				{
 					var current = _actual.GetValueOrDefault(kind, new());
-					if (!OmitEmptyKinds || current.Count != 0)
+					if (kind == TInvestSubscriptionKind.Book)
+					{
+						var books = _bookDepths.Select(book => new TInvestSubscriptionElement(book.Uid, TInvestSubscriptionStatus.Success, book.Depth)).ToArray();
+						if (!OmitEmptyKinds || books.Length != 0)
+						{
+							Emit(new TInvestSubscriptionReply(kind, books));
+						}
+					}
+					else if (!OmitEmptyKinds || current.Count != 0)
 					{
 						Emit(new TInvestSubscriptionReply(kind, current.Select(uid => new TInvestSubscriptionElement(uid, TInvestSubscriptionStatus.Success)).ToArray()));
 					}
@@ -68,16 +78,28 @@ public sealed class ScriptedMarketDataStream : ITInvestMarketDataStream
 				_actual[request.Kind] = actual = new();
 			}
 
-			var elements = request.Uids.Select(uid => new TInvestSubscriptionElement(uid, Status?.Invoke(request.Kind, uid) ?? TInvestSubscriptionStatus.Success)).ToArray();
+			var elements = request.Uids.Select(uid => new TInvestSubscriptionElement(uid, RequestStatus?.Invoke(request, uid) ?? Status?.Invoke(request.Kind, uid) ?? TInvestSubscriptionStatus.Success, request.Kind == TInvestSubscriptionKind.Book ? request.Depth : 0)).ToArray();
 			foreach (var element in elements.Where(e => e.Status == TInvestSubscriptionStatus.Success))
 			{
 				if (request.Subscribe)
 				{
 					actual.Add(element.Uid);
+					if (request.Kind == TInvestSubscriptionKind.Book)
+					{
+						_bookDepths.Add((element.Uid, request.Depth));
+					}
 				}
 				else
 				{
 					actual.Remove(element.Uid);
+					if (request.Kind == TInvestSubscriptionKind.Book)
+					{
+						_bookDepths.Remove((element.Uid, request.Depth));
+						if (_bookDepths.Any(book => book.Uid == element.Uid))
+						{
+							actual.Add(element.Uid);
+						}
+					}
 				}
 			}
 
@@ -92,6 +114,10 @@ public sealed class ScriptedMarketDataStream : ITInvestMarketDataStream
 		if (_actual.TryGetValue(kind, out var actual))
 		{
 			actual.Remove(uid);
+			if (kind == TInvestSubscriptionKind.Book)
+			{
+				_bookDepths.RemoveWhere(book => book.Uid == uid);
+			}
 		}
 	}
 

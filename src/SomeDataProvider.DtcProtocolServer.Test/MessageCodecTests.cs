@@ -283,6 +283,32 @@ namespace SomeDataProvider.DtcProtocolServer.Test
 		}
 
 		[Test]
+		public void MarketDepthRequest_IsDecodedFromBinary()
+		{
+			var record = new Records.MarketDepthRequest
+			{
+				RequestAction = RequestActionEnum.SUBSCRIBE,
+				SymbolID = 37,
+				Symbol = "SYNTH-TESTCC",
+				Exchange = "TESTCC",
+				NumLevels = 100,
+			};
+			var message = record.ToBinary(Utf8);
+			var frame = new byte[DtcBinaryEncoder.GetEncodedLength<Dtc.Protocol.s_MarketDepthRequest>()];
+			DtcBinaryEncoder.Encode(in message, frame);
+			var decoder = MessageProtocol.CreateMessageProtocol(EncodingEnum.BINARY_ENCODING).MessageDecoderFactory.CreateMessageDecoder(frame);
+
+			var request = decoder.DecodeMarketDepthRequest();
+
+			Assert.That(decoder.DecodeMessageType(), Is.EqualTo(DtcConstants.MARKET_DEPTH_REQUEST));
+			Assert.That(request.RequestAction, Is.EqualTo(RequestActionEnum.SUBSCRIBE));
+			Assert.That(request.SymbolId, Is.EqualTo(37));
+			Assert.That(request.Symbol, Is.EqualTo("SYNTH-TESTCC"));
+			Assert.That(request.Exchange, Is.EqualTo("TESTCC"));
+			Assert.That(request.NumLevels, Is.EqualTo(100));
+		}
+
+		[Test]
 		public void SecurityDefinitionForSymbolRequest_IsDecoded()
 		{
 			var frame = ToVls(new Records.SecurityDefinitionForSymbolRequest { RequestID = 18, Symbol = "fred-T5YIFR", Exchange = "FRED" });

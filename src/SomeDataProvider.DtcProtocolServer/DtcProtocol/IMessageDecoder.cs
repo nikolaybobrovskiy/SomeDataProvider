@@ -5,6 +5,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 {
 	using System;
 
+	using Dtc.Protocol;
 	using Dtc.Protocol.Private;
 
 	// https://www.sierrachart.com/index.php?page=doc/DTCMessageDocumentation.php
@@ -20,7 +21,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		MarketDataRequest DecodeMarketDataRequest();
 
-		uint DecodeMarketDepthSymbolId();
+		MarketDepthRequest DecodeMarketDepthRequest();
 
 		SecurityDefinitionForSymbolRequest DecodeSecurityDefinitionForSymbolRequest();
 

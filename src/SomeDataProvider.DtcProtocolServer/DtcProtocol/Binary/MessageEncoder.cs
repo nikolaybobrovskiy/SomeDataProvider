@@ -31,7 +31,7 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			Append(new s_EncodingResponse { Encoding = encoding });
 		}
 
-		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false)
+		public virtual void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false, bool marketDepthSupported = false)
 		{
 			throw new NotImplementedException();
 		}

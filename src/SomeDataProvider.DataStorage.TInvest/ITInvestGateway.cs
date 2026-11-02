@@ -15,6 +15,8 @@ public interface ITInvestGateway : IDisposable
 
 	Task<TInvestMarketSnapshot> GetMarketSnapshotAsync(string uid, bool includeDealer, DateTimeOffset deadline, CancellationToken cancellationToken);
 
+	Task<TInvestOrderBook> GetOrderBookAsync(string uid, int depth, DateTimeOffset deadline, CancellationToken cancellationToken);
+
 	Task<TInvestRateLimiter.Reservation> ReserveCandlesAsync(int calls, DateTimeOffset deadline, CancellationToken cancellationToken);
 
 	Task<IReadOnlyList<TInvestCandle>> GetCandlesAsync(TInvestCandleRequest request, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken);
@@ -66,7 +68,7 @@ public sealed class TInvestSymbol : ISymbol
 	public double ContractSize => Instrument.Short.Kind == TInvestInstrumentKind.Future ? (double)Instrument.BasicAssetSize : 1;
 	public DateTime? SecurityExpirationDate => Instrument.Expiration?.UtcDateTime;
 	public string ExchangeSymbol => $"{Code}_{Exchange}";
-	public bool HasMarketDepth => false; // Enabled when the depth stage lands.
+	public bool HasMarketDepth => Instrument.Short.Kind is not (TInvestInstrumentKind.StockOption or TInvestInstrumentKind.FuturesOption or TInvestInstrumentKind.IndexOption);
 	public bool IsRealTime => true;
 	public bool IsDelayed => false;
 	public bool IsDiscontinued => false;

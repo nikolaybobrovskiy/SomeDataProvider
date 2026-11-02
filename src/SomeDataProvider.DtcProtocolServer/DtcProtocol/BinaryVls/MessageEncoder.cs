@@ -27,14 +27,14 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.BinaryVls
 	/// </summary>
 	class MessageEncoder : Binary.MessageEncoder
 	{
-		public override void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false)
+		public override void EncodeLogonResponse(LogonStatusEnum logonStatus, string resultText, bool oneHistoricalPriceDataRequestPerConnection, bool resubscribeWhenFeedAvailable = false, bool marketDepthSupported = false)
 		{
 			var message = new VlsLogonResponse
 			{
 				Result = logonStatus,
-				// The header's defaults advertise order cancel/replace and market depth, which this server does not support.
+				// Order cancel/replace remains unsupported; market depth is advertised for configured T-Invest stores.
 				OrderCancelReplaceSupported = 0,
-				MarketDepthIsSupported = 0,
+				MarketDepthIsSupported = marketDepthSupported ? (byte)1 : (byte)0,
 				SecurityDefinitionsSupported = 1,
 				HistoricalPriceDataSupported = 1,
 				ResubscribeWhenMarketDataFeedAvailable = resubscribeWhenFeedAvailable ? (byte)1 : (byte)0,
