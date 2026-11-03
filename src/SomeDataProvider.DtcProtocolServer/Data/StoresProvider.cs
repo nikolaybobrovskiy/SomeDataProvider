@@ -21,19 +21,30 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 
 	public const char DataSourcePrefixSeparator = '-';
 
+	/// <summary>Pause between background startup checks, like the watch list's retry.</summary>
+	public static readonly TimeSpan StartupRetry = TimeSpan.FromSeconds(30);
+
+	static readonly TimeSpan StartupReportInterval = TimeSpan.FromMinutes(10);
+
 	readonly ILogger<StoresProvider> _l;
 	readonly Lazy<DataStorage.Fred.Store> _lazyFredStore;
 	readonly Func<ITInvestGateway>? _createGateway;
 	readonly TInvestOptions? _startupOptions;
+	readonly CancellationTokenSource _stopStartup = new();
+	readonly object _startLock = new();
+	readonly TimeProvider _time = TimeProvider.System;
 	TInvestStore? _tInvestStore;
 	string? _tInvestEnvironment;
 	bool _initialized;
+	bool _failedForGood;
+	Task _startup = Task.CompletedTask;
 
-	public StoresProvider(StoresOptions opts, ILoggerFactory loggerFactory, TInvestToken? token = null, Func<ITInvestGateway>? gatewayFactory = null)
+	public StoresProvider(StoresOptions opts, ILoggerFactory loggerFactory, TInvestToken? token = null, Func<ITInvestGateway>? gatewayFactory = null, TimeProvider? timeProvider = null)
 	{
 		if (opts == null) throw new ArgumentNullException(nameof(opts));
 		if (loggerFactory == null) throw new ArgumentNullException(nameof(loggerFactory));
 		_l = loggerFactory.CreateLogger<StoresProvider>();
+		_time = timeProvider ?? TimeProvider.System;
 		_lazyFredStore = new (() => new DataStorage.Fred.Store(opts.KnownFred.KnownApiKey, loggerFactory));
 		var options = opts.TInvest ?? new TInvestOptions();
 		options.Validate();
@@ -59,40 +70,38 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 		_tInvestStore = tInvestStore;
 		_tInvestEnvironment = "sandbox";
 		MarketDataHub = new(tInvestStore.Gateway, tInvestStore.Options, tInvestStore.Clock, persistRecording: false);
+		tInvestStore.UseTickRecording(MarketDataHub.Recording);
 		WatchListTask = MarketDataHub.StartWatchListAsync(tInvestStore);
 	}
+
+	/// <summary>Raised once, when the background startup check first passes and the T-Invest source exists.</summary>
+	public event Action? TInvestStarted;
 
 	public TInvestMarketDataHub? MarketDataHub { get; private set; }
 	public string SourcesDescription => _tInvestStore == null ? "FRED" : $"FRED, T-Invest ({_tInvestEnvironment})";
 	internal Task WatchListTask { get; private set; } = Task.CompletedTask;
 
+	internal Task StartupTask => _startup;
+
+	/// <summary>Test seam: runs between the decision to answer "starting" and the answer itself.</summary>
+	internal Action? BeforeStartingReject { get; set; }
+
+	/// <summary>The source exists and its store is published.</summary>
+	internal bool TInvestReady => Volatile.Read(ref _tInvestStore) != null;
+
+	/// <summary>The startup check has not passed yet, and it may still pass: it is configured and has not failed for good.</summary>
+	internal bool TInvestPending => _createGateway != null && !_failedForGood && Volatile.Read(ref _tInvestStore) == null;
+
 	DataStorage.Fred.Store FredStore => _lazyFredStore.Value;
 
-	// Called after the CLI attaches its logger, before either listener starts.
+	// Called after the CLI attaches its logger, before either listener starts. The startup check runs in the
+	// background, so the server (and FRED) never waits for T-Invest.
 	public void Initialize()
 	{
 		if (_initialized || _createGateway == null || _startupOptions == null) return;
 		_initialized = true;
-		var options = _startupOptions;
-		_l.LogInformation("T-Invest source: {environment}, token from {source}; checking access.", options.Environment, options.TokenSource);
-		ITInvestGateway? gateway = null;
-		try
-		{
-			gateway = _createGateway();
-			TInvestStartup.CheckAsync(gateway, options, DateTimeOffset.UtcNow.AddSeconds(8)).GetAwaiter().GetResult();
-			_tInvestStore = new TInvestStore(gateway, options);
-			MarketDataHub = new(gateway, options);
-			MarketDataHub.Diagnostic += text => _l.LogInformation("T-Invest live: {status}; gRPC {grpcStatus}, code {code}.", text, (gateway as SdkTInvestGateway)?.LastFailureStatus, (gateway as SdkTInvestGateway)?.LastFailureCode);
-			MarketDataHub.WatchListRetrying += name => _l.LogWarning("T-Invest watch-list entry is unavailable; retrying in 30 seconds: {symbol}", name);
-			WatchListTask = MarketDataHub.StartWatchListAsync(_tInvestStore);
-			_tInvestEnvironment = options.Environment.ToLowerInvariant();
-			_l.LogInformation("T-Invest source: {environment}, token from {source}; startup check passed.", options.Environment, options.TokenSource);
-		}
-		catch (Exception ex)
-		{
-			gateway?.Dispose();
-			_l.LogWarning("T-Invest source is not configured: {reason}", ex is TInvestRequestException ? ex.Message : "Startup access check failed.");
-		}
+		_l.LogInformation("T-Invest source: {environment}, token from {source}; checking access.", _startupOptions.Environment, _startupOptions.TokenSource);
+		_startup = Task.Run(RunStartupAsync);
 	}
 
 	public ValueTask<ISymbolHistoryStore> GetSymbolHistoryStoreAsync(ISymbol symbol, HistoryInterval historyInterval, CancellationToken cancellationToken = default)
@@ -115,16 +124,28 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 	{
 		if (code.StartsWith("fred-", StringComparison.Ordinal))
 			return (FredStore, code[5..]);
-		if (_tInvestStore == null) return null;
-		if (exchange.Length != 0) return (_tInvestStore, TInvestStore.LookupCode(code, exchange));
+		var tInvestStore = Volatile.Read(ref _tInvestStore);
+		if (tInvestStore == null)
+		{
+			// Not "unknown symbol": the check is still being retried, or has not been started yet.
+			if (_createGateway != null && !_failedForGood)
+			{
+				BeforeStartingReject?.Invoke();
+				throw new TInvestRequestException($"T-Invest source is starting; retry in {(int)StartupRetry.TotalSeconds} s.", TInvestFailureKind.Starting);
+			}
+
+			return null;
+		}
+
+		if (exchange.Length != 0) return (tInvestStore, TInvestStore.LookupCode(code, exchange));
 		var separator = code.LastIndexOf('-');
 		if (separator <= 0 || separator == code.Length - 1 || code.StartsWith("fred", StringComparison.OrdinalIgnoreCase)) return null;
 		var ticker = code[..separator];
 		var classCode = code[(separator + 1)..];
 		// Discover a cold class code through an exact lookup, not a guessed ticker-only match.
 		// Both successful discovery and misses share the store's cache (negative entries: ten minutes).
-		var symbol = await _tInvestStore.ResolveAsync(ticker, classCode, _tInvestStore.Clock.GetUtcNow().AddSeconds(8), cancellationToken);
-		return symbol == null ? null : (_tInvestStore, TInvestStore.LookupCode(ticker, classCode));
+		var symbol = await tInvestStore.ResolveAsync(ticker, classCode, tInvestStore.Clock.GetUtcNow().AddSeconds(8), cancellationToken);
+		return symbol == null ? null : (tInvestStore, TInvestStore.LookupCode(ticker, classCode));
 	}
 
 	public async ValueTask<IReadOnlyCollection<ISymbol>> GetKnownSymbolsAsync(CancellationToken cancellationToken = default)
@@ -163,9 +184,103 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 
 	public void Dispose()
 	{
+		lock (_startLock) _stopStartup.Cancel();
+		try { _startup.Wait(TimeSpan.FromSeconds(5)); }
+		catch (AggregateException) { /* The loop has already reported its failure. */ }
+
 		MarketDataHub?.Dispose();
 		if (_lazyFredStore.IsValueCreated) _lazyFredStore.Value.Dispose();
 		_tInvestStore?.Dispose();
+	}
+
+	async Task RunStartupAsync()
+	{
+		var options = _startupOptions!;
+		var attempts = 0;
+		DateTimeOffset? lastReport = null;
+		while (!_stopStartup.IsCancellationRequested)
+		{
+			attempts++;
+			ITInvestGateway? gateway = null;
+			string failureClass;
+			try
+			{
+				gateway = _createGateway!();
+				await TInvestStartup.CheckAsync(gateway, options, _time.GetUtcNow().AddSeconds(8), _stopStartup.Token).ConfigureAwait(false);
+				CompleteStartup(gateway, options, attempts);
+				return;
+			}
+			catch (OperationCanceledException) when (_stopStartup.IsCancellationRequested)
+			{
+				gateway?.Dispose();
+				return;
+			}
+			catch (Exception ex)
+			{
+				failureClass = (gateway as SdkTInvestGateway)?.LastFailureStatus ?? ex.GetType().Name;
+				gateway?.Dispose();
+				if (ex is TInvestRequestException { Kind: TInvestFailureKind.Configuration } or ArgumentException or InvalidOperationException)
+				{
+					// The operator has to fix this; retrying cannot help.
+					_failedForGood = true;
+					_l.LogWarning("T-Invest source is not configured: {reason}", ex is TInvestRequestException ? ex.Message : "Startup access check failed.");
+					return;
+				}
+			}
+
+			var now = _time.GetUtcNow();
+			if (lastReport == null)
+			{
+				_l.LogWarning("T-Invest startup check failed ({failure}); the server keeps running and retries every {seconds} seconds.", failureClass, (int)StartupRetry.TotalSeconds);
+				lastReport = now;
+			}
+			else if (now - lastReport >= StartupReportInterval)
+			{
+				_l.LogWarning("T-Invest startup check still failing ({failure}) after {attempts} attempts; retrying every {seconds} seconds.", failureClass, attempts, (int)StartupRetry.TotalSeconds);
+				lastReport = now;
+			}
+
+			try
+			{
+				await Task.Delay(StartupRetry, _time, _stopStartup.Token).ConfigureAwait(false);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+		}
+	}
+
+	// Creates the store and the hub once. A success racing with disposal or with another
+	// attempt creates nothing, and the caller disposes its gateway.
+	void CompleteStartup(ITInvestGateway gateway, TInvestOptions options, int attempts)
+	{
+		lock (_startLock)
+		{
+			if (_stopStartup.IsCancellationRequested || _tInvestStore != null)
+			{
+				gateway.Dispose();
+				return;
+			}
+
+			var store = new TInvestStore(gateway, options);
+			var hub = new TInvestMarketDataHub(gateway, options);
+			store.UseTickRecording(hub.Recording);
+			hub.Diagnostic += text => _l.LogInformation("T-Invest live: {status}; gRPC {grpcStatus}, code {code}.", text, (gateway as SdkTInvestGateway)?.LastFailureStatus, (gateway as SdkTInvestGateway)?.LastFailureCode);
+			hub.WatchListRetrying += name => _l.LogWarning("T-Invest watch-list entry is unavailable; retrying in 30 seconds: {symbol}", name);
+			MarketDataHub = hub;
+			WatchListTask = hub.StartWatchListAsync(store);
+			_tInvestEnvironment = options.Environment.ToLowerInvariant();
+			Volatile.Write(ref _tInvestStore, store);
+		}
+
+		_l.LogInformation("T-Invest source: {environment}, token from {source}; startup check passed after {attempts} attempt(s).", options.Environment, options.TokenSource, attempts);
+		// A failing subscriber must not undo a startup that has already been published.
+		foreach (var handler in (TInvestStarted?.GetInvocationList() ?? Array.Empty<Delegate>()).Cast<Action>())
+		{
+			try { handler(); }
+			catch (Exception ex) { _l.LogWarning(ex, "A T-Invest startup subscriber failed."); }
+		}
 	}
 
 	public class StoresOptions

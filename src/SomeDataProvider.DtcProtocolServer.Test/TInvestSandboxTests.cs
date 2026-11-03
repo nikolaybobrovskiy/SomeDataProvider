@@ -172,6 +172,19 @@ public partial class TInvestSandboxTests
 			return inner.GetCandlesAsync(request, reservation, deadline, cancellationToken);
 		}
 
+		// The sandbox has no trade archives, and the opt-in checks never call the archive host.
+		public Task<TInvestRateLimiter.Reservation> ReserveArchivesAsync(int downloads, DateTimeOffset deadline, CancellationToken cancellationToken) =>
+			throw new TInvestRequestException("Archive downloads are not part of the sandbox checks.");
+
+		public Task<bool> DownloadTradeArchiveAsync(string instrumentId, DateOnly day, string destination, TInvestRateLimiter.Reservation? reservation, DateTimeOffset deadline, CancellationToken cancellationToken) =>
+			throw new TInvestRequestException("Archive downloads are not part of the sandbox checks.");
+
+		public Task<System.Collections.Generic.IReadOnlyList<TInvestTrade>> GetLastTradesAsync(string uid, DateTimeOffset from, DateTimeOffset to, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken)
+		{
+			Admit(2);
+			return inner.GetLastTradesAsync(uid, from, to, reservation, deadline, cancellationToken);
+		}
+
 		void Admit(int maximumAttempts)
 		{
 			// Access/find: at most 2 attempts; definition plus option/underlying: at most 6.

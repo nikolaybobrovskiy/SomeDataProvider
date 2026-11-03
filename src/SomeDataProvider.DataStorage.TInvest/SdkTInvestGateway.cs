@@ -13,6 +13,9 @@ using Tinkoff.InvestApi.V1;
 /// <summary>The only bridge implementation that depends on SDK types.</summary>
 public sealed partial class SdkTInvestGateway : ITInvestGateway
 {
+	/// <summary>Trade archives exist only on the production host, also when the gRPC side runs against the sandbox.</summary>
+	internal const string ArchiveHost = "https://invest-public-api.tbank.ru/";
+
 	// Keep the single public trust anchor alive for all channels; never change the OS root stores.
 	static readonly Lazy<X509Certificate2> BundledRoot = new(LoadBundledRoot);
 
@@ -50,6 +53,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 			metadata.Add("x-app-name", "SomeDataProvider");
 			return Task.CompletedTask;
 		});
+		_createArchives = () => new TradeArchiveClient(CreateHandler(), new Uri(ArchiveHost), limiter, _clock, logger);
 		_channel = GrpcChannel.ForAddress(Endpoint(options), new GrpcChannelOptions
 		{
 			Credentials = ChannelCredentials.Create(new SslCredentials(), credentials),
@@ -181,7 +185,11 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 			(double)Decimal(c.Low), (double)Decimal(c.Close), c.Volume, c.IsComplete, c.CandleSource == CandleSource.Exchange)).ToArray();
 	}
 
-	public void Dispose() => _channel?.Dispose();
+	public void Dispose()
+	{
+		_channel?.Dispose();
+		lock (_archivesLock) _archives?.Dispose();
+	}
 
 	internal static string Endpoint(TInvestOptions options) => options.IsSandbox
 		? "https://sandbox-invest-public-api.tbank.ru:443" : "https://invest-public-api.tbank.ru:443";
@@ -283,7 +291,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 				}
 				throw new TInvestRequestException(ex.StatusCode == StatusCode.Unauthenticated
 					? "T-Invest token is missing, expired or for the other environment."
-					: "T-Invest source request failed.");
+					: "T-Invest source request failed.", ex.StatusCode is StatusCode.Unauthenticated or StatusCode.PermissionDenied ? TInvestFailureKind.Configuration : TInvestFailureKind.Source);
 			}
 		}
 	}

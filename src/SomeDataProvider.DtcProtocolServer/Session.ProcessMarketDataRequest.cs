@@ -12,8 +12,41 @@ using SomeDataProvider.DtcProtocolServer.Market;
 partial class Session
 {
 	readonly Dictionary<uint, MarketSubscription> _marketSubscriptions = new();
+	readonly HashSet<uint> _startupRejected = new();
 	SessionMarketDataQueue? _marketQueue;
 	bool _marketSending;
+	/// <summary>
+	/// The T-Invest startup check passed after this session's requests were rejected as "starting". The logon advertised
+	/// ResubscribeWhenMarketDataFeedAvailable, so reporting the feed as available makes the client subscribe again.
+	/// </summary>
+	internal void NotifyTInvestStarted()
+	{
+		lock (_sessionLock)
+		{
+			if (_closing) return;
+			foreach (var symbolId in _startupRejected)
+			{
+				var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+				encoder.EncodeFeedStatus(symbolId, true);
+				SendResponse(encoder.GetEncodedMessage());
+			}
+
+			_startupRejected.Clear();
+		}
+	}
+
+	/// <summary>
+	/// Runs under the session lock after a "starting" reject was recorded and sent. If the startup check passed in
+	/// between, its one notification has already gone out without this symbol, so the session reports the feed now.
+	/// </summary>
+	void AnnounceFeedIfStarted(uint symbolId)
+	{
+		if (_symbolsStoreProvider is not Data.StoresProvider { TInvestReady: true } || !_startupRejected.Remove(symbolId)) return;
+		var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
+		encoder.EncodeFeedStatus(symbolId, true);
+		SendResponse(encoder.GetEncodedMessage());
+	}
+
 	async Task ProcessMarketDataRequestAsync(IMessageDecoder decoder, IMessageEncoder encoder, CancellationToken ct)
 	{
 		var request = decoder.DecodeMarketDataRequest();
@@ -104,9 +137,12 @@ partial class Session
 				}
 
 				var text = ex is TInvestRequestException bridge ? bridge.Message : ex is OperationCanceledException ? "T-Invest subscription limit reached; retry later." : "T-Invest market data is unavailable.";
+				var starting = ex is TInvestRequestException { Kind: TInvestFailureKind.Starting };
+				if (starting) _startupRejected.Add(symbolId);
 				encoder.EncodeMarketDataReject(symbolId, text);
 				SendResponse(encoder.GetEncodedMessage());
 				RemoveMarketSubscription(symbolId);
+				if (starting) AnnounceFeedIfStarted(symbolId);
 			}
 		}
 	}

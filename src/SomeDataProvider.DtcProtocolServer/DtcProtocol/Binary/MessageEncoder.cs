@@ -107,6 +107,19 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol.Binary
 			});
 		}
 
+		public void EncodeHistoricalPriceDataTickRecordResponse(int requestId, long microseconds, bool atAsk, bool atBid, double price, double volume, bool isFinalRecord)
+		{
+			Append(new s_HistoricalPriceDataTickRecordResponse
+			{
+				RequestID = requestId,
+				DateTime = microseconds / 1_000_000.0,
+				AtBidOrAsk = atAsk ? AtBidOrAskEnum.AT_ASK : atBid ? AtBidOrAskEnum.AT_BID : AtBidOrAskEnum.BID_ASK_UNSET,
+				Price = price,
+				Volume = volume,
+				IsFinalRecord = isFinalRecord ? (byte)1 : (byte)0,
+			});
+		}
+
 		public virtual void EncodeSeriesExtensionResponse(SeriesExtensionResponse response)
 		{
 			throw MessageDecoder.NewSeriesExtensionNotSupportedException();

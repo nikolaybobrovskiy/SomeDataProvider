@@ -77,6 +77,49 @@ public class TInvestConfigurationTests
 		Assert.That(error!.ToString(), Does.Contain("MaxDepth"));
 	}
 
+	[Test]
+	public void TickHistorySettingsAreReadFromConfiguration()
+	{
+		var path = Path.Combine(Environment.GetEnvironmentVariable("TMPDIR") ?? Path.GetTempPath(), "tinvest-config-" + Guid.NewGuid() + ".json");
+		File.WriteAllText(path, "{\"StoresOptions\":{\"TInvest\":{\"ArchiveCacheFolder\":null}}}");
+		try
+		{
+			using var nullConfiguration = (ConfigurationRoot)new ConfigurationBuilder().AddJsonFile(path).Build();
+			Assert.That(TInvestConfiguration.Read(nullConfiguration).ArchiveCacheFolder, Is.Null);
+		}
+		finally
+		{
+			File.Delete(path);
+		}
+
+		var folder = Path.Combine(Path.GetTempPath(), "sdp-archives");
+		using var configuration = (ConfigurationRoot)new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+		{
+			["StoresOptions:TInvest:MaxTickDaysPerRequest"] = "7",
+			["StoresOptions:TInvest:MaxTicksPerRequest"] = "250000",
+			["StoresOptions:TInvest:ArchiveCacheFolder"] = folder,
+			["StoresOptions:TInvest:ArchiveCacheMaxBytes"] = "2147483648",
+		}).Build();
+		var options = TInvestConfiguration.Read(configuration);
+		Assert.That((options.MaxTickDaysPerRequest, options.MaxTicksPerRequest, options.ArchiveCacheFolder, options.ArchiveCacheMaxBytes), Is.EqualTo((7, 250_000, folder, 2147483648L)));
+	}
+
+	[TestCase("MaxTickDaysPerRequest", "32")]
+	[TestCase("MaxTickDaysPerRequest", "0")]
+	[TestCase("MaxTicksPerRequest", "999")]
+	[TestCase("MaxTicksPerRequest", "5000001")]
+	[TestCase("ArchiveCacheFolder", "relative\\folder")]
+	[TestCase("ArchiveCacheMaxBytes", "1000")]
+	[TestCase("ArchiveCacheMaxBytes", "not-a-number")]
+	public void TickHistorySettingsOutsideTheirRangesFailAtStartup(string setting, string value)
+	{
+		using var configuration = (ConfigurationRoot)new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+		{
+			["StoresOptions:TInvest:" + setting] = value,
+		}).Build();
+		Assert.That(Assert.Catch<Exception>(() => TInvestConfiguration.Read(configuration))!.ToString(), Does.Contain(setting));
+	}
+
 	[TestCase("MaxStreams", "{\"Value\":8}")]
 	[TestCase("MaxStreams", "[8]")]
 	[TestCase("MaxStreams", "{}")]

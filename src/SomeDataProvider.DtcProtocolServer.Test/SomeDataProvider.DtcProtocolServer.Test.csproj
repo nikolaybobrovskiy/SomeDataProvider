@@ -31,6 +31,7 @@
     <ProjectReference Include="..\SomeDataProvider.DtcProtocolServer\SomeDataProvider.DtcProtocolServer.csproj" />
     <Compile Include="..\SomeDataProvider.DataStorage.TInvest.Test\ScriptedTInvestGateway.cs" Link="ScriptedTInvestGateway.cs" />
     <Compile Include="..\SomeDataProvider.DataStorage.TInvest.Test\ScriptedMarketDataStream.cs" Link="ScriptedMarketDataStream.cs" />
+    <Compile Include="..\SomeDataProvider.DataStorage.TInvest.Test\TickFixture.cs" Link="TickFixture.cs" />
   </ItemGroup>
 
   <ItemGroup>

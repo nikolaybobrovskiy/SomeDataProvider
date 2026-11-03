@@ -20,6 +20,15 @@ public interface ITInvestGateway : IDisposable
 	Task<TInvestRateLimiter.Reservation> ReserveCandlesAsync(int calls, DateTimeOffset deadline, CancellationToken cancellationToken);
 
 	Task<IReadOnlyList<TInvestCandle>> GetCandlesAsync(TInvestCandleRequest request, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken);
+
+	/// <summary>Books archive downloads in the shared archive window (30 a minute per address, 90 % used).</summary>
+	Task<TInvestRateLimiter.Reservation> ReserveArchivesAsync(int downloads, DateTimeOffset deadline, CancellationToken cancellationToken);
+
+	/// <summary>Downloads one instrument-day archive to <paramref name="destination"/>; false when the host has none (HTTP 404).</summary>
+	Task<bool> DownloadTradeArchiveAsync(string instrumentId, DateOnly day, string destination, TInvestRateLimiter.Reservation? reservation, DateTimeOffset deadline, CancellationToken cancellationToken);
+
+	/// <summary>The last hour's public trades of both sources, flagged by source. The caller filters.</summary>
+	Task<IReadOnlyList<TInvestTrade>> GetLastTradesAsync(string uid, DateTimeOffset from, DateTimeOffset to, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken);
 }
 
 public sealed class TInvestSymbol : ISymbol

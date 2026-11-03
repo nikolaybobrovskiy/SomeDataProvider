@@ -45,7 +45,11 @@ namespace SomeDataProvider.DtcProtocolServer
 			_seriesSource = seriesSource;
 			TimeProvider = timeProvider ?? System.TimeProvider.System;
 			L = loggerFactory.CreateLogger<Server>();
+			if (symbolsStoreProvider is StoresProvider stores) stores.TInvestStarted += OnTInvestStarted;
 		}
+
+		/// <summary>True when market data is served now, or the background startup check may still bring it up.</summary>
+		internal bool MarketDataExpected => MarketDataHub != null || (_symbolsStoreProvider as StoresProvider)?.TInvestPending == true;
 
 		internal Market.TInvestMarketDataHub? MarketDataHub => (_symbolsStoreProvider as StoresProvider)?.MarketDataHub;
 
@@ -98,6 +102,8 @@ namespace SomeDataProvider.DtcProtocolServer
 
 		protected override void OnStopped()
 		{
+			if (_symbolsStoreProvider is StoresProvider stores) stores.TInvestStarted -= OnTInvestStarted;
+
 			L.LogInformation($"Waiting for current requests are over (max {MaxWaitTimeForCurrentRequestToComplete})...");
 			SpinWait.SpinUntil(() => Interlocked.CompareExchange(ref _currentRequestsCount, 0, 0) == 0, MaxWaitTimeForCurrentRequestToComplete);
 			L.LogInformation("Current requests are over. Can proceed with shutdown.");
@@ -120,6 +126,11 @@ namespace SomeDataProvider.DtcProtocolServer
 		protected override void OnDisconnected(TcpSession session)
 		{
 			L.LogInformation("Disconnected from server: {sessionId}", session.Id);
+		}
+
+		void OnTInvestStarted()
+		{
+			foreach (var session in System.Linq.Enumerable.OfType<Session>(Sessions.Values)) session.NotifyTInvestStarted();
 		}
 	}
 }

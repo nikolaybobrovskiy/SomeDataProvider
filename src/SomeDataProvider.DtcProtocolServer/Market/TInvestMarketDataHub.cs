@@ -44,6 +44,9 @@ sealed class TInvestMarketDataHub : IDisposable
 	public int QueueLimit => _options.SessionQueueLimit;
 	public int MaxDepth => _options.MaxDepth;
 
+	/// <summary>The recorder as tick history sees it: durable coverage and trades, or nothing when not persisted.</summary>
+	internal ITickRecording Recording => _recorder;
+
 	public async Task<Subscription> SubscribeAsync(TInvestSymbol symbol, Action<HubEvent> receive, DateTimeOffset deadline, CancellationToken ct, bool snapshotOnly = false, bool recordingOnly = false, int depthLevels = 0)
 	{
 		if (symbol.Instrument.Short.Kind is TInvestInstrumentKind.StockOption or TInvestInstrumentKind.FuturesOption or TInvestInstrumentKind.IndexOption)

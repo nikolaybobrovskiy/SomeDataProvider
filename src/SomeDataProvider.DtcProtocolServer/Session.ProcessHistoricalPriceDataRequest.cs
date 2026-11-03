@@ -61,7 +61,7 @@ partial class Session
 		}
 		catch (SomeDataProvider.DataStorage.TInvest.TInvestRequestException ex)
 		{
-			var limited = ex.Kind == TInvestFailureKind.Limit;
+			var limited = ex.Kind is TInvestFailureKind.Limit or TInvestFailureKind.Starting;
 			var retry = System.Text.RegularExpressions.Regex.Match(ex.Message, @"retry in ([0-9]+) s");
 			var seconds = retry.Success ? Math.Clamp(int.Parse(retry.Groups[1].Value), 1, 300) : 1;
 			encoder.EncodeHistoricalPriceDataReject(requestId, limited ? HistoricalPriceDataRejectReasonCodeEnum.HPDR_UNABLE_TO_SERVE_DATA_RETRY_IN_SPECIFIED_SECONDS : HistoricalPriceDataRejectReasonCodeEnum.HPDR_GENERAL_REJECT_ERROR, ex.Message, limited ? seconds : 0);
@@ -71,13 +71,13 @@ partial class Session
 
 	async Task StreamTInvestHistoryAsync(HistoricalPriceDataRequest request, TInvestSymbol symbol, TInvestStore store, DateTimeOffset deadline, CancellationToken ct)
 	{
-		if (request.RecordInterval == HistoricalDataIntervalEnum.INTERVAL_TICK)
-			throw new TInvestRequestException("T-Invest tick history is not implemented in this stage.", TInvestFailureKind.Unsupported);
 		var sentHeader = false;
 		try
 		{
-			using var reader = await store.CreateCandleReaderAsync(symbol, (int)request.RecordInterval, request.StartDateTime, request.EndDateTime, deadline, ct);
-			reader.ReadDeadline = deadline;
+			using ISymbolHistoryStoreReader reader = request.RecordInterval == HistoricalDataIntervalEnum.INTERVAL_TICK
+				? await store.CreateTickReaderAsync(symbol, request.StartDateTime, request.EndDateTime, deadline, ct)
+				: await store.CreateCandleReaderAsync(symbol, (int)request.RecordInterval, request.StartDateTime, request.EndDateTime, deadline, ct);
+			if (reader is TInvestHistoryReader candles) candles.ReadDeadline = deadline;
 			await HistoricalPriceDataStreamer.StreamAsync(reader, request.RequestId, request.RecordInterval,
 				_currentMessageProtocol.MessageEncoderFactory, bytes => SendResponse(bytes), L, ct, () => sentHeader = true);
 		}

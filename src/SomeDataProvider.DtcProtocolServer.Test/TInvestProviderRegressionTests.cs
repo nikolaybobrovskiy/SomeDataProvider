@@ -30,6 +30,7 @@ public class TInvestProviderRegressionTests
 		Assert.That(logs.Entries, Is.Empty);
 		provider.Initialize();
 		provider.Initialize();
+		provider.StartupTask.GetAwaiter().GetResult();
 		Assert.That(created, Is.EqualTo(1));
 		Assert.That(provider.SourcesDescription, Is.EqualTo(readOnly ? "FRED, T-Invest (production)" : "FRED"));
 		var messages = string.Join("\n", logs.Entries.Select(entry => entry.Message));

@@ -45,8 +45,11 @@ static class HistoricalPriceDataStreamer
 		CancellationToken ct,
 		Action? headerSent = null)
 	{
-		var batch = await ReadNextNonEmptyBatchAsync(reader, logger, ct);
-		var noRecordsToReturn = batch == null;
+		// A tick answer knows its size from the pre-header count, so its header goes out before the first archive is
+		// loaded; a load that fails or runs out of time after that closes the connection, never a late reject.
+		var countedTicks = reader as TInvestTickReader;
+		var batch = countedTicks != null ? null : await ReadNextNonEmptyBatchAsync(reader, logger, ct);
+		var noRecordsToReturn = countedTicks != null ? countedTicks.Total == 0 : batch == null;
 		logger.LogInformation("SendHeader({recordsExist})", !noRecordsToReturn);
 		// TODO: ZLibCompression if client requests.
 		await EncodeAndSendAsync(
@@ -54,6 +57,11 @@ static class HistoricalPriceDataStreamer
 			send,
 			encoder => encoder.EncodeHistoricalPriceDataResponseHeader(requestId, recordInterval, false, noRecordsToReturn, 1));
 		headerSent?.Invoke();
+		if (countedTicks != null)
+		{
+			await StreamCountedTicksAsync(countedTicks, requestId, encoderFactory, send, logger, ct);
+			return;
+		}
 
 		while (batch != null)
 		{
@@ -68,6 +76,13 @@ static class HistoricalPriceDataStreamer
 				var lastIndex = records.Count - 1;
 				foreach (var rec in records)
 				{
+					if (rec is TInvestTickRecord tick)
+					{
+						encoder.EncodeHistoricalPriceDataTickRecordResponse(requestId, tick.Microseconds, tick.Direction == TInvestDirection.Buy, tick.Direction == TInvestDirection.Sell, tick.LastPrice, tick.Volume, isFinalBatch && recIndex == lastIndex);
+						recIndex++;
+						continue;
+					}
+
 					encoder.EncodeHistoricalPriceDataRecordResponse(
 						requestId,
 						rec.TimeStamp,
@@ -84,6 +99,35 @@ static class HistoricalPriceDataStreamer
 				}
 			});
 			batch = nextBatch;
+		}
+	}
+
+	/// <summary>
+	/// Sends the ticks of a counted answer. There is no read-ahead: the final flag comes from the counted total, and each
+	/// batch is sent before the next day is loaded, so a first tick waits for one load only.
+	/// </summary>
+	static async Task StreamCountedTicksAsync(TInvestTickReader reader, int requestId, IMessageEncoderFactory encoderFactory, Action<byte[]> send, ILogger logger, CancellationToken ct)
+	{
+		long sent = 0;
+		while (sent < reader.Total)
+		{
+			var batch = await ReadNextNonEmptyBatchAsync(reader, logger, ct);
+			if (batch == null) throw new TInvestRequestException("T-Invest tick history changed while it was read.");
+			var records = batch.Records;
+			var isFinalBatch = sent + records.Count >= reader.Total;
+			logger.LogInformation("EncodeAndSendRecords({recordsCount}, {isFinalBatch})", records.Count, isFinalBatch);
+			await EncodeAndSendAsync(encoderFactory, send, encoder =>
+			{
+				var i = 0;
+				var lastIndex = records.Count - 1;
+				foreach (var record in records)
+				{
+					var tick = (TInvestTickRecord)record;
+					encoder.EncodeHistoricalPriceDataTickRecordResponse(requestId, tick.Microseconds, tick.Direction == TInvestDirection.Buy, tick.Direction == TInvestDirection.Sell, tick.LastPrice, tick.Volume, isFinalBatch && i == lastIndex);
+					i++;
+				}
+			});
+			sent += records.Count;
 		}
 	}
 

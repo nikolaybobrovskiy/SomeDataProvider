@@ -42,7 +42,7 @@ Currently implemented data sources:
 ## T-Invest instruments, search, bar history and live data
 
 T-Invest is a second, optional source. It provides complete security definitions, symbol search, bar history,
-live trades, best bid/ask and market depth. Tick history and trading are not implemented yet; those requests are rejected.
+live trades, best bid/ask, market depth and tick history. Trading is not implemented; those requests are rejected.
 FRED and the private series extension are unchanged; series requests remain FRED-only.
 The source is off in the shipped `appsettings.json` (`TokenSource` is empty).
 
@@ -57,7 +57,17 @@ Copy the local example next to the server's `appsettings.json`. Select exactly o
   This file is copied to local build output, but never published. Keep the token out of source control.
 
 There is no fallback between sources. A missing credential, authentication failure or non-read-only production
-account disables T-Invest and leaves FRED available. Sandbox startup calls `GetInfo` only. Production startup
+account disables T-Invest and leaves FRED available. The startup check runs in the background, so the server
+(and FRED) never waits for T-Invest. It keeps its 8-second deadline and goes through the shared limiter.
+Transient failures (`DeadlineExceeded`, `Unavailable`, `Internal`, network and TLS-handshake errors, a quota block)
+are retried every 30 seconds until one attempt passes; the first failure is logged, then one line every 10 minutes.
+Failures only the operator can fix (`Unauthenticated`, `PermissionDenied`, a token for the other environment, a
+non-read-only production token, invalid settings) are logged once and not retried until restart. On success the
+store, the hub and the watch list are created exactly once and the log says how many attempts it took; disposal
+stops the retry loop. Until then, T-Invest requests get "T-Invest source is starting; retry in 30 s" (a retry-in
+reject for history), not "unknown symbol". When the check passes, sessions whose market data or depth requests were
+rejected that way receive feed-available, and Sierra Chart resubscribes by itself
+(`ResubscribeWhenMarketDataFeedAvailable=1`). Sandbox startup calls `GetInfo` only. Production startup
 checks `GetAccounts`: at least one account, all read-only. It never places orders. The logon text identifies
 configured sources and the selected environment; the symbol/exchange delimiter stays empty.
 Tokens are held outside the options object and redacted from all configured logging sinks, including exceptions
@@ -78,6 +88,10 @@ Settings under `StoresOptions:TInvest` (all are validated at startup):
 | `StreamSilenceTimeout` | `00:03:00` | TimeSpan `00:00:30`–`00:15:00`, inclusive; no message of any kind for this long breaks the stream |
 | `SessionQueueLimit` | `50000` | integer 128–100000 market updates per DTC session; control messages are never dropped |
 | `RecordSymbols` | `[]` | array of unique `TICKER-CLASSCODE` strings, 3–128 ASCII letters/digits/`.`/`_`/`-` each; split at the last `-`, both parts required; no `fred` prefix; at most `150 × MaxStreams` entries |
+| `MaxTickDaysPerRequest` | `31` | integer 1–31 UTC calendar days per tick request |
+| `MaxTicksPerRequest` | `5000000` | integer 1,000–5,000,000 ticks per tick request |
+| `ArchiveCacheFolder` | omitted | absolute path without wildcard or quote characters; omitted selects `%LOCALAPPDATA%/SomeDataProvider/tinvest-archives` |
+| `ArchiveCacheMaxBytes` | `21474836480` (20 GB) | integer 100 MB–1 TB (104857600–1099511627776) |
 
 The `Token` value is read only by the File source: it must be nonempty and not whitespace. Invalid setting
 values fail startup with the setting name; errors never include the token. Endpoints are fixed TLS endpoints:
@@ -99,9 +113,10 @@ Sierra Chart Symbol Settings:
   Global Settings > Data/Trade Service Settings > Common Settings > Intraday Data Storage Time Unit
   controls this, not the chart's display period; 1 Minute is supported. This is a global setting affecting
   other charts too, so use a separate Sierra Chart installation if their storage must stay at 1 Tick.
-  The bridge never changes Sierra Chart settings. Tick requests still receive a stage reject.
+  The bridge never changes Sierra Chart settings. For tick charts, set the storage unit to 1 Tick and see
+  "Tick history" below.
 - Daily and supported intraday bar charts, live trades, best bid/ask, DOM and Time and Sales are usable now.
-  Tick-storage history downloads still reject until the tick-history stage.
+  Tick-storage history downloads work as described under "Tick history".
 - After this stage is committed, check the bridge in Sierra Chart: open one configured T-Invest symbol during exchange
   trading, verify Time and Sales and best bid/ask updates, then open its DOM and confirm the requested depth is populated.
   A quiet/closed exchange may leave the DOM unchanged; it is not evidence that depth encoding failed. If a subscription
@@ -180,8 +195,80 @@ Ticks and conservative coverage are flushed every second. Coverage stops at the 
 a one-second latency margin, never at the watchdog's later detection time. A broken stream or restart leaves a hole,
 even if no trade was observed. Disk work is separate from hub delivery; old-day handles close at midnight, and only
 changed manifests are written. A failed disk write or recorder-queue overflow stops extending recorded coverage.
-Answering tick history, merging the last hour,
-and archive-driven cleanup belong to the later tick-history stage; recording now does not make tick downloads available.
+Today's tick history reads this recording (see "Tick history"). A recorder with no persistence root proves no coverage.
+Recorded days that are older than the newest archive day the bridge has seen are deleted by the archive cleanup.
+
+### Tick history (stage 5b)
+
+A DTC historical request with `INTERVAL_TICK` is answered with `HISTORICAL_PRICE_DATA_TICK_RECORD_RESPONSE`
+records. A tick carries the trade price in every price field, the volume as quantity × lot size, and the buy or
+sell side as at-ask or at-bid. Time keeps microseconds (the source's nanoseconds are truncated). The last record
+has the final flag. Bounds are whole UTC seconds, half-open `[start, end)`; an open end means the moment the answer is put together; a start of 0 is
+rejected.
+
+- **Past days** come from the downloaded per-instrument-day trade archives: an anonymous HTTPS GET
+  `/history-trades/{yyyy-MM-dd}?instrumentId={uid}` (gzip or ZIP around a CSV, told apart by their first bytes).
+  Rows from dealer sources are dropped unless `IncludeDealerTrades` is true, a malformed row fails the read, and
+  the order is stable. Archive days are UTC dates (see the measurements below).
+- **Disk cache.** Files are kept as downloaded under `{ArchiveCacheFolder}/{uid}/{yyyy-MM-dd}.archive`. A past day
+  never expires; once the folder exceeds `ArchiveCacheMaxBytes` the least recently used days are deleted. Days that a running request still reads are not deleted, and one archive larger than the cap is refused, not kept.
+- **Missing archives.** A 404 means the day has no archive. The bridge then checks the day's minute candles: a day
+  with no candles (a weekend or holiday) is an empty day. A day with candles but no archive is served from the
+  bridge's own recording only if that recording covers the whole requested part of the day; otherwise it is
+  rejected before the header with "no T-Invest trade archive for yyyy-MM-dd". Weekends are not assumed empty.
+- **Budget.** The archive host allows 30 downloads a minute per address; the bridge plans 27 (90%). A request whose
+  uncached days do not fit gets a retry-in reject (1–300 seconds) before the header, and the missing days are
+  fetched in the background (at most 15 minutes of work, two at a time) so the retry usually finds them cached.
+  HTTP 429 blocks the archive window until `x-ratelimit-reset` (60 seconds without it) and is retried once, only
+  if the caller's deadline allows.
+- **Today** is the bridge's own recording merged with one exchange-filtered `GetLastTrades` answer for the last
+  hour. The two are merged as multisets: a trade seen by both appears once, and two equal trades appear twice.
+  The recording must cover `[start, min(end, now))` together with that last hour; otherwise the request is rejected
+  before the header and the message names the uncovered span (UTC times). So today's ticks need the watch list
+  (`RecordSymbols`) running, or a DTC client subscribed, for the whole time since the start of the requested range;
+  an hour of history needs no recording.
+- **Caps** are checked before the header: more than `MaxTickDaysPerRequest` UTC days, or more than
+  `MaxTicksPerRequest` ticks, is rejected with the size in the message. A source failure after the header closes
+  the connection with no final record, as for bars (stage 5a).
+- **What R-5 means for you:** ticks are never invented. A day or an interval the bridge cannot prove complete is a
+  reject with a reason, not a shorter answer. Missing live ticks from an outage are backfilled only from archives
+  (the next day) or `GetLastTrades` (the last hour).
+
+The explicit sandbox check `MergesTodaysRecordedTicksWithLastTrades` records a 45-second sample, then asks for the
+last 30 minutes and prints counts and coverage seconds only (`--filter Name=MergesTodaysRecordedTicksWithLastTrades`,
+same variables and helper as the other sandbox checks). The sandbox has no trade archives, so archives are never
+requested there. The measured sandbox run recorded 26 ticks in 43 seconds of coverage, merged them with the last
+trades into an ordered answer and used 22 of the 30 allowed requests.
+
+### Production archive contract (measured November 2, 2026)
+
+The approved read-only probe downloaded three instrument-day archives from the production host. All three
+anonymous requests returned HTTP 200 and gzip bytes containing the documented seven-column CSV schema;
+no authenticated archive request was needed. Sandbox tokens were not sent to production. This resolves Q-1
+for these archives: downloading them does not require a token, including when the bridge uses the sandbox.
+
+Archive dates are UTC calendar dates, not Moscow calendar dates (Q-2). The October 29 and October 30 files
+contained 120,566 and 79,081 rows. All timestamps were inside the named UTC day. The October 30 file included
+103 dealer rows after 21:00 UTC, which is already the following Moscow calendar day. The November 1 Sunday
+file contained 19,044 rows, including 16,101 exchange rows: a weekend alone is not evidence of no trading.
+Exchange-only counts for the two weekday files were 120,566 and 78,978. The sample does not establish the
+publication hour or availability of a newly finished day's archive; missing files still need candle-coverage
+proof rather than a weekday/weekend assumption.
+
+Production TLS preflight used the gateway's bundled-root-only handler, without a token: HTTP 404 in 1,051 ms,
+with no certificate errors. Production access validation found one account and confirmed read-only access for
+all returned accounts. No account identifiers or archive rows were retained.
+
+The same run's 70-second production stream was active: 71 trade messages and 361 order-book messages,
+no pings, and a longest inter-message gap of 958 ms. Access validation took 334 ms, instrument lookup 54 ms,
+and trading-status lookup 46 ms. This confirms liveness while data flows, not quiet-stream ping timing (Q-3).
+
+Q-3 on production was then measured in a quiet period (November 3, 2026, about 02:20 Moscow time, a weekday): the
+trading status was NotAvailableForTrading, access validation took 181 ms, instrument lookup 58 ms and the status
+lookup 39 ms. The 70-second exchange-only sample received no trades or quotes and six pings, at 10.6, 21.6, 32.6,
+43.6, 54.6 and 65.6 s, so the intervals were 11,000, 11,000, 11,000, 11,001 and 11,000 ms. The longest gap between
+any two messages was 11,001 ms. This matches the sandbox figures, so Q-3 is confirmed on both hosts: with the 10 s
+ping setting, an idle stream shows one message every 11.0 s.
 
 During a T-Invest outage, affected symbols receive feed-unavailable once; FRED stays usable. The hub reconnects
 with 1, 2, 4 … 30-second backoff and ±20% jitter, resubscribes through the shared quota, and verifies the subscriptions
@@ -190,19 +277,21 @@ retried once, then stays unavailable while delayed retries run every 30 seconds.
 waiting subscribers at their deadline, not healthy streams. Successful symbols
 receive feed-available; logon advertises `ResubscribeWhenMarketDataFeedAvailable=1`, so DTC clients resubscribe with their
 existing SymbolIDs and get fresh snapshots. No unsolicited restoration snapshot is pushed. Sierra Chart may show a data
-interruption; until tick history lands, missing live ticks cannot be backfilled through this server.
+interruption; missing live ticks are backfilled only as described under "Tick history".
 
 The stream requests 10-second idle pings. T-Invest sends them only while no data flows, so active samples
 without pings are inconclusive for Q-3, not evidence of a broken stream. On November 1, 2026 the bounded sandbox
 sample received six pings, with intervals of 10,999, 11,000, 11,000, 11,001 and 11,000 ms; the longest gap between
 any two messages was 11,001 ms. No trades or quotes arrived, but the snapshot status was DealerNormalTrading,
-which the conservative quiet-stream rule excludes. The check was therefore inconclusive, not a qualifying Q-3 pass.
-The 180-second default remains provisional; the production quiet-stream check in the tick-history stage must
-confirm it. No more sandbox retries are authorized. Any upstream message, not just a ping, proves liveness.
+which the earlier rule excluded. Dealer statuses describe T-Bank's own off-exchange trading, which the
+exchange-only subscriptions do not carry, so the sample counts as quiet: a dealer-only status with no trades and
+no quotes is quiet. Pings arrived every 11.0 s with the 10 s setting, so the 180-second default is about 16 ping
+intervals. Any upstream message, not just a ping, proves liveness.
 The explicit `SamplesLiveStreamThroughHub` sandbox test samples for 70 seconds after subscription (at most 110 seconds
 overall). Every run prints subscription statuses, counts by kind, snapshot trading-status name, elapsed time,
 attempts, ping count/intervals and the longest gap between upstream messages; no market payload values are printed.
-A quiet sample has no trades or quotes and a known non-normal-trading status; it requires at least three pings,
+A quiet sample has no trades or quotes and a known status other than normal trading or session open (non-trading
+and dealer-only statuses count); it requires at least three pings,
 and the default timeout must exceed three times the longest ping interval. An active or unknown-status sample
 is inconclusive for Q-3. Select the test with
 `--filter FullyQualifiedName~SamplesLiveStreamThroughHub` and the same sandbox variables/helper described below.
@@ -219,8 +308,8 @@ Limits use shared rolling windows at 90%: instruments 180/minute, market data 54
 subscriptions 90/minute, archives 27/minute, and all attempts 45/second. Response rate-limit headers can reduce
 admission further. Definitions/search wait at most eight seconds, then reject with a retry-in hint; exhausted
 calls retry at most once, only if the reset fits the same deadline. No upstream error text is sent to clients.
-HTTP 429 handling belongs to the later archive-download HTTP transport; this stage uses gRPC unary calls and
-handles the API's `RESOURCE_EXHAUSTED` quota status. An unexpected HTTP 429 in gRPC is a safe source failure.
+Archive downloads use plain HTTPS and handle HTTP 429 themselves (see "Tick history"); gRPC calls handle the
+API's `RESOURCE_EXHAUSTED` quota status. An unexpected HTTP 429 in gRPC is a safe source failure.
 
 Gateway construction follows approved amendment A-7 (task `t_2288470e`, user approval recorded October 31, 2026):
 it builds one authenticated gRPC channel and the SDK's generated service clients directly. The pinned

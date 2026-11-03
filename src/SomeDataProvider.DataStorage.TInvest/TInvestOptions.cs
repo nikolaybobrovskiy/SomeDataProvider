@@ -14,9 +14,18 @@ public sealed class TInvestOptions
 	public int MaxDepth { get; init; } = 50;
 	public TimeSpan StreamSilenceTimeout { get; init; } = TimeSpan.FromSeconds(180);
 	public int SessionQueueLimit { get; init; } = 50_000;
+	/// <summary>Tick history: 1-31 UTC days per DTC request.</summary>
+	public int MaxTickDaysPerRequest { get; init; } = 31;
+	/// <summary>Tick history: 1,000-5,000,000 ticks per DTC request.</summary>
+	public int MaxTicksPerRequest { get; init; } = 5_000_000;
+	/// <summary>Full path of the downloaded trade archive folder; null selects the default under the local application data folder.</summary>
+	public string? ArchiveCacheFolder { get; init; }
+	/// <summary>Trade archive cache size cap in bytes: 100 MB to 1 TB (default 20 GB).</summary>
+	public long ArchiveCacheMaxBytes { get; init; } = 20L * 1024 * 1024 * 1024;
 	public string[] RecordSymbols { get; init; } = Array.Empty<string>();
 	public bool Enabled => TokenSource.Length != 0;
 	public bool IsSandbox => Environment == "Sandbox";
+	public string EffectiveArchiveCacheFolder => ArchiveCacheFolder ?? Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "SomeDataProvider", "tinvest-archives");
 	public string EffectiveCredentialTarget => CredentialTarget ?? $"SomeDataProvider/TInvest/{Environment}";
 
 	public void Validate()
@@ -51,6 +60,26 @@ public sealed class TInvestOptions
 			throw new ArgumentException("TInvest:MaxCandleCallsPerRequest must be 1-400.");
 		}
 
+		if (MaxTickDaysPerRequest is < 1 or > 31)
+		{
+			throw new ArgumentException("TInvest:MaxTickDaysPerRequest must be 1-31.");
+		}
+
+		if (MaxTicksPerRequest is < 1_000 or > 5_000_000)
+		{
+			throw new ArgumentException("TInvest:MaxTicksPerRequest must be 1000-5000000.");
+		}
+
+		if (ArchiveCacheFolder != null && (string.IsNullOrWhiteSpace(ArchiveCacheFolder) || ArchiveCacheFolder.Length > 240 || ArchiveCacheFolder.Any(char.IsControl) || ArchiveCacheFolder.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || !Path.IsPathFullyQualified(ArchiveCacheFolder) || HasInvalidFolderName(ArchiveCacheFolder)))
+		{
+			throw new ArgumentException("TInvest:ArchiveCacheFolder must be a full path of 1-240 valid characters, or omitted for the default folder.");
+		}
+
+		if (ArchiveCacheMaxBytes is < 100L * 1024 * 1024 or > 1024L * 1024 * 1024 * 1024)
+		{
+			throw new ArgumentException("TInvest:ArchiveCacheMaxBytes must be 104857600 (100 MB) to 1099511627776 (1 TB).");
+		}
+
 		if (TokenSource is not ("" or "CredentialManager" or "Environment" or "File"))
 		{
 			throw new ArgumentException("TInvest:TokenSource must be empty, CredentialManager, Environment or File.");
@@ -65,6 +94,16 @@ public sealed class TInvestOptions
 		{
 			throw new ArgumentException("TInvest:CredentialTarget must be 1-256 non-control characters, not whitespace, or omitted.");
 		}
+	}
+
+	// Path.GetInvalidPathChars() misses the characters that are only invalid inside a name: wildcards, quotes and a colon after the drive.
+	static bool HasInvalidFolderName(string folder)
+	{
+		var root = Path.GetPathRoot(folder) ?? string.Empty;
+		// A drive root has its one colon; the server and share of a UNC root are names like any other.
+		var unc = root.StartsWith("\\\\", StringComparison.Ordinal) || root.StartsWith("//", StringComparison.Ordinal);
+		var checkedText = (unc ? root[2..] : string.Empty) + folder[root.Length..];
+		return checkedText.IndexOfAny(new[] { '<', '>', ':', '"', '|', '?', '*' }) >= 0;
 	}
 
 	static bool ValidRecordSymbol(string? value) => value != null && value.Length is >= 3 and <= 128 && !value.StartsWith("fred", StringComparison.OrdinalIgnoreCase) && value.LastIndexOf('-') > 0 && value[^1] != '-' && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-');

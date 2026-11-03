@@ -165,12 +165,16 @@ partial class Session
 				}
 
 				var text = ex is TInvestRequestException bridge ? bridge.Message : ex is OperationCanceledException ? "T-Invest market depth is unavailable; retry later." : "T-Invest market depth is unavailable.";
+				var starting = ex is TInvestRequestException { Kind: TInvestFailureKind.Starting };
+				if (starting) _startupRejected.Add(symbolId);
 				encoder.EncodeMarketDepthReject(symbolId, text);
 				SendResponse(encoder.GetEncodedMessage());
 				if (state != null)
 				{
 					RemoveDepthSubscription(symbolId);
 				}
+
+				if (starting) AnnounceFeedIfStarted(symbolId);
 			}
 		}
 		finally

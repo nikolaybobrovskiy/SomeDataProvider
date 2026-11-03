@@ -439,14 +439,35 @@ sealed class TInvestTestHost : IDisposable
 	readonly StoresProvider _provider;
 	readonly ConnectedServer _server;
 
+	public TInvestTestHost(StoresProvider provider, TimeProvider? clock = null)
+	{
+		_provider = provider;
+		_server = new ConnectedServer(_provider, clock, false);
+		if (!_server.Start()) throw new InvalidOperationException("Loopback test server could not start.");
+	}
+
 	public TInvestTestHost(ITInvestGateway gateway, TimeProvider? clock = null, TInvestOptions? options = null, bool onlyHistoryServer = false)
 	{
-		_provider = new StoresProvider(null, new TInvestStore(gateway, options ?? new TInvestOptions(), clock), NullLoggerFactory.Instance);
+		Store = new TInvestStore(gateway, options ?? new TInvestOptions(), clock);
+		_provider = new StoresProvider(null, Store, NullLoggerFactory.Instance);
 		_server = new ConnectedServer(_provider, clock, onlyHistoryServer);
 		if (!_server.Start()) throw new InvalidOperationException("Loopback test server could not start.");
 	}
 
 	public int Port => ((IPEndPoint)_server.Endpoint).Port;
+	public TInvestStore Store { get; } = null!;
+
+	public DtcClientSettings ClientSettings() => new()
+	{
+		Host = "127.0.0.1",
+		Port = Port,
+		Profile = DtcServerProfile.Generic,
+		Encoding = EncodingEnum.BINARY_WITH_VARIABLE_LENGTH_STRINGS,
+		SynchronizeTrading = false,
+		Reconnect = false,
+		HeartbeatIntervalInSeconds = 10,
+	};
+
 	public Task BarrierAsync() => _server.MarketDataHub!.BarrierAsync();
 
 	public async Task ConnectAsync(DtcClient client)

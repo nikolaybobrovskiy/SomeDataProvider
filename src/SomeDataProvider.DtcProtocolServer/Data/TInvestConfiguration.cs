@@ -26,7 +26,8 @@ static class TInvestConfiguration
 
 		foreach (var setting in section.GetChildren().Where(c => !string.Equals(c.Key, "RecordSymbols", StringComparison.OrdinalIgnoreCase)))
 		{
-			if (setting.Value == null || setting.GetChildren().Any())
+			var nullAllowed = string.Equals(setting.Key, "ArchiveCacheFolder", StringComparison.OrdinalIgnoreCase);
+			if ((setting.Value == null && !nullAllowed) || setting.GetChildren().Any())
 			{
 				throw new ArgumentException("TInvest:" + setting.Key + " must be a scalar value, not null or a container.");
 			}
@@ -67,7 +68,8 @@ static class TInvestConfiguration
 
 					foreach (var setting in invest.Value.EnumerateObject().Where(p => !string.Equals(p.Name, "RecordSymbols", StringComparison.OrdinalIgnoreCase)))
 					{
-						if (setting.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Null)
+						var nullOk = string.Equals(setting.Name, "ArchiveCacheFolder", StringComparison.OrdinalIgnoreCase) && setting.Value.ValueKind == JsonValueKind.Null;
+						if (!nullOk && setting.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Null)
 						{
 							throw new ArgumentException("TInvest:" + setting.Name + " must be a scalar value, not null or a container.");
 						}

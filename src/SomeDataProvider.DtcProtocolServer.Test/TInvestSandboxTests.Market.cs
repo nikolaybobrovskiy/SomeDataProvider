@@ -139,7 +139,7 @@ public partial class TInvestSandboxTests
 			Assert.That(clock.Elapsed < TimeSpan.FromSeconds(110), Is.True, "Stream sample is bounded.");
 			if (!quiet)
 			{
-				Assert.Inconclusive("Q-3 requires a quiet stream with a known non-trading snapshot status; active streams need not send pings.");
+				Assert.Inconclusive("Q-3 requires a quiet exchange-only stream (a non-trading or dealer-only status, no trades or quotes); active streams need not send pings.");
 			}
 
 			Assert.That(intervals.Length >= 2 && intervals.All(i => i > 0), Is.True, "At least three pings on the quiet stream.");
@@ -299,7 +299,10 @@ public partial class TInvestSandboxTests
 	[TestCase(TInvestTradingStatus.NotAvailableForTrading, 0, 0, 0, true)]
 	[TestCase(TInvestTradingStatus.NormalTrading, 0, 0, 0, false)]
 	[TestCase(TInvestTradingStatus.SessionOpen, 0, 0, 0, false)]
-	[TestCase(TInvestTradingStatus.DealerNormalTrading, 0, 0, 0, false)]
+	[TestCase(TInvestTradingStatus.DealerNormalTrading, 0, 0, 0, true)]
+	[TestCase(TInvestTradingStatus.DealerNormalTrading, 0, 1, 0, false)]
+	[TestCase(TInvestTradingStatus.DealerBreakInTrading, 0, 0, 0, true)]
+	[TestCase(TInvestTradingStatus.DealerNotAvailableForTrading, 0, 0, 0, true)]
 	[TestCase(TInvestTradingStatus.Unspecified, 0, 0, 0, false)]
 	[TestCase(TInvestTradingStatus.SessionClose, 1, 0, 0, false)]
 	[TestCase(TInvestTradingStatus.SessionClose, 0, 1, 0, false)]
@@ -309,5 +312,5 @@ public partial class TInvestSandboxTests
 		Assert.That(IsQuietSample(status, trades, quotes, books), Is.EqualTo(quiet));
 	}
 
-	static bool IsQuietSample(TInvestTradingStatus status, int trades, int quotes, int books) => trades == 0 && quotes == 0 && books == 0 && Enum.IsDefined(status) && status is not (TInvestTradingStatus.Unspecified or TInvestTradingStatus.NormalTrading or TInvestTradingStatus.SessionOpen or TInvestTradingStatus.DealerNormalTrading);
+	static bool IsQuietSample(TInvestTradingStatus status, int trades, int quotes, int books) => trades == 0 && quotes == 0 && books == 0 && Enum.IsDefined(status) && status is not (TInvestTradingStatus.Unspecified or TInvestTradingStatus.NormalTrading or TInvestTradingStatus.SessionOpen);
 }

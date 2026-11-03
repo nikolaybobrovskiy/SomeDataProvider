@@ -11,7 +11,7 @@ using System.Threading;
 using SomeDataProvider.DataStorage.TInvest;
 
 /// <summary>Exchange ticks and progress-bounded UTC coverage. Disk work never holds the hub-facing lock.</summary>
-sealed class TInvestTickRecorder : IDisposable
+sealed class TInvestTickRecorder : IDisposable, ITickRecording
 {
 	readonly object _gate = new();
 	readonly object _ioGate = new();
@@ -113,6 +113,46 @@ sealed class TInvestTickRecorder : IDisposable
 			return Merge(persisted.Concat(_coverage.GetValueOrDefault((uid, day), new())));
 	}
 
+	// Without a folder nothing is durable, so nothing is proven: history never serves from an in-memory recorder.
+	IReadOnlyList<(DateTimeOffset Start, DateTimeOffset End)> ITickRecording.Coverage(string uid, DateOnly day) =>
+		_root == null ? Array.Empty<(DateTimeOffset, DateTimeOffset)>() : Coverage(uid, day).Select(c => (c.Start, c.End)).ToArray();
+
+	/// <summary>Flushes queued trades, then reads the day's file. Only whole 29-byte records count.</summary>
+	IReadOnlyList<TInvestTrade> ITickRecording.Read(string uid, DateOnly day, DateTimeOffset start, DateTimeOffset end)
+	{
+		if (_root == null)
+		{
+			return Array.Empty<TInvestTrade>();
+		}
+
+		lock (_ioGate)
+		{
+			FlushCore();
+			var path = DayPath(uid, day) + ".bin";
+			var result = new List<TInvestTrade>();
+			if (!File.Exists(path))
+			{
+				return result;
+			}
+
+			using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+			using var reader = new BinaryReader(file);
+			for (var index = 0L; index < file.Length / 29; index++)
+			{
+				var time = new TInvestTimestamp(reader.ReadInt64(), reader.ReadInt32());
+				var price = reader.ReadDouble();
+				var lots = reader.ReadInt64();
+				var direction = (TInvestDirection)reader.ReadByte();
+				if (time.Utc >= start && time.Utc < end)
+				{
+					result.Add(new TInvestTrade(uid, time, price, lots, direction, true));
+				}
+			}
+
+			return result;
+		}
+	}
+
 	public void Flush()
 	{
 		// Slow I/O cannot pile up timer callbacks or block Record/SetLive/Confirm.
@@ -164,7 +204,7 @@ sealed class TInvestTickRecorder : IDisposable
 
 			foreach (var file in Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories))
 			{
-				if (DateOnly.TryParseExact(Path.GetFileName(file).Split('.')[0], "yyyy-MM-dd", out var day) && day < newestArchivedDay)
+				if (DateOnly.TryParseExact(Path.GetFileName(file).Split('.')[0], "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var day) && day < newestArchivedDay)
 				{
 					File.Delete(file);
 				}
@@ -351,7 +391,7 @@ sealed class TInvestTickRecorder : IDisposable
 		return _persisted[key] = result;
 	}
 
-	string DayPath(string uid, DateOnly day) => Path.Combine(_root!, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(uid))).ToLowerInvariant(), day.ToString("yyyy-MM-dd"));
+	string DayPath(string uid, DateOnly day) => Path.Combine(_root!, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(uid))).ToLowerInvariant(), day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
 	void AddCoverage(string uid, DateTimeOffset start, DateTimeOffset end)
 	{
 		foreach (var part in Split(start, end))

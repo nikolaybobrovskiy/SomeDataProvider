@@ -23,9 +23,17 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 	public Func<string, int, CancellationToken, Task<TInvestOrderBook>>? OrderBook { get; set; }
 	public List<(string Uid, int Depth)> OrderBookRequests { get; } = new();
 	public List<ScriptedMarketDataStream> Streams { get; } = new();
+	public Dictionary<(string InstrumentId, DateOnly Day), byte[]> ArchiveFiles { get; } = new();
+	public Func<Task>? BeforeArchive { get; set; }
+	public List<(string InstrumentId, DateOnly Day)> ArchiveRequests { get; } = new();
+	public Func<DateTimeOffset, DateTimeOffset, IReadOnlyList<TInvestTrade>>? LastTrades { get; set; }
+	public List<(DateTimeOffset From, DateTimeOffset To)> LastTradeRequests { get; } = new();
+	public bool Disposed { get; private set; }
+	public Queue<Exception> AccessErrors { get; } = new();
 
 	public static TInvestInstrument Invent(string ticker = "SYNTH", string classCode = "TESTCC", TInvestInstrumentKind kind = TInvestInstrumentKind.Share) => new(new(ticker, classCode, "invented-uid-" + ticker, "Invented instrument", kind, 10, true), 0.01m, "zzz", 0.25m, 1000m, 5m);
-	public Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult(Access);
+	public Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken) =>
+		AccessErrors.TryDequeue(out var error) ? Task.FromException<TInvestAccess>(error) : Task.FromResult(Access);
 	public Task<TInvestInstrument?> GetInstrumentAsync(string ticker, string classCode, DateTimeOffset deadline, CancellationToken cancellationToken)
 	{
 		Lookups.Add((ticker, classCode));
@@ -60,9 +68,31 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 	}
 	public void Dispose()
 	{
+		Disposed = true;
 	}
 
 	public Task<TInvestRateLimiter.Reservation> ReserveCandlesAsync(int calls, DateTimeOffset deadline, CancellationToken cancellationToken) => Limiter.ReserveAsync(TInvestLimitGroup.MarketData, calls, deadline, cancellationToken);
+	public Task<TInvestRateLimiter.Reservation> ReserveArchivesAsync(int downloads, DateTimeOffset deadline, CancellationToken cancellationToken) => Limiter.ReserveAsync(TInvestLimitGroup.Archives, downloads, deadline, cancellationToken);
+
+	public async Task<bool> DownloadTradeArchiveAsync(string instrumentId, DateOnly day, string destination, TInvestRateLimiter.Reservation? reservation, DateTimeOffset deadline, CancellationToken cancellationToken)
+	{
+		if (reservation != null) await reservation.AcquireAsync(Limiter, deadline, cancellationToken);
+		else await Limiter.AcquireAsync(TInvestLimitGroup.Archives, deadline, cancellationToken);
+		lock (ArchiveRequests) ArchiveRequests.Add((instrumentId, day));
+		if (BeforeArchive != null) await BeforeArchive();
+		if (!ArchiveFiles.TryGetValue((instrumentId, day), out var bytes)) return false;
+		System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(destination)!);
+		await System.IO.File.WriteAllBytesAsync(destination, bytes, cancellationToken);
+		return true;
+	}
+
+	public async Task<IReadOnlyList<TInvestTrade>> GetLastTradesAsync(string uid, DateTimeOffset from, DateTimeOffset to, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken)
+	{
+		await reservation.AcquireAsync(Limiter, deadline, cancellationToken);
+		lock (LastTradeRequests) LastTradeRequests.Add((from, to));
+		return LastTrades?.Invoke(from, to) ?? Array.Empty<TInvestTrade>();
+	}
+
 	public async Task<IReadOnlyList<TInvestCandle>> GetCandlesAsync(TInvestCandleRequest request, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken)
 	{
 		await reservation.AcquireAsync(Limiter, deadline, cancellationToken);

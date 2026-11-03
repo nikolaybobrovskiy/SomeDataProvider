@@ -47,7 +47,7 @@ public class TInvestHistoryWireTests
 		Assert.That(gateway.Lookups.Single(), Is.EqualTo(("SYNTH", "TESTCC")));
 	}
 
-	[TestCase(0, "tick history")]
+	[TestCase(0, "UTC days")]
 	[TestCase(1, "Interval not supported")]
 	[TestCase(5, "last month")]
 	public void UnsupportedTickIntervalAndOldSecondRangesRejectBeforeHeader(int interval, string text)

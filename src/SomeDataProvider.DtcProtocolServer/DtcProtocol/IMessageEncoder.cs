@@ -51,6 +51,9 @@ namespace SomeDataProvider.DtcProtocolServer.DtcProtocol
 
 		void EncodeHistoricalPriceDataRecordResponse(int requestId, DateTime startDateTime, double openPrice, double highPrice, double lowPrice, double lastPrice, double volume, uint openInterestOrNumTrades, double bidVolume, double askVolume, bool isFinalRecord);
 
+		/// <summary>One tick: <paramref name="microseconds"/> since the Unix epoch go out as a double number of seconds.</summary>
+		void EncodeHistoricalPriceDataTickRecordResponse(int requestId, long microseconds, bool atAsk, bool atBid, double price, double volume, bool isFinalRecord);
+
 		// The private series extension's messages exist only in binary encoding with variable-length strings; the other
 		// encodings throw NotSupportedException. Strings are UTF-8.
 
