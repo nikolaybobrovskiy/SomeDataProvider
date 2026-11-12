@@ -9,6 +9,8 @@ public sealed class TInvestOptions
 	/// <summary>1-400 upstream candle calls per DTC request, including planned pages.</summary>
 	    public int MaxCandleCallsPerRequest { get; init; } = 400;
 	public bool IncludeDealerTrades { get; init; }
+	/// <summary>Exchange or IncludeWeekend. This selects candles only, never dealer-trade inclusion.</summary>
+	public string CandleSource { get; init; } = "Exchange";
 	public int MaxStreams { get; init; } = 4;
 	/// <summary>Maximum upstream and downstream order-book levels per side: 1, 10, 20, 30, 40 or 50.</summary>
 	public int MaxDepth { get; init; } = 50;
@@ -30,6 +32,9 @@ public sealed class TInvestOptions
 
 	public void Validate()
 	{
+		if (CandleSource is not ("Exchange" or "IncludeWeekend"))
+			throw new ArgumentException("TInvest:CandleSource must be Exchange or IncludeWeekend; dealer inclusion is a separate setting.");
+
 		if (MaxStreams is < 1 or > 32)
 		{
 			throw new ArgumentException("TInvest:MaxStreams must be 1-32.");

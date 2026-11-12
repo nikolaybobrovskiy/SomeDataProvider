@@ -170,7 +170,7 @@ public sealed partial class TInvestStore : ISymbolsStore, IDisposable
 		_gateway.Dispose();
 	}
 
-	static TInvestRequestException Limited() => new("T-Invest request limit reached; retry in 1 s.", TInvestFailureKind.Limit);
+	static TInvestRequestException Limited() => new("T-Invest request limit reached; retry in 1 s.", TInvestFailureKind.Limit, 1);
 	static TInvestRequestException Unsupported() => new("T-Invest instrument kind or definition is not supported.", TInvestFailureKind.Unsupported);
 
 	TimeSpan UntilRefresh()

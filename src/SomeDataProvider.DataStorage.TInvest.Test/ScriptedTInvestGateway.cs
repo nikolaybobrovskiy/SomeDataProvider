@@ -9,6 +9,8 @@ using SomeDataProvider.DataStorage.TInvest;
 
 public sealed class ScriptedTInvestGateway : ITInvestGateway
 {
+	public TInvestCalendar? Calendar { get; set; }
+
 	public List<(string Ticker, string ClassCode)> Lookups { get; } = new();
 	public List<TInvestInstrument> Instruments { get; } = new();
 	public int Searches { get; private set; }
@@ -32,6 +34,8 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 	public Queue<Exception> AccessErrors { get; } = new();
 
 	public static TInvestInstrument Invent(string ticker = "SYNTH", string classCode = "TESTCC", TInvestInstrumentKind kind = TInvestInstrumentKind.Share) => new(new(ticker, classCode, "invented-uid-" + ticker, "Invented instrument", kind, 10, true), 0.01m, "zzz", 0.25m, 1000m, 5m);
+	public Task<TInvestCalendar?> GetTradingCalendarAsync(string id, string revision, DateOnly from, DateOnly to, DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult(Calendar);
+
 	public Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken) =>
 		AccessErrors.TryDequeue(out var error) ? Task.FromException<TInvestAccess>(error) : Task.FromResult(Access);
 	public Task<TInvestInstrument?> GetInstrumentAsync(string ticker, string classCode, DateTimeOffset deadline, CancellationToken cancellationToken)

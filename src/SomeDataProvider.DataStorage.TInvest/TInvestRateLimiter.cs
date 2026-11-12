@@ -139,7 +139,8 @@ public sealed class TInvestRateLimiter
 		}
 	}
 
-	static TInvestRequestException Limited(TimeSpan delay) => new($"T-Invest request limit reached; retry in {Math.Clamp((int)Math.Ceiling(delay.TotalSeconds), 1, 300)} s.", TInvestFailureKind.Limit);
+	static TInvestRequestException Limited(TimeSpan delay) => new($"T-Invest request limit reached; retry in {Math.Clamp((int)Math.Ceiling(delay.TotalSeconds), 1, 300)} s.",
+		TInvestFailureKind.Limit, Math.Clamp((int)Math.Ceiling(delay.TotalSeconds), 1, 3600));
 
 	TimeSpan Admit(TInvestLimitGroup group, bool record)
 	{

@@ -193,6 +193,14 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 		_tInvestStore?.Dispose();
 	}
 
+	internal TInvestStore? GetTInvestInformationStore()
+	{
+		var store = Volatile.Read(ref _tInvestStore);
+		if (store == null && TInvestPending)
+			throw new TInvestRequestException("T-Invest source is starting.", TInvestFailureKind.Starting);
+		return store;
+	}
+
 	async Task RunStartupAsync()
 	{
 		var options = _startupOptions!;

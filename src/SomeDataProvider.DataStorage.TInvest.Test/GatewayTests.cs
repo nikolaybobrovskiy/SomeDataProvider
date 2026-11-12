@@ -83,6 +83,31 @@ public class GatewayTests
 		Assert.That(clock.ActiveTimers, Is.Zero);
 	}
 
+	[TestCase(17)]
+	[TestCase(1200)]
+	[TestCase(3600)]
+	public void SourceResetSurvivesDeadlineRefusalAsTypedRetry(int seconds)
+	{
+		var clock = new ManualTimeProvider();
+		var invoker = new ScriptedInvoker((_, _) => throw new RpcException(new Status(StatusCode.ResourceExhausted, "80002"), Reset(seconds)));
+		using var gateway = NewGateway(invoker, clock);
+		var error = Assert.ThrowsAsync<TInvestRequestException>(() => gateway.FindInstrumentsAsync("INVENTED", clock.GetUtcNow().AddSeconds(8), default));
+		Assert.That(error!.RetryAfterSeconds, Is.EqualTo(seconds));
+		Assert.That(invoker.Calls, Is.EqualTo(1));
+		Assert.That(clock.ActiveTimers, Is.Zero);
+	}
+
+	[Test]
+	public async Task ProductionCalendarSourceIsUnavailableWithoutAnyRpc()
+	{
+		var clock = new ManualTimeProvider();
+		var invoker = new ScriptedInvoker((_, _) => throw new InvalidOperationException("Calendar rules must not be inferred from a venue call."));
+		using var gateway = NewGateway(invoker, clock);
+		var calendar = await ((ITInvestGateway)gateway).GetTradingCalendarAsync("synthetic-calendar", "synthetic-r1", CalendarTests.Friday, CalendarTests.Monday, clock.GetUtcNow().AddSeconds(8), default);
+		Assert.That(calendar, Is.Null);
+		Assert.That(invoker.Calls, Is.Zero);
+	}
+
 	[TestCase(InstrumentType.Share, TInvestInstrumentKind.Share)]
 	[TestCase(InstrumentType.Etf, TInvestInstrumentKind.Etf)]
 	[TestCase(InstrumentType.Currency, TInvestInstrumentKind.Currency)]
@@ -102,6 +127,10 @@ public class GatewayTests
 		using var gateway = NewGateway(invoker, clock);
 		var result = (await gateway.GetInstrumentAsync("SYNTH", "TESTCC", clock.GetUtcNow().AddSeconds(8), default))!;
 		Assert.That(result.Short.Kind, Is.EqualTo(expected));
+		Assert.That(result.Board, Is.EqualTo("TESTCC"));
+		Assert.That(result.PriceUnit, Is.EqualTo(kind == InstrumentType.Futures ? "points" : kind == InstrumentType.Bond ? "percent-of-nominal" : "currency"));
+		Assert.That(result.Calendar, Is.Null);
+		Assert.That(result.DailyStampMode, Is.Zero);
 		Assert.That(result.Increment, Is.EqualTo(0.01m));
 		if (kind == InstrumentType.Futures)
 		{
@@ -279,9 +308,11 @@ public class GatewayTests
 		Assert.That(handler.Requests, Is.EqualTo(2));
 	}
 
-	[TestCase(false)]
-	[TestCase(true)]
-	public async Task CandleGatewayUsesReservedSlotAndMapsRequestAndResponse(bool dealer)
+	[TestCase(false, false)]
+	[TestCase(true, false)]
+	[TestCase(false, true)]
+	[TestCase(true, true)]
+	public async Task CandleGatewayUsesReservedSlotAndMapsRequestAndResponse(bool dealer, bool weekend)
 	{
 		var clock = new ManualTimeProvider();
 		var limiter = new TInvestRateLimiter(clock);
@@ -299,12 +330,12 @@ public class GatewayTests
 		});
 		using var gateway = new SdkTInvestGateway(invoker, new(), limiter, clock);
 		using var reservation = await gateway.ReserveCandlesAsync(1, clock.GetUtcNow().AddSeconds(20), default);
-		var rows = await gateway.GetCandlesAsync(new("invented-uid", from, clock.GetUtcNow(), 60, 2400, dealer), reservation, clock.GetUtcNow().AddSeconds(20), default);
+		var rows = await gateway.GetCandlesAsync(new("invented-uid", from, clock.GetUtcNow(), 60, 2400, dealer, weekend), reservation, clock.GetUtcNow().AddSeconds(20), default);
 		var request = (GetCandlesRequest)invoker.Requests.Single();
 		Assert.That(request.InstrumentId, Is.EqualTo("invented-uid"));
 		Assert.That(request.Interval, Is.EqualTo(CandleInterval._1Min));
 		Assert.That(request.HasLimit, Is.False, "API 30220 forbids limit with candle_source_type; the planner bounds page duration.");
-		Assert.That(request.CandleSourceType, Is.EqualTo(dealer ? GetCandlesRequest.Types.CandleSource.IncludeWeekend : GetCandlesRequest.Types.CandleSource.Exchange));
+		Assert.That(request.CandleSourceType, Is.EqualTo(weekend ? GetCandlesRequest.Types.CandleSource.IncludeWeekend : GetCandlesRequest.Types.CandleSource.Exchange), "Dealer filtering does not select the weekend candle source.");
 		Assert.That(rows.Single(), Is.EqualTo(CandleHistoryTests.Candle(from)));
 		var available = 0;
 		while (limiter.TryAcquire(TInvestLimitGroup.Users) == TimeSpan.Zero) available++;

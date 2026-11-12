@@ -111,6 +111,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 		var i = response.Instrument;
 		var shortInstrument = new TInvestInstrumentShort(i.Ticker, i.ClassCode, i.Uid, i.Name, Kind(i.InstrumentKind), i.Lot, i.ApiTradeAvailableFlag);
 		var instrument = new TInvestInstrument(shortInstrument, Decimal(i.MinPriceIncrement), i.Currency, Figi: i.Figi,
+			Board: i.ClassCode, PriceUnit: i.InstrumentKind switch { InstrumentType.Futures => "points", InstrumentType.Bond => "percent-of-nominal", _ => "currency" },
 			FirstMinuteCandle: i.First1MinCandleDate?.ToDateTimeOffset(), FirstDailyCandle: i.First1DayCandleDate?.ToDateTimeOffset());
 		var request = new InstrumentRequest { IdType = InstrumentIdType.Uid, Id = i.Uid };
 		if (i.InstrumentKind == InstrumentType.Futures)
@@ -179,7 +180,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 			To = Timestamp.FromDateTimeOffset(request.End),
 			Interval = interval,
 			// API error 30220 forbids limit with an explicit source. Time pages enforce the cap instead.
-			CandleSourceType = request.IncludeDealer ? GetCandlesRequest.Types.CandleSource.IncludeWeekend : GetCandlesRequest.Types.CandleSource.Exchange,
+			CandleSourceType = request.IncludeWeekend ? GetCandlesRequest.Types.CandleSource.IncludeWeekend : GetCandlesRequest.Types.CandleSource.Exchange,
 		}, deadline: deadline.UtcDateTime, cancellationToken: cancellationToken), deadline, cancellationToken, reservation: reservation).ConfigureAwait(false);
 		return response.Candles.Select(c => new TInvestCandle(c.Time.ToDateTimeOffset(), (double)Decimal(c.Open), (double)Decimal(c.High),
 			(double)Decimal(c.Low), (double)Decimal(c.Close), c.Volume, c.IsComplete, c.CandleSource == CandleSource.Exchange)).ToArray();
@@ -262,7 +263,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 			catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 			{
 				LastFailureStatus = StatusCode.DeadlineExceeded.ToString();
-				throw new TInvestRequestException("T-Invest request limit reached; retry in 1 s.", TInvestFailureKind.Limit);
+				throw new TInvestRequestException("T-Invest request limit reached; retry in 1 s.", TInvestFailureKind.Limit, 1);
 			}
 			catch (RpcException ex)
 			{
@@ -272,7 +273,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 				{
 					if (cancellationToken.IsCancellationRequested) throw new OperationCanceledException(cancellationToken);
 					if (ex.StatusCode == StatusCode.DeadlineExceeded || _clock.GetUtcNow() >= deadline)
-						throw new TInvestRequestException("T-Invest request limit reached; retry in 1 s.", TInvestFailureKind.Limit);
+						throw new TInvestRequestException("T-Invest request limit reached; retry in 1 s.", TInvestFailureKind.Limit, 1);
 				}
 				if (allowNotFound && ex.StatusCode is StatusCode.NotFound or StatusCode.InvalidArgument)
 				{
@@ -287,7 +288,9 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 				{
 					Correct(group, ex.Trailers.GetValue("x-ratelimit-reset") != null ? ex.Trailers : responseHeaders ?? ex.Trailers, true);
 					if (attempt == 0 && _clock.GetUtcNow() < deadline) continue;
-					throw new TInvestRequestException("T-Invest request limit reached; retry in 60 s.", TInvestFailureKind.Limit);
+					var resetHeaders = ex.Trailers.GetValue("x-ratelimit-reset") != null ? ex.Trailers : responseHeaders ?? ex.Trailers;
+					var retry = int.TryParse(resetHeaders.GetValue("x-ratelimit-reset"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds) ? Math.Clamp(seconds, 1, 3600) : 60;
+					throw new TInvestRequestException("T-Invest request limit reached; retry in 60 s.", TInvestFailureKind.Limit, retry);
 				}
 				throw new TInvestRequestException(ex.StatusCode == StatusCode.Unauthenticated
 					? "T-Invest token is missing, expired or for the other environment."

@@ -82,7 +82,8 @@ Settings under `StoresOptions:TInvest` (all are validated at startup):
 | `CredentialTarget` | omitted | 1–256 characters, not all whitespace, no control characters; omitted selects `SomeDataProvider/TInvest/<Environment>` |
 | `SearchOnlyApiTradeable` | `true` | JSON boolean `true` or `false` |
 | `MaxCandleCallsPerRequest` | `400` | integer 1–400, including time pages and any quota retry attempts |
-| `IncludeDealerTrades` | `false` | JSON boolean `true` or `false`; include dealer/weekend trades and candles when true |
+| `IncludeDealerTrades` | `false` | JSON boolean `true` or `false`; include dealer-classified display trades and retain dealer-classified candles when true; never selects weekend candles |
+| `CandleSource` | `Exchange` | `Exchange` or `IncludeWeekend`, case-sensitive; candle request mode only, independent of dealer inclusion |
 | `MaxStreams` | `4` | integer 1–32; each stream holds at most 150 instruments (300 trade/book subscriptions; info is free) |
 | `MaxDepth` | `50` | 1, 10, 20, 30, 40 or 50; maximum upstream and downstream order-book levels per side |
 | `StreamSilenceTimeout` | `00:03:00` | TimeSpan `00:00:30`–`00:15:00`, inclusive; no message of any kind for this long breaks the stream |
@@ -182,7 +183,11 @@ Trading status mapping (both snapshots and `TRADING_SYMBOL_STATUS`):
 | NotAvailableForTrading, ClosingPeriod, SessionClose | CLOSE |
 | Unspecified, ClosingAuction, DiscreteAuction, DarkPoolAuction, TradingAtClosingAuctionPrice, StabilizationAuction, all dealer-only statuses, any future unknown value | UNKNOWN |
 
-`IncludeDealerTrades=false` excludes dealer/weekend prints from the stream and snapshot last prices, as well as candles.
+`IncludeDealerTrades=false` excludes dealer-classified prints from the stream and snapshot last prices, and drops
+non-exchange-classified candles. Weekend candle requests are selected separately by `CandleSource`; this never
+enables dealer trades. Weekend exchange-tape equivalence is unverified, not assumed from the day of week.
+Migration: existing `IncludeDealerTrades=true` installations no longer select weekend candles implicitly.
+They use the default `CandleSource=Exchange` unless the operator explicitly selects `IncludeWeekend` too.
 The tick recorder always records exchange trades only, regardless of that display option. To start recording without
 a connected DTC client, set a watch list in the local T-Invest section, for example `"RecordSymbols": ["SYNTH-TESTCC"]`
 (invented symbol; replace it with your own). Initial lookup/subscription failures are retried every 30 seconds;
@@ -197,6 +202,50 @@ even if no trade was observed. Disk work is separate from hub delivery; old-day 
 changed manifests are written. A failed disk write or recorder-queue overflow stops extending recorded coverage.
 Today's tick history reads this recording (see "Tick history"). A recorder with no persistence root proves no coverage.
 Recorded days that are older than the newest archive day the bridge has seen are deleted by the archive cleanup.
+
+### Provider Information v1 (binary VLS)
+
+An explicit hello (20100/20101) negotiates instrument context and calendar transport on either listener.
+It echoes the caller's stable logical-profile `BudgetScopeID`, samples the provider UTC clock and reports
+wire caps: 65,535-byte frames, 4,096-byte long text, 16,384-byte context, 500 catalog rows (catalog feature off),
+32 trade dates and 16 windows per date. This stage does not enforce reconciliation budgets: `EmptyDayProofV1`,
+`RecentClosedTicksV1`, catalog, scoped search, clock refresh and probe bits remain off. Historical joins,
+clock-only refresh and probe scopes are rejected. Ordinary clients need not send a hello and receive no
+unsolicited extension messages; standard definitions, history and market data retain their existing behavior.
+
+Context (20102/20103) uses a canonical symbol such as `SYNTH-TESTCC` and empty exchange. It reads metadata
+through the gateway with an eight-second deadline, including incomplete definitions. Unknown optional UID,
+board/name, lot, currency, exact increment, price unit, monetary tick value, first candle dates, calendar
+references, tick caps and description stay absent, not zero. Daily stamp mode stays Unknown unless supplied
+by a verified adapter. The context feature mask does not grant daily-record ingestion in this stage.
+`SourceSemanticsID` describes requested candle mode, retained candle filter, dealer-trade filter, normalized
+quantity, price units and daily mode; `candles=IncludeWeekend` does not promise retention of non-exchange candles
+when `candle-filter=exchange` applies. Complete options advertise definitions only, never market/history support;
+`weekend=unknown` explicitly withholds weekend tape equivalence. A content-addressed UID epoch covers the
+exposed context and kind-specific definition/environment: identical metadata has the same epoch across
+sockets/restarts; changed UID, grid or source semantics changes it. A client must invalidate affected derived
+coverage rather than rescale it silently. No empty-day or closed-source completeness proof is implied.
+
+Calendar requests (20104) name a revision and inclusive date range. Immutable date-effective snapshots
+carry instrument membership, provenance, covered dates and expiry; windows (20105) carry Moscow civil
+boundaries, exact UTC intervals, owning trade date and main/additional marker. Duplicate windows are removed
+in chronological order; contradictory overlaps or cap overflow fail, never truncate. All rows are validated
+before any is sent; END (20106) gives the date/window totals. Zero windows alone is not empty-trade proof.
+
+**Production limitation:** no reviewed per-instrument historical calendar/trade-date source is installed yet.
+`ITInvestGateway.GetTradingCalendarAsync` is the single replacement seam; its current SDK/default result is
+unavailable without a source call. Production context omits calendar ID/revision, keeps daily mode and weekend
+coverage Unknown and cannot authorize a verified all-session daily source. A client uses its visibly unverified
+Moscow civil-calendar fallback, not guessed exchange holidays or today's venue hours for historical dates.
+The documentary calendar audit and separately approved L3/L10 checks must establish Q6/Q2/Q9 before a later
+adapter serves those windows. Offline fixtures here establish transport only, not real session rules.
+
+Rejects (20111) retain RequestID and failed Type, with safe generic text and optional typed retry seconds
+(0–3,600). Stable codes are `InvalidRequest`, `Unsupported`, `AlreadyNegotiated`, `FeatureUnavailable`,
+`UnknownSymbol`, `SourceStarting`, `SourceNotConfigured`, `SourceUnavailable`, `LimitRejected`,
+`CalendarUnavailable`, `CalendarRevisionMismatch`, `CalendarExpired`, `CalendarIncomplete` and `SourceMismatch`.
+A source reset hint survives local admission refusal; a store deadline gives a one-second hint and a starting
+source defaults to 30 seconds. No raw source exception is returned. Failure ends only that metadata operation.
 
 ### Tick history (stage 5b)
 

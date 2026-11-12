@@ -15,11 +15,14 @@ public enum TInvestFailureKind
 
 public sealed class TInvestRequestException : Exception
 {
-	public TInvestRequestException(string safeMessage, TInvestFailureKind kind = TInvestFailureKind.Source)
+	public TInvestRequestException(string safeMessage, TInvestFailureKind kind = TInvestFailureKind.Source, int? retryAfterSeconds = null)
 		: base(safeMessage)
 	{
+		if (retryAfterSeconds is < 0 or > 3600) throw new ArgumentOutOfRangeException(nameof(retryAfterSeconds));
 		Kind = kind;
+		RetryAfterSeconds = retryAfterSeconds;
 	}
 
 	public TInvestFailureKind Kind { get; }
+	public int? RetryAfterSeconds { get; }
 }

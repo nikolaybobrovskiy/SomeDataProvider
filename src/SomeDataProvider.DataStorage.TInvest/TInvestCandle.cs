@@ -4,7 +4,7 @@ using SomeDataProvider.DataStorage.Definitions;
 
 public sealed record TInvestCandle(DateTimeOffset Time, double Open, double High, double Low, double Close, long Lots, bool Complete, bool Exchange);
 
-public sealed record TInvestCandleRequest(string Uid, DateTimeOffset Start, DateTimeOffset End, int IntervalSeconds, int Limit, bool IncludeDealer);
+public sealed record TInvestCandleRequest(string Uid, DateTimeOffset Start, DateTimeOffset End, int IntervalSeconds, int Limit, bool IncludeDealer, bool IncludeWeekend = false);
 
 public sealed record TInvestCandleInterval(int Seconds, int Limit, TimeSpan? MaximumPeriod = null, int MaximumMonths = 0)
 {
@@ -73,7 +73,7 @@ public sealed class TInvestCandlePlan
 			var pageEnd = cursor;
 			for (var i = 0; i < interval.Limit && pageEnd < until; i++) pageEnd = interval.Advance(pageEnd);
 			until = Min(until, pageEnd);
-			calls.Add(new(symbol.Instrument.Short.Uid, cursor, until, seconds, interval.Limit, options.IncludeDealerTrades));
+			calls.Add(new(symbol.Instrument.Short.Uid, cursor, until, seconds, interval.Limit, options.IncludeDealerTrades, options.CandleSource == "IncludeWeekend"));
 			if (calls.Count > options.MaxCandleCallsPerRequest)
 				throw new TInvestRequestException($"Range needs more than {options.MaxCandleCallsPerRequest} calls; the limit is {options.MaxCandleCallsPerRequest}; request a shorter range.");
 			cursor = until;

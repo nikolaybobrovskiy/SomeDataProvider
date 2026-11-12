@@ -168,6 +168,12 @@ namespace SomeDataProvider.DtcProtocolServer
 					{
 						var ct = GetContext.CancellationToken;
 						ct.ThrowIfCancellationRequested();
+						var providerType = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Span.Slice(2));
+						if (IsVlsSession && providerType is >= 20100 and <= 20114)
+						{
+							await ProcessProviderInformationAsync(buffer, ct);
+							return;
+						}
 						var decoder = _currentMessageProtocol.MessageDecoderFactory.CreateMessageDecoder(buffer);
 						var encoder = _currentMessageProtocol.MessageEncoderFactory.CreateMessageEncoder();
 						await using (new FinallyAsync(() => decoder.TryDisposeAsync()))

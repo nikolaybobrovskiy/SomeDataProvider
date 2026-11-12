@@ -5,6 +5,9 @@ using SomeDataProvider.DataStorage.Definitions;
 /// <summary>SDK types never cross this boundary. All methods are read-only.</summary>
 public interface ITInvestGateway : IDisposable
 {
+	/// <summary>Returns only a verified instrument calendar and trade-date mapping, never inferred venue hours.</summary>
+	Task<TInvestCalendar?> GetTradingCalendarAsync(string id, string revision, DateOnly from, DateOnly to, DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult<TInvestCalendar?>(null);
+
 	Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken);
 
 	Task<TInvestInstrument?> GetInstrumentAsync(string ticker, string classCode, DateTimeOffset deadline, CancellationToken cancellationToken);

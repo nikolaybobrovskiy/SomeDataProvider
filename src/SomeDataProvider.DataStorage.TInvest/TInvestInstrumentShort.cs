@@ -17,6 +17,8 @@ public sealed record TInvestInstrumentShort(string Ticker, string ClassCode, str
 
 public sealed record TInvestInstrument(TInvestInstrumentShort Short, decimal Increment, string Currency,
 	decimal IncrementAmount = 0, decimal Nominal = 0, decimal BasicAssetSize = 1, DateTimeOffset? Expiration = null, string? Figi = null,
-	DateTimeOffset? FirstMinuteCandle = null, DateTimeOffset? FirstDailyCandle = null);
+	DateTimeOffset? FirstMinuteCandle = null, DateTimeOffset? FirstDailyCandle = null,
+	string? Board = null, string? BoardName = null, string? PriceUnit = null, int DailyStampMode = 0,
+	TInvestCalendar? Calendar = null);
 
 public sealed record TInvestAccess(bool Authenticated, IReadOnlyList<bool> ReadOnlyAccounts);
