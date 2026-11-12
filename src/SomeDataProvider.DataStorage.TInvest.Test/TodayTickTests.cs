@@ -158,6 +158,7 @@ public class TickBudgetTests
 	{
 		using var fixture = new TickFixture();
 		fixture.Gateway.Instruments.Add(ScriptedTInvestGateway.Invent("SYNTHB", "TESTCC") with { FirstMinuteCandle = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero) });
+		for (var day = 9; day <= 28; day++) fixture.Archive(10, day, Gzip(Csv()));
 		var other = (await fixture.Store.ResolveAsync("SYNTHB", "TESTCC", fixture.Clock.GetUtcNow().AddSeconds(8)))!;
 		var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -237,6 +238,7 @@ public class TickBudgetTests
 		var error = Assert.ThrowsAsync<TInvestRequestException>(() => fixture.Ticks(Utc(10, 28), Utc(10, 29)));
 		Assert.That(error!.Message, Does.Contain("archive request failed"));
 		fail = false;
+		fixture.Archive(10, 28, Gzip(Csv()));
 		try
 		{
 			await fixture.Store.BackgroundFills.WaitAsync(TimeSpan.FromSeconds(10));

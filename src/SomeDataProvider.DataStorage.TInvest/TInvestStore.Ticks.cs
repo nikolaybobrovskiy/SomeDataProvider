@@ -12,7 +12,6 @@ public sealed partial class TInvestStore
 
 	readonly object _tickLock = new();
 	readonly Dictionary<(string Uid, DateOnly Day), Task<DayState>> _fetches = new();
-	readonly HashSet<(string Uid, DateOnly Day)> _provenEmpty = new();
 	readonly Dictionary<(string Path, long Length, bool Dealer, long From, long To), Task<int>> _countTasks = new();
 	readonly List<Task> _fills = new();
 	readonly SemaphoreSlim _fetchGate = new(FetchConcurrency);
@@ -23,7 +22,6 @@ public sealed partial class TInvestStore
 	enum DayKind
 	{
 		File,
-		Empty,
 		Missing,
 	}
 
@@ -81,14 +79,11 @@ public sealed partial class TInvestStore
 		var needed = new List<DateOnly>();
 		foreach (var day in days.Where(d => d < today))
 		{
-			bool empty;
-			lock (_tickLock) empty = _provenEmpty.Contains((uid, day));
 			if (ArchiveCache.TryGet(uid, day, out var path)) states[day] = new(DayKind.File, path);
-			else if (empty) states[day] = new(DayKind.Empty, null);
 			else needed.Add(day);
 		}
 
-		TInvestRateLimiter.Reservation? archives = null, candles = null, lastTrades = null;
+		TInvestRateLimiter.Reservation? archives = null, lastTrades = null;
 		var reserved = false;
 		try
 		{
@@ -97,7 +92,6 @@ public sealed partial class TInvestStore
 				if (needed.Count > 0)
 				{
 					archives = await _gateway.ReserveArchivesAsync(needed.Count, deadline, ct).ConfigureAwait(false);
-					candles = await _gateway.ReserveCandlesAsync(needed.Count, deadline, ct).ConfigureAwait(false);
 				}
 
 				if (needed.Count > 0 || days.Contains(today)) lastTrades = await _gateway.ReserveCandlesAsync(1, deadline, ct).ConfigureAwait(false);
@@ -107,18 +101,17 @@ public sealed partial class TInvestStore
 			{
 				// The plan does not fit the budget: fetch in the background, so the client's retry finds the files.
 				archives?.Dispose();
-				candles?.Dispose();
 				lastTrades?.Dispose();
-				archives = candles = lastTrades = null;
+				archives = lastTrades = null;
 				if (needed.Count == 0) throw;
 			}
 
 			if (needed.Count > 0)
 			{
-				var fetches = needed.Select(day => GetOrStartFetch(symbol, day, reserved ? archives : null, reserved ? candles : null)).ToArray();
+				var fetches = needed.Select(day => GetOrStartFetch(symbol, day, reserved ? archives : null)).ToArray();
 				var all = Task.WhenAll(fetches);
-				RegisterFill(all, reserved ? archives : null, reserved ? candles : null);
-				archives = candles = null; // Owned by the fill from here on.
+				RegisterFill(all, reserved ? archives : null);
+				archives = null; // Owned by the fill from here on.
 				if (!reserved) throw RetryIn(fetches.Length);
 				try
 				{
@@ -141,7 +134,6 @@ public sealed partial class TInvestStore
 		finally
 		{
 			archives?.Dispose();
-			candles?.Dispose();
 			lastTrades?.Dispose();
 		}
 	}
@@ -326,13 +318,13 @@ public sealed partial class TInvestStore
 		}
 	}
 
-	Task<DayState> GetOrStartFetch(TInvestSymbol symbol, DateOnly day, TInvestRateLimiter.Reservation? archives, TInvestRateLimiter.Reservation? candles)
+	Task<DayState> GetOrStartFetch(TInvestSymbol symbol, DateOnly day, TInvestRateLimiter.Reservation? archives)
 	{
 		var key = (symbol.Instrument.Short.Uid, day);
 		lock (_tickLock)
 		{
 			if (_fetches.TryGetValue(key, out var running)) return running;
-			var task = Task.Run(() => FetchDayAsync(symbol, day, archives, candles));
+			var task = Task.Run(() => FetchDayAsync(symbol, day, archives));
 			_fetches[key] = task;
 			task.ContinueWith(_ =>
 			{
@@ -352,7 +344,7 @@ public sealed partial class TInvestStore
 		}, TaskScheduler.Default);
 	}
 
-	async Task<DayState> FetchDayAsync(TInvestSymbol symbol, DateOnly day, TInvestRateLimiter.Reservation? archives, TInvestRateLimiter.Reservation? candles)
+	async Task<DayState> FetchDayAsync(TInvestSymbol symbol, DateOnly day, TInvestRateLimiter.Reservation? archives)
 	{
 		var uid = symbol.Instrument.Short.Uid;
 		var background = _clock.GetUtcNow().AddMinutes(BackgroundFillMinutes);
@@ -378,28 +370,9 @@ public sealed partial class TInvestStore
 				return new(DayKind.File, path);
 			}
 
-			// No archive: only exchange candles can show that the day had no trading.
-			var first = symbol.Instrument.FirstMinuteCandle;
-			var start = Midnight(day);
-			var own = candles == null ? await _gateway.ReserveCandlesAsync(1, background, _stop.Token).ConfigureAwait(false) : null;
-			try
-			{
-				var found = await _gateway.GetCandlesAsync(new(uid, start, start.AddDays(1), 60, 2400, false), candles ?? own!, background, _stop.Token).ConfigureAwait(false);
-				var traded = found.Any(c => c.Exchange && c.Time >= start && c.Time < start.AddDays(1));
-				if (!traded && first != null && day >= DateOnly.FromDateTime(first.Value.UtcDateTime))
-				{
-					// Candles of a day that just ended can still lag, and its archive may appear later: remember only older days.
-					if (day <= DateOnly.FromDateTime(_clock.GetUtcNow().UtcDateTime).AddDays(-2))
-						lock (_tickLock) _provenEmpty.Add((uid, day));
-					return new(DayKind.Empty, null);
-				}
-
-				return new(DayKind.Missing, null);
-			}
-			finally
-			{
-				own?.Dispose();
-			}
+			// Neither a missing archive nor absent candles prove no trading, at any age.
+			// Assembly still permits a complete source-matched recording/last-hour proof.
+			return new(DayKind.Missing, null);
 		}
 		finally
 		{

@@ -49,9 +49,10 @@ public class TInvestTickHistoryWireTests
 	}
 
 	[Test]
-	public async Task ADayWithNoTradingAnswersAHeaderWithNoRecords()
+	public async Task AnEmptySourceArchiveAnswersAHeaderWithNoRecords()
 	{
 		using var fixture = new Hosted();
+		fixture.Archive(Day, TickFixture.Gzip(TickFixture.Csv()));
 		var events = await Download(fixture, Day, Day.AddDays(1));
 		Assert.That(events.Single(e => e.Kind == DtcHistoricalDataEventKind.Header).Header!.NoRecordsToReturn, Is.True);
 		Assert.That(events.Count(e => e.Kind == DtcHistoricalDataEventKind.Tick), Is.EqualTo(0));

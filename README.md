@@ -139,6 +139,11 @@ Only complete definitions are sent: up to 20 cold instruments hydrated within an
 and up to 50 already-cached rows. Futures and bonds need a second metadata call, and options also resolve their underlying position, so fewer rows
 can fit. The last row is final, not a promise that all upstream matches were returned.
 A selected result can be looked up exactly without losing its price increment or currency.
+Each eligible source is isolated: a failed source does not hide the other's rows. After a version-1 hello,
+Type 20112 reports the failed source with Partial status before the standard final definition response.
+Without a hello only standard messages are sent. With no rows and any eligible source failed, the terminal
+answer is a standard reject, not no matches, even when another source succeeded with zero rows. Safe retry
+hints are retained without echoing upstream payloads. Caller cancellation stops the search instead of falling through.
 
 ### Live subscriptions, recording and outages (stage 3)
 
@@ -196,6 +201,10 @@ its references until shutdown and follows stream reconnects.
 
 The recorder writes outside the repository under `%LOCALAPPDATA%/SomeDataProvider/tinvest-today/<hashed-uid>/`:
 UTC-day `.bin` files preserve source nanoseconds and lots, and `.coverage.json` files describe live intervals.
+Coverage manifests now carry proof version 1, instrument UID, UTC day and exchange-only source identity.
+On upgrade, unversioned or mismatched manifests are ignored; retained `.bin` trades are not deleted or
+adopted as coverage. Fresh proven intervals replace old claims without importing them. The former inferred-empty
+cache was memory-only and is removed entirely, so restarting cannot carry it into this proof contract.
 Ticks and conservative coverage are flushed every second. Coverage stops at the last received stream message minus
 a one-second latency margin, never at the watchdog's later detection time. A broken stream or restart leaves a hole,
 even if no trade was observed. Disk work is separate from hub delivery; old-day handles close at midnight, and only
@@ -208,8 +217,10 @@ Recorded days that are older than the newest archive day the bridge has seen are
 An explicit hello (20100/20101) negotiates instrument context and calendar transport on either listener.
 It echoes the caller's stable logical-profile `BudgetScopeID`, samples the provider UTC clock and reports
 wire caps: 65,535-byte frames, 4,096-byte long text, 16,384-byte context, 500 catalog rows (catalog feature off),
-32 trade dates and 16 windows per date. This stage does not enforce reconciliation budgets: `EmptyDayProofV1`,
-`RecentClosedTicksV1`, catalog, scoped search, clock refresh and probe bits remain off. Historical joins,
+32 trade dates and 16 windows per date. `EmptyDayProofV1` is enabled atomically with the absence-only-empty fix
+and obsolete-coverage invalidation. It means empty tick answers require source-matched proof, not that every
+past day is available. This stage does not enforce reconciliation budgets: `RecentClosedTicksV1`, catalog,
+scoped search, clock refresh and probe bits remain off. Historical joins,
 clock-only refresh and probe scopes are rejected. Ordinary clients need not send a hello and receive no
 unsolicited extension messages; standard definitions, history and market data retain their existing behavior.
 
@@ -224,7 +235,7 @@ when `candle-filter=exchange` applies. Complete options advertise definitions on
 `weekend=unknown` explicitly withholds weekend tape equivalence. A content-addressed UID epoch covers the
 exposed context and kind-specific definition/environment: identical metadata has the same epoch across
 sockets/restarts; changed UID, grid or source semantics changes it. A client must invalidate affected derived
-coverage rather than rescale it silently. No empty-day or closed-source completeness proof is implied.
+coverage rather than rescale it silently. Context alone implies no empty-day or closed-source completeness proof.
 
 Calendar requests (20104) name a revision and inclusive date range. Immutable date-effective snapshots
 carry instrument membership, provenance, covered dates and expiry; windows (20105) carry Moscow civil
@@ -261,10 +272,12 @@ rejected.
   the order is stable. Archive days are UTC dates (see the measurements below).
 - **Disk cache.** Files are kept as downloaded under `{ArchiveCacheFolder}/{uid}/{yyyy-MM-dd}.archive`. A past day
   never expires; once the folder exceeds `ArchiveCacheMaxBytes` the least recently used days are deleted. Days that a running request still reads are not deleted, and one archive larger than the cap is refused, not kept.
-- **Missing archives.** A 404 means the day has no archive. The bridge then checks the day's minute candles: a day
-  with no candles (a weekend or holiday) is an empty day. A day with candles but no archive is served from the
-  bridge's own recording only if that recording covers the whole requested part of the day; otherwise it is
-  rejected before the header with "no T-Invest trade archive for yyyy-MM-dd". Weekends are not assumed empty.
+- **Missing archives.** A 404 means an archive is unavailable, never that the day was empty. Missing candles,
+  age and weekends do not supply proof, including yesterday and older past days. A missing archive is served
+  only when exchange-only recording plus any applicable complete last-hour answer covers the whole requested
+  span; otherwise it is rejected before the header with "no T-Invest trade archive for yyyy-MM-dd".
+  An empty validated archive or a fully covered recording/last-hour answer with no trades can answer empty.
+  No calendar-only no-trading proof is implemented; production calendars remain Unknown.
 - **Budget.** The archive host allows 30 downloads a minute per address; the bridge plans 27 (90%). A request whose
   uncached days do not fit gets a retry-in reject (1–300 seconds) before the header, and the missing days are
   fetched in the background (at most 15 minutes of work, two at a time) so the retry usually finds them cached.
@@ -301,8 +314,8 @@ contained 120,566 and 79,081 rows. All timestamps were inside the named UTC day.
 103 dealer rows after 21:00 UTC, which is already the following Moscow calendar day. The November 1 Sunday
 file contained 19,044 rows, including 16,101 exchange rows: a weekend alone is not evidence of no trading.
 Exchange-only counts for the two weekday files were 120,566 and 78,978. The sample does not establish the
-publication hour or availability of a newly finished day's archive; missing files still need candle-coverage
-proof rather than a weekday/weekend assumption.
+publication hour or availability of a newly finished day's archive; missing files still need independent
+source-matched coverage proof rather than candle absence or a weekday/weekend assumption.
 
 Production TLS preflight used the gateway's bundled-root-only handler, without a token: HTTP 404 in 1,051 ms,
 with no certificate errors. Production access validation found one account and confirmed read-only access for

@@ -13,6 +13,9 @@ using SomeDataProvider.DataStorage.TInvest;
 /// <summary>Exchange ticks and progress-bounded UTC coverage. Disk work never holds the hub-facing lock.</summary>
 sealed class TInvestTickRecorder : IDisposable, ITickRecording
 {
+	const int CoverageProofVersion = 1;
+	const string CoverageSource = "t-invest:exchange";
+
 	readonly object _gate = new();
 	readonly object _ioGate = new();
 	readonly string? _root;
@@ -321,7 +324,7 @@ sealed class TInvestTickRecorder : IDisposable, ITickRecording
 				var merged = Merge(Load(key.Uid, key.Day).Concat(intervals));
 				var path = DayPath(key.Uid, key.Day) + ".coverage.json";
 				Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-				File.WriteAllText(path + ".new", JsonSerializer.Serialize(merged));
+				File.WriteAllText(path + ".new", JsonSerializer.Serialize(new CoverageManifest(CoverageProofVersion, key.Uid, key.Day, CoverageSource, merged)));
 				File.Move(path + ".new", path, true);
 				_persisted[key] = merged;
 			}
@@ -380,7 +383,14 @@ sealed class TInvestTickRecorder : IDisposable, ITickRecording
 			{
 				try
 				{
-					result = JsonSerializer.Deserialize<List<CoverageInterval>>(File.ReadAllText(path)) ?? result;
+					// The unversioned contract predates EmptyDayProofV1. Never import its claims, even when
+					// its trades are retained; only fresh source-matched coverage can replace them.
+					var manifest = JsonSerializer.Deserialize<CoverageManifest>(File.ReadAllText(path));
+					var start = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+					if (manifest is { ProofVersion: CoverageProofVersion, Source: CoverageSource, Intervals: not null } &&
+						manifest.InstrumentUid == uid && manifest.Day == day &&
+						manifest.Intervals.All(i => i.Start >= start && i.Start < i.End && i.End <= start.AddDays(1)))
+						result = manifest.Intervals;
 				}
 				catch (JsonException)
 				{ /* An unreadable manifest never proves coverage. */
@@ -416,4 +426,6 @@ sealed class TInvestTickRecorder : IDisposable, ITickRecording
 
 		RecordingFailed?.Invoke();
 	}
+
+	sealed record CoverageManifest(int ProofVersion, string InstrumentUid, DateOnly Day, string Source, List<CoverageInterval> Intervals);
 }

@@ -163,23 +163,9 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 
 	public async ValueTask<IReadOnlyCollection<ISymbol>> SearchSymbolsAsync(string searchText, SymbolSearchType searchType, int limit, string exchange, SymbolType securityType, CancellationToken cancellationToken = default)
 	{
-		_l.LogInformation("SearchSymbols({searchText},{searchType},{limit})", searchText, searchType, limit);
-		// A leading "fred-" in SearchText is this provider's own routing prefix (see GetSymbolsStoreAsync above),
-		// not part of FRED's series ID or title; strip it so a pasted "fred-"-prefixed symbol code still matches.
-		var fredPrefix = $"{DataSourceFredPrefix}{DataSourcePrefixSeparator}";
-		var normalizedSearchText = searchText.StartsWith(fredPrefix, StringComparison.Ordinal)
-			? searchText.Substring(fredPrefix.Length)
-			: searchText;
-		var result = new List<ISymbol>();
-		limit = Math.Clamp(limit, 0, 50);
-		if (_tInvestStore != null && !searchText.StartsWith(fredPrefix, StringComparison.Ordinal))
-			result.AddRange(await _tInvestStore.SearchAsync(searchText, searchType, limit, exchange, securityType, cancellationToken));
-		if (result.Count < limit && exchange.Length == 0 && securityType == SymbolType.Unset)
-		{
-			var matches = await FredStore.SearchSymbolsAsync(normalizedSearchText, searchType, limit - result.Count, cancellationToken);
-			result.AddRange(matches.Select(symbol => (ISymbol)new Symbol(DataSourceFredPrefix, symbol)));
-		}
-		return result;
+		var result = await SearchWithStatusAsync(searchText, searchType, limit, exchange, securityType, cancellationToken);
+		if (!result.HasSuccessfulSource || (result.Symbols.Count == 0 && result.Failures.Count > 0)) throw new TInvestRequestException(result.UnavailableText);
+		return result.Symbols;
 	}
 
 	public void Dispose()
@@ -191,6 +177,59 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 		MarketDataHub?.Dispose();
 		if (_lazyFredStore.IsValueCreated) _lazyFredStore.Value.Dispose();
 		_tInvestStore?.Dispose();
+	}
+
+	internal async ValueTask<SearchResult> SearchWithStatusAsync(string searchText, SymbolSearchType searchType, int limit, string exchange, SymbolType securityType, CancellationToken cancellationToken)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		if (string.IsNullOrWhiteSpace(searchText)) throw new TInvestRequestException("SearchText must not be empty.");
+		_l.LogInformation("SearchSymbols({searchText},{searchType},{limit})", searchText, searchType, limit);
+		var fredPrefix = $"{DataSourceFredPrefix}{DataSourcePrefixSeparator}";
+		var fredOnly = searchText.StartsWith(fredPrefix, StringComparison.Ordinal);
+		var normalizedSearchText = fredOnly ? searchText.Substring(fredPrefix.Length) : searchText;
+		var result = new List<ISymbol>();
+		var failures = new List<SearchFailure>();
+		var succeeded = false;
+		limit = Math.Clamp(limit, 0, 50);
+		if (limit == 0) return new(result, failures, true);
+		void Failed(string source, Exception error)
+		{
+			// Only stable local classifications cross the wire or enter the log, never upstream payloads.
+			var reason = error is TInvestRequestException request ? request.Kind switch
+			{
+				TInvestFailureKind.Starting => "SourceStarting",
+				TInvestFailureKind.Limit => "LimitRejected",
+				_ => "SourceUnavailable",
+			} : "SourceUnavailable";
+			failures.Add(new(source, reason, (error as TInvestRequestException)?.RetryAfterSeconds));
+			_l.LogWarning("Symbol search source {source} failed: {reason}", source, reason);
+		}
+		var pending = TInvestPending;
+		var tInvestStore = Volatile.Read(ref _tInvestStore);
+		if (!fredOnly && (tInvestStore != null || pending))
+		{
+			try
+			{
+				if (tInvestStore == null) throw new TInvestRequestException("T-Invest source is starting.", TInvestFailureKind.Starting, retryAfterSeconds: (int)StartupRetry.TotalSeconds);
+				result.AddRange(await tInvestStore.SearchAsync(searchText, searchType, limit, exchange, securityType, cancellationToken));
+				succeeded = true;
+			}
+			catch (Exception ex) when (!cancellationToken.IsCancellationRequested) { Failed("t-invest", ex); }
+		}
+		cancellationToken.ThrowIfCancellationRequested();
+		if (result.Count < limit && exchange.Length == 0 && securityType == SymbolType.Unset)
+		{
+			try
+			{
+				var matches = await FredStore.SearchSymbolsAsync(normalizedSearchText, searchType, limit - result.Count, cancellationToken);
+				result.AddRange(matches.Select(symbol => (ISymbol)new Symbol(DataSourceFredPrefix, symbol)));
+				succeeded = true;
+			}
+			catch (Exception ex) when (!cancellationToken.IsCancellationRequested) { Failed("fred", ex); }
+		}
+		cancellationToken.ThrowIfCancellationRequested();
+		// No eligible source (for example a disabled T-Invest source with an exchange filter) is no matches.
+		return new(result, failures, succeeded || failures.Count == 0);
 	}
 
 	internal TInvestStore? GetTInvestInformationStore()
@@ -304,6 +343,19 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 			public string? ApiKey { get; init; }
 
 			public DataStorage.Fred.ServiceApiKey KnownApiKey => !string.IsNullOrEmpty(ApiKey) ? (DataStorage.Fred.ServiceApiKey)ApiKey : throw new InvalidOperationException($"{nameof(Fred)}.{nameof(ApiKey)} is not set. Configure it in appsettings.Local.json (see appsettings.Local.example.json) or the {nameof(StoresOptions)}:{nameof(Fred)}:{nameof(ApiKey)} configuration section.");
+		}
+	}
+
+	internal sealed record SearchFailure(string Source, string ReasonCode, int? RetryAfterSeconds);
+	internal sealed record SearchResult(IReadOnlyCollection<ISymbol> Symbols, IReadOnlyList<SearchFailure> Failures, bool HasSuccessfulSource)
+	{
+		public string UnavailableText
+		{
+			get
+			{
+				var retry = Failures.Max(f => f.RetryAfterSeconds);
+				return retry is > 0 ? $"Symbol search sources are unavailable; retry in {retry} s." : "Symbol search sources are unavailable.";
+			}
 		}
 	}
 

@@ -121,6 +121,8 @@ public class TickRangeAndCapTests
 	public async Task DayCapRejectsBeforeAnyRequestAndTheEndsOfTheRangeAreAllowed(int maxDays, int firstDay, int lastDay, bool allowed)
 	{
 		using var fixture = new TickFixture(maxDays: maxDays);
+		if (allowed)
+			for (var day = firstDay; day <= lastDay; day++) fixture.Archive(10, day, Gzip(Csv()));
 		var task = fixture.Ticks(Utc(10, firstDay), Utc(10, lastDay + 1));
 		if (allowed)
 		{
@@ -220,18 +222,14 @@ public class TickCacheAndMissingDayTests
 		Assert.That(fixture.Recording.DeletedBefore, Is.EqualTo(new DateOnly(2026, 10, 28)));
 	}
 
-	[TestCase(25, "Sunday")]
-	[TestCase(28, "Wednesday")]
-	public async Task NoArchiveAndNoExchangeCandlesAfterCandleCoverageMeansNoTradingEvenOnAWeekday(int day, string name)
+	[TestCase(25)]
+	[TestCase(28)]
+	[TestCase(29)]
+	public void NoArchiveAndNoCandlesIsUnavailableForEveryPastDay(int day)
 	{
 		using var fixture = new TickFixture();
-		var reader = await fixture.Ticks(Utc(10, day), Utc(10, day + 1));
-		Assert.That(reader.Total, Is.EqualTo(0), name);
-		Assert.That(fixture.Gateway.CandleRequests.Single().IntervalSeconds, Is.EqualTo(60));
-		Assert.That(fixture.Gateway.CandleRequests.Single().IncludeDealer, Is.False);
-		// The proof is remembered: no second candle call.
-		await fixture.Ticks(Utc(10, day), Utc(10, day + 1));
-		Assert.That(fixture.Gateway.CandleRequests, Has.Count.EqualTo(1));
+		var error = Assert.ThrowsAsync<TInvestRequestException>(() => fixture.Ticks(Utc(10, day), Utc(10, day + 1)));
+		Assert.That(error!.Message, Is.EqualTo($"no T-Invest trade archive for 2026-10-{day}"));
 	}
 
 	[TestCase(25)]
@@ -245,11 +243,42 @@ public class TickCacheAndMissingDayTests
 	}
 
 	[Test]
-	public async Task DealerOnlyCandlesDoNotProveTrading()
+	public void DealerOnlyCandlesDoNotProveAnEmptyExchangeDay()
 	{
 		using var fixture = new TickFixture();
 		fixture.Gateway.Candles = (request, _) => Task.FromResult<IReadOnlyList<TInvestCandle>>(new[] { new TInvestCandle(request.Start.AddHours(10), 1, 1, 1, 1, 1, true, false) });
-		Assert.That((await fixture.Ticks(Utc(10, 25), Utc(10, 26))).Total, Is.EqualTo(0));
+		Assert.ThrowsAsync<TInvestRequestException>(() => fixture.Ticks(Utc(10, 25), Utc(10, 26)));
+	}
+
+	[TestCase(28)]
+	[TestCase(29)]
+	public async Task CompleteExchangeRecordingIndependentlyProvesAnEmptyPastDay(int day)
+	{
+		using var fixture = new TickFixture();
+		var start = new DateTimeOffset(Utc(10, day));
+		fixture.Recording.Intervals.Add((start, start.AddDays(1)));
+		using var reader = await fixture.Ticks(Utc(10, day), Utc(10, day + 1));
+		Assert.That(reader.Total, Is.Zero);
+		Assert.That(await ReadAll(reader), Is.Empty);
+		Assert.That(fixture.Gateway.CandleRequests, Is.Empty, "Candle absence is not consulted for tick proof.");
+		fixture.Recording.Intervals.Clear();
+		Assert.ThrowsAsync<TInvestRequestException>(() => fixture.Ticks(Utc(10, day), Utc(10, day + 1)), "No negative cache survives the loss of independent proof.");
+	}
+
+	[Test]
+	public void AnIncompleteRecordingCannotProveAnEmptyDay()
+	{
+		using var fixture = new TickFixture();
+		fixture.Recording.Intervals.Add((new DateTimeOffset(Utc(10, 28)), new DateTimeOffset(Utc(10, 28, 23, 59, 59))));
+		Assert.ThrowsAsync<TInvestRequestException>(() => fixture.Ticks(Utc(10, 28), Utc(10, 29)));
+	}
+
+	[Test]
+	public void ExchangeRecordingCannotProveDealerInclusiveEmptyHistory()
+	{
+		using var fixture = new TickFixture(dealer: true);
+		fixture.Recording.Intervals.Add((new DateTimeOffset(Utc(10, 28)), new DateTimeOffset(Utc(10, 29))));
+		Assert.That(Assert.ThrowsAsync<TInvestRequestException>(() => fixture.Ticks(Utc(10, 28), Utc(10, 29)))!.Message, Does.Contain("without dealer trades"));
 	}
 
 	[Test]

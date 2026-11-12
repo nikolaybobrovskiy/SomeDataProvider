@@ -62,7 +62,7 @@ partial class Session
 				{
 					RequestID = requestId,
 					SelectedVersion = hello.MinimumVersion <= 1 ? 1 : 0,
-					Features = hello.MinimumVersion <= 1 ? ProviderInformationFeatures.InstrumentContextV1 | ProviderInformationFeatures.TradingCalendarV1 : 0,
+					Features = hello.MinimumVersion <= 1 ? ProviderInformationFeatures.InstrumentContextV1 | ProviderInformationFeatures.TradingCalendarV1 | ProviderInformationFeatures.EmptyDayProofV1 : 0,
 					BudgetScopeID = hello.BudgetScopeID,
 					ProviderUtcMicroseconds = (_timeProvider.GetUtcNow() - DateTimeOffset.UnixEpoch).Ticks / 10,
 				});

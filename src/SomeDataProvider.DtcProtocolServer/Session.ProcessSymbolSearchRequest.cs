@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Dtc.Protocol;
+using Dtc.Protocol.Private;
 
 using Microsoft.Extensions.Logging;
 
@@ -15,6 +16,7 @@ using NBLib.Exceptions;
 using NBLib.Logging;
 
 using SomeDataProvider.DataStorage.Definitions;
+using SomeDataProvider.DtcProtocolServer.Data;
 using SomeDataProvider.DtcProtocolServer.DtcProtocol;
 
 partial class Session
@@ -40,7 +42,7 @@ partial class Session
 
 		// Per DTC's SYMBOL_SEARCH_REQUEST field description, an empty SearchText is rejected, not answered with
 		// NoMatches: https://www.sierrachart.com/index.php?page=doc/DTCMessages_SymbolDiscoverySecurityDefinitionsMessages.php
-		if (string.IsNullOrEmpty(request.SearchText))
+		if (string.IsNullOrWhiteSpace(request.SearchText))
 		{
 			L.LogInformation("Answer: SecurityDefinitionReject: EmptySearchText");
 			encoder.EncodeSecurityDefinitionReject(requestId, "SearchText must not be empty.");
@@ -50,8 +52,26 @@ partial class Session
 			try
 			{
 				var searchType = ToSymbolSearchType(request.SearchType);
-				var matches = await _symbolsStoreProvider.SearchSymbolsAsync(request.SearchText, searchType, MaxSymbolSearchResults, request.Exchange, (SymbolType)request.SecurityType, ct);
-				if (matches.Count == 0)
+				var result = _symbolsStoreProvider is StoresProvider stores
+					? await stores.SearchWithStatusAsync(request.SearchText, searchType, MaxSymbolSearchResults, request.Exchange, (SymbolType)request.SecurityType, ct)
+					: new StoresProvider.SearchResult(await _symbolsStoreProvider.SearchSymbolsAsync(request.SearchText, searchType, MaxSymbolSearchResults, request.Exchange, (SymbolType)request.SecurityType, ct), Array.Empty<StoresProvider.SearchFailure>(), true);
+				var matches = result.Symbols;
+				if (_providerHello is { MinimumVersion: <= 1 })
+				{
+					foreach (var failure in result.Failures)
+					{
+						SendProviderMessage(new SourceOperationStatus
+						{
+							RequestID = requestId, Source = failure.Source, Status = result.HasSuccessfulSource ? 2 : 3,
+							ReasonCode = failure.ReasonCode, RetryAfterSeconds = failure.RetryAfterSeconds,
+						});
+					}
+				}
+				if (!result.HasSuccessfulSource || (matches.Count == 0 && result.Failures.Count > 0))
+				{
+					encoder.EncodeSecurityDefinitionReject(requestId, result.UnavailableText);
+				}
+				else if (matches.Count == 0)
 				{
 					L.LogInformation("Answer: SecurityDefinitionResponse: NoMatches");
 					encoder.EncodeNoSecurityDefinitionsFound(requestId);

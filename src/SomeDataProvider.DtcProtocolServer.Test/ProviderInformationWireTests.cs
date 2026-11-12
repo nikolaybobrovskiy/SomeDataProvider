@@ -16,7 +16,7 @@ public partial class ProviderInformationWireTests
 {
 	[TestCase(false)]
 	[TestCase(true)]
-	public void HelloReportsTheClockAndLeavesBothProofBitsOff(bool historyOnly)
+	public void HelloReportsTheClockAndEnablesOnlyTheImplementedProofBit(bool historyOnly)
 	{
 		var clock = new ManualTimeProvider();
 		using var gateway = new ScriptedTInvestGateway();
@@ -26,7 +26,8 @@ public partial class ProviderInformationWireTests
 		var response = (ProviderHelloResponse)Read(client);
 		Assert.That(response.RequestID, Is.EqualTo(41));
 		Assert.That(response.SelectedVersion, Is.EqualTo(1));
-		Assert.That(response.Features & (ProviderInformationFeatures.EmptyDayProofV1 | ProviderInformationFeatures.RecentClosedTicksV1), Is.Zero);
+		Assert.That(response.Features & ProviderInformationFeatures.EmptyDayProofV1, Is.Not.Zero);
+		Assert.That(response.Features & ProviderInformationFeatures.RecentClosedTicksV1, Is.Zero);
 		Assert.That(response.ProviderUtcMicroseconds, Is.EqualTo((clock.GetUtcNow() - DateTimeOffset.UnixEpoch).Ticks / 10));
 		Assert.That(response.BudgetScopeID, Is.EqualTo("synthetic-generation"));
 		Assert.That(response.MaxCalendarDates, Is.EqualTo(32));

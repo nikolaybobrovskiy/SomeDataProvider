@@ -70,8 +70,10 @@ public class TInvestProviderRegressionTests
 		Assert.That(fredCalls, Is.EqualTo(calls));
 		gateway.Instruments.Add(ScriptedTInvestGateway.Invent("FAILED"));
 		gateway.Resolve = (_, _, _) => throw new TInvestRequestException("Safe source failure.");
-		var error = Assert.ThrowsAsync<TInvestRequestException>(async () => await provider.SearchSymbolsAsync("FAILED", SymbolSearchType.BySymbol, 50));
-		Assert.That(error!.Message, Is.EqualTo("Safe source failure."));
-		Assert.That(fredCalls, Is.EqualTo(calls), "A T-Invest failure must not fall through to FRED or no matches.");
+		var partial = await provider.SearchWithStatusAsync("FAILED", SymbolSearchType.BySymbol, 50, string.Empty, SymbolType.Unset, default);
+		Assert.That(partial.Symbols.Single().Code, Is.EqualTo("fred-SYNMAC"));
+		Assert.That(partial.Failures.Single().Source, Is.EqualTo("t-invest"));
+		Assert.That(partial.HasSuccessfulSource, Is.True);
+		Assert.That(fredCalls, Is.EqualTo(calls + 1), "The healthy FRED source still runs after T-Invest fails.");
 	}
 }

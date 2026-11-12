@@ -257,22 +257,17 @@ public class TickReviewFixTests
 		Assert.ThrowsAsync<OperationCanceledException>(() => reader.ReadSymbolHistoryAsync(cts.Token));
 	}
 
-	[Test]
-	public async Task ADayWithoutCandlesThatEndedYesterdayIsNotRememberedAsEmpty()
+	[TestCase(28)]
+	[TestCase(29)]
+	public async Task MissingDaysNeverLeaveAnInferredEmptyCacheAcrossRestart(int day)
 	{
 		using var fixture = new TickFixture();
-		// Yesterday's candles can lag and its archive can appear later, so a no-trade answer for it must not stick.
-		var reader = await fixture.Ticks(Utc(10, 29), Utc(10, 30));
-		Assert.That(reader.Total, Is.EqualTo(0));
-		await fixture.Ticks(Utc(10, 29), Utc(10, 30));
-		// A finished fetch stays in the in-flight map until its continuation runs, so the later request can be handed that
-		// task once. A durable negative cache would keep answering without a candle call, so wait for the map to clear.
-		for (var attempt = 0; attempt < 200 && fixture.Gateway.CandleRequests.Count < 2; attempt++)
-		{
-			await Task.Delay(5);
-			await fixture.Ticks(Utc(10, 29), Utc(10, 30));
-		}
-
-		Assert.That(fixture.Gateway.CandleRequests.Count, Is.GreaterThanOrEqualTo(2));
+		Assert.ThrowsAsync<TInvestRequestException>(() => fixture.Ticks(Utc(10, day), Utc(10, day + 1)));
+		await fixture.Store.BackgroundFills;
+		fixture.Store.Dispose();
+		using var gateway = new ScriptedTInvestGateway { Limiter = new(fixture.Clock) };
+		using var restarted = new TInvestStore(gateway, fixture.Store.Options, fixture.Clock);
+		Assert.ThrowsAsync<TInvestRequestException>(() => restarted.CreateTickReaderAsync(fixture.Symbol, Utc(10, day), Utc(10, day + 1), fixture.Deadline()));
+		Assert.That(gateway.ArchiveRequests, Has.Count.EqualTo(1), "A missing archive is not a persistent empty result.");
 	}
 }
