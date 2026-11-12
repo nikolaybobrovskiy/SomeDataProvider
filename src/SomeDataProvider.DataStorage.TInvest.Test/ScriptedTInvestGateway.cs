@@ -32,8 +32,23 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 	public List<(DateTimeOffset From, DateTimeOffset To)> LastTradeRequests { get; } = new();
 	public bool Disposed { get; private set; }
 	public Queue<Exception> AccessErrors { get; } = new();
+	public bool SupportsRecentClosedTicks => true;
+	public Action? BeforeRecentAdmission { get; set; }
+	public Func<CancellationToken, Task>? PrepareRecent { get; set; }
 
 	public static TInvestInstrument Invent(string ticker = "SYNTH", string classCode = "TESTCC", TInvestInstrumentKind kind = TInvestInstrumentKind.Share) => new(new(ticker, classCode, "invented-uid-" + ticker, "Invented instrument", kind, 10, true), 0.01m, "zzz", 0.25m, 1000m, 5m);
+
+	public async Task<IReadOnlyList<TInvestTrade>> GetRecentTradesAsync(string uid, DateTimeOffset from, DateTimeOffset to, int maximumAttempts, Action beforeDispatch, DateTimeOffset deadline, CancellationToken cancellationToken)
+	{
+		using var reservation = await ReserveCandlesAsync(1, deadline, cancellationToken);
+		BeforeRecentAdmission?.Invoke();
+		if (PrepareRecent != null) await PrepareRecent(cancellationToken);
+		await reservation.AcquireAsync(Limiter, deadline, cancellationToken);
+		cancellationToken.ThrowIfCancellationRequested();
+		beforeDispatch();
+		lock (LastTradeRequests) LastTradeRequests.Add((from, to));
+		return LastTrades?.Invoke(from, to) ?? Array.Empty<TInvestTrade>();
+	}
 	public Task<TInvestCalendar?> GetTradingCalendarAsync(string id, string revision, DateOnly from, DateOnly to, DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult(Calendar);
 
 	public Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken) =>

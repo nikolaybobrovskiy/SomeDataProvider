@@ -16,6 +16,8 @@ public sealed class TInvestOptions
 	public int MaxDepth { get; init; } = 50;
 	public TimeSpan StreamSilenceTimeout { get; init; } = TimeSpan.FromSeconds(180);
 	public int SessionQueueLimit { get; init; } = 50_000;
+	/// <summary>Recent reconciliation requests and clock refreshes per rolling 60 seconds per stable profile: 1-12.</summary>
+	public int LiveReconcileRequestsPerMinute { get; init; } = 6;
 	/// <summary>Tick history: 1-31 UTC days per DTC request.</summary>
 	public int MaxTickDaysPerRequest { get; init; } = 31;
 	/// <summary>Tick history: 1,000-5,000,000 ticks per DTC request.</summary>
@@ -32,6 +34,9 @@ public sealed class TInvestOptions
 
 	public void Validate()
 	{
+		if (LiveReconcileRequestsPerMinute is < 1 or > 12)
+			throw new ArgumentException("TInvest:LiveReconcileRequestsPerMinute must be 1-12.");
+
 		if (CandleSource is not ("Exchange" or "IncludeWeekend"))
 			throw new ArgumentException("TInvest:CandleSource must be Exchange or IncludeWeekend; dealer inclusion is a separate setting.");
 

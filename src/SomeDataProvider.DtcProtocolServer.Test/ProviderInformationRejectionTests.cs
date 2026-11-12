@@ -126,7 +126,7 @@ public partial class ProviderInformationWireTests
 
 	[TestCase(ProviderHelloModes.JoinHistorical)]
 	[TestCase(ProviderHelloModes.ClockOnly)]
-	public void UnsupportedHelloModesDoNotConsumeNegotiation(int mode)
+	public void UnboundHelloModesDoNotConsumeNegotiation(int mode)
 	{
 		using var gateway = new ScriptedTInvestGateway();
 		using var host = new TInvestTestHost(gateway, new ManualTimeProvider());
@@ -135,7 +135,7 @@ public partial class ProviderInformationWireTests
 		var reject = (ProviderRequestReject)Read(client);
 		Assert.That(reject.RequestID, Is.EqualTo(66));
 		Assert.That(reject.FailedOperation, Is.EqualTo(20100));
-		Assert.That(reject.ReasonCode, Is.EqualTo("Unsupported"));
+		Assert.That(reject.ReasonCode, Is.EqualTo(mode == ProviderHelloModes.ClockOnly ? "FeatureUnavailable" : "ContextRequired"));
 		Send(client, new ProviderHelloRequest { BudgetScopeID = "synthetic-generation" });
 		Assert.That(Read(client), Is.TypeOf<ProviderHelloResponse>());
 		Assert.That(gateway.Lookups, Is.Empty);

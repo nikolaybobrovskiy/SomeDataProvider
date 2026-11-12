@@ -219,10 +219,20 @@ It echoes the caller's stable logical-profile `BudgetScopeID`, samples the provi
 wire caps: 65,535-byte frames, 4,096-byte long text, 16,384-byte context, 500 catalog rows (catalog feature off),
 32 trade dates and 16 windows per date. `EmptyDayProofV1` is enabled atomically with the absence-only-empty fix
 and obsolete-coverage invalidation. It means empty tick answers require source-matched proof, not that every
-past day is available. This stage does not enforce reconciliation budgets: `RecentClosedTicksV1`, catalog,
-scoped search, clock refresh and probe bits remain off. Historical joins,
-clock-only refresh and probe scopes are rejected. Ordinary clients need not send a hello and receive no
+past day is available. `RecentClosedTicksV1` and `ClockRefreshV1` are now enabled together for an
+attempt-guarded, exchange-only store. Historical hello Mode 1 joins a stable profile/source/UID epoch;
+Mode 2 refreshes only the provider clock and shares the recent request budget. Catalog, scoped search
+and probe bits remain off; probe scopes are rejected. Ordinary clients need not send a hello and receive no
 unsolicited extension messages; standard definitions, history and market data retain their existing behavior.
+
+Recent closed reconciliation (20114) fetches only its exact `[From,To)` bounds through GetLastTrades,
+with no archive/candle fallback or background fill. The 58-minute start guard and two-second closed-end
+margin are rechecked at each actual dispatch. `TInvest:LiveReconcileRequestsPerMinute` defaults to 6,
+accepts 1-12 inclusive, and bounds requests plus clock refreshes per rolling 60 seconds across all joined
+sockets and reconnect generations. A separate rolling actual-dispatch ceiling is twice that value;
+each request also has a maximum of two source attempts. The complete source snapshot status (20112)
+precedes the standard tick header/records/final. See [the source contract and IR11 release gate](docs/recent-closed-ticks.md):
+closed-answer publication lag remains unmeasured and trusted full-v2 settlement is **not release-certified**.
 
 Context (20102/20103) uses a canonical symbol such as `SYNTH-TESTCC` and empty exchange. It reads metadata
 through the gateway with an eight-second deadline, including incomplete definitions. Unknown optional UID,

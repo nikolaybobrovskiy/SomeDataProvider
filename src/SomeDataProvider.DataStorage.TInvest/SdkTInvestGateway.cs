@@ -245,16 +245,18 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 	static decimal Decimal(Quotation? value) => value == null ? 0 : value.Units + value.Nano / 1_000_000_000m;
 	static decimal Money(MoneyValue? value) => value == null ? 0 : value.Units + value.Nano / 1_000_000_000m;
 
-	async Task<T> CallAsync<T>(TInvestLimitGroup group, Func<AsyncUnaryCall<T>> createCall, DateTimeOffset deadline, CancellationToken cancellationToken, bool allowNotFound = false, TInvestRateLimiter.Reservation? reservation = null)
+	async Task<T> CallAsync<T>(TInvestLimitGroup group, Func<AsyncUnaryCall<T>> createCall, DateTimeOffset deadline, CancellationToken cancellationToken, bool allowNotFound = false, TInvestRateLimiter.Reservation? reservation = null, Action? beforeDispatch = null, int maximumAttempts = 2)
 	{
 		for (var attempt = 0; ; attempt++)
 		{
 			if (attempt == 0 && reservation != null) await reservation.AcquireAsync(_limiter, deadline, cancellationToken).ConfigureAwait(false);
-			else if (reservation != null) await reservation.AcquireRetryAsync(_limiter, _maximumCandleCalls, deadline, cancellationToken).ConfigureAwait(false);
+			else if (reservation != null) await reservation.AcquireRetryAsync(_limiter, beforeDispatch == null ? _maximumCandleCalls : maximumAttempts, deadline, cancellationToken).ConfigureAwait(false);
 			else await _limiter.AcquireAsync(group, deadline, cancellationToken).ConfigureAwait(false);
 			Metadata? responseHeaders = null;
 			try
 			{
+				cancellationToken.ThrowIfCancellationRequested();
+				beforeDispatch?.Invoke();
 				using var call = createCall();
 				responseHeaders = await call.ResponseHeadersAsync.ConfigureAwait(false);
 				Correct(group, responseHeaders, false);
@@ -287,7 +289,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 				if (ex.StatusCode == StatusCode.ResourceExhausted)
 				{
 					Correct(group, ex.Trailers.GetValue("x-ratelimit-reset") != null ? ex.Trailers : responseHeaders ?? ex.Trailers, true);
-					if (attempt == 0 && _clock.GetUtcNow() < deadline) continue;
+					if (attempt + 1 < maximumAttempts && _clock.GetUtcNow() < deadline) continue;
 					var resetHeaders = ex.Trailers.GetValue("x-ratelimit-reset") != null ? ex.Trailers : responseHeaders ?? ex.Trailers;
 					var retry = int.TryParse(resetHeaders.GetValue("x-ratelimit-reset"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds) ? Math.Clamp(seconds, 1, 3600) : 60;
 					throw new TInvestRequestException("T-Invest request limit reached; retry in 60 s.", TInvestFailureKind.Limit, retry);

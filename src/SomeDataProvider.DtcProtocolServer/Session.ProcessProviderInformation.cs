@@ -45,28 +45,7 @@ partial class Session
 
 		if (request is ProviderHelloRequest hello)
 		{
-			lock (_sessionLock)
-			{
-				if (hello.Mode != ProviderHelloModes.Negotiate || hello.ProbeScopeID != null)
-				{
-					SendProviderReject(requestId, operation, "Unsupported", "This hello mode or probe scope is not supported.");
-					return;
-				}
-				if (_providerHello != null)
-				{
-					SendProviderReject(requestId, operation, "AlreadyNegotiated", "Provider Information was already negotiated on this connection.");
-					return;
-				}
-				_providerHello = hello;
-				SendProviderMessage(new ProviderHelloResponse
-				{
-					RequestID = requestId,
-					SelectedVersion = hello.MinimumVersion <= 1 ? 1 : 0,
-					Features = hello.MinimumVersion <= 1 ? ProviderInformationFeatures.InstrumentContextV1 | ProviderInformationFeatures.TradingCalendarV1 | ProviderInformationFeatures.EmptyDayProofV1 : 0,
-					BudgetScopeID = hello.BudgetScopeID,
-					ProviderUtcMicroseconds = (_timeProvider.GetUtcNow() - DateTimeOffset.UnixEpoch).Ticks / 10,
-				});
-			}
+			ProcessProviderHello(hello);
 			return;
 		}
 
@@ -78,6 +57,11 @@ partial class Session
 		}
 		try
 		{
+			if (request is RecentTickReconcileRequest recent)
+			{
+				await ProcessRecentTicksAsync(recent, ct).ConfigureAwait(false);
+				return;
+			}
 			if (request is InstrumentContextRequest context)
 			{
 				if (context.Symbol.StartsWith("fred-", StringComparison.Ordinal))

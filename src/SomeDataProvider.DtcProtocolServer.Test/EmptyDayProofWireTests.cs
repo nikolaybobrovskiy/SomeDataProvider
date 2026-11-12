@@ -32,7 +32,7 @@ public partial class ProviderInformationWireTests
 			Send(client, new ProviderHelloRequest { BudgetScopeID = "synthetic-generation" });
 			var hello = (ProviderHelloResponse)Read(client);
 			Assert.That(hello.Features & ProviderInformationFeatures.EmptyDayProofV1, Is.Not.Zero);
-			Assert.That(hello.Features & ProviderInformationFeatures.RecentClosedTicksV1, Is.Zero);
+			Assert.That(hello.Features & ProviderInformationFeatures.RecentClosedTicksV1, Is.Not.Zero);
 			var start = new DateTimeOffset(2026, 10, day, 0, 0, 0, TimeSpan.Zero);
 			client.GetStream().Write(DtcWire.EncodeHistoricalPriceDataRequest(91, "SYNTH-TESTCC", start.ToUnixTimeSeconds(), start.AddDays(1).ToUnixTimeSeconds(), 0));
 			var frame = ReadStandardFrame(client);

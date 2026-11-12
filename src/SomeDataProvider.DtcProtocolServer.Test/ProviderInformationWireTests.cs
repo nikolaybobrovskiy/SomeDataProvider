@@ -27,7 +27,7 @@ public partial class ProviderInformationWireTests
 		Assert.That(response.RequestID, Is.EqualTo(41));
 		Assert.That(response.SelectedVersion, Is.EqualTo(1));
 		Assert.That(response.Features & ProviderInformationFeatures.EmptyDayProofV1, Is.Not.Zero);
-		Assert.That(response.Features & ProviderInformationFeatures.RecentClosedTicksV1, Is.Zero);
+		Assert.That(response.Features & ProviderInformationFeatures.RecentClosedTicksV1, Is.Not.Zero);
 		Assert.That(response.ProviderUtcMicroseconds, Is.EqualTo((clock.GetUtcNow() - DateTimeOffset.UnixEpoch).Ticks / 10));
 		Assert.That(response.BudgetScopeID, Is.EqualTo("synthetic-generation"));
 		Assert.That(response.MaxCalendarDates, Is.EqualTo(32));

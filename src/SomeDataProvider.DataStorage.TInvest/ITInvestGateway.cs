@@ -5,6 +5,9 @@ using SomeDataProvider.DataStorage.Definitions;
 /// <summary>SDK types never cross this boundary. All methods are read-only.</summary>
 public interface ITInvestGateway : IDisposable
 {
+	/// <summary>True only when each recent source attempt invokes the dispatch guard after source admission.</summary>
+	bool SupportsRecentClosedTicks => false;
+
 	/// <summary>Returns only a verified instrument calendar and trade-date mapping, never inferred venue hours.</summary>
 	Task<TInvestCalendar?> GetTradingCalendarAsync(string id, string revision, DateOnly from, DateOnly to, DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult<TInvestCalendar?>(null);
 
@@ -30,7 +33,11 @@ public interface ITInvestGateway : IDisposable
 	/// <summary>Downloads one instrument-day archive to <paramref name="destination"/>; false when the host has none (HTTP 404).</summary>
 	Task<bool> DownloadTradeArchiveAsync(string instrumentId, DateOnly day, string destination, TInvestRateLimiter.Reservation? reservation, DateTimeOffset deadline, CancellationToken cancellationToken);
 
-	/// <summary>The last hour's public trades of both sources, flagged by source. The caller filters.</summary>
+	/// <summary>Exact closed exchange-only source range. No hidden calls; invoke beforeDispatch immediately before every attempt.</summary>
+	Task<IReadOnlyList<TInvestTrade>> GetRecentTradesAsync(string uid, DateTimeOffset from, DateTimeOffset to, int maximumAttempts, Action beforeDispatch, DateTimeOffset deadline, CancellationToken cancellationToken) =>
+		throw new TInvestRequestException("Recent closed ticks are not supported by this gateway.", TInvestFailureKind.Unsupported);
+
+	/// <summary>The last hour's public exchange trades. The caller filters.</summary>
 	Task<IReadOnlyList<TInvestTrade>> GetLastTradesAsync(string uid, DateTimeOffset from, DateTimeOffset to, TInvestRateLimiter.Reservation reservation, DateTimeOffset deadline, CancellationToken cancellationToken);
 }
 

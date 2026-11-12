@@ -21,9 +21,12 @@ public sealed partial class TInvestStore : ISymbolsStore, IDisposable
 		_gateway = gateway;
 		_options = options;
 		_clock = clock ?? TimeProvider.System;
+		ReconcileBudget = new(_clock, options.LiveReconcileRequestsPerMinute);
 		_refreshTimer = _clock.CreateTimer(_ => RefreshTask = RefreshAsync(), null, UntilRefresh(), Timeout.InfiniteTimeSpan);
 	}
 
+	public TInvestReconcileBudget ReconcileBudget { get; }
+	public bool SupportsRecentClosedTicks => !_options.IncludeDealerTrades && _gateway.SupportsRecentClosedTicks;
 	public ITInvestGateway Gateway => _gateway;
 	public TInvestOptions Options => _options;
 	public TimeProvider Clock => _clock;

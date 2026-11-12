@@ -9,6 +9,23 @@ public sealed partial class SdkTInvestGateway
 	TradeArchiveClient? _archives;
 	Func<TradeArchiveClient>? _createArchives;
 
+	public bool SupportsRecentClosedTicks => true;
+
+	public async Task<IReadOnlyList<TInvestTrade>> GetRecentTradesAsync(string uid, DateTimeOffset from, DateTimeOffset to, int maximumAttempts, Action beforeDispatch, DateTimeOffset deadline, CancellationToken cancellationToken)
+	{
+		if (maximumAttempts is < 1 or > 2) throw new ArgumentOutOfRangeException(nameof(maximumAttempts));
+		using var reservation = await _limiter.ReserveAsync(TInvestLimitGroup.MarketData, 1, deadline, cancellationToken).ConfigureAwait(false);
+		var response = await CallAsync(TInvestLimitGroup.MarketData, () => _marketData.GetLastTradesAsync(new GetLastTradesRequest
+		{
+			InstrumentId = uid, From = Timestamp.FromDateTimeOffset(from), To = Timestamp.FromDateTimeOffset(to),
+			TradeSource = TradeSourceType.TradeSourceExchange,
+		}, deadline: deadline.UtcDateTime, cancellationToken: cancellationToken), deadline, cancellationToken,
+			reservation: reservation, beforeDispatch: beforeDispatch, maximumAttempts: maximumAttempts).ConfigureAwait(false);
+		return response.Trades.Select(t => new TInvestTrade(t.InstrumentUid, new(t.Time.Seconds, t.Time.Nanos), (double)Decimal(t.Price), t.Quantity,
+			t.Direction == TradeDirection.Buy ? TInvestDirection.Buy : t.Direction == TradeDirection.Sell ? TInvestDirection.Sell : TInvestDirection.Unknown,
+			t.TradeSource == TradeSourceType.TradeSourceExchange)).ToArray();
+	}
+
 	public Task<TInvestRateLimiter.Reservation> ReserveArchivesAsync(int downloads, DateTimeOffset deadline, CancellationToken cancellationToken) =>
 		_limiter.ReserveAsync(TInvestLimitGroup.Archives, downloads, deadline, cancellationToken);
 
