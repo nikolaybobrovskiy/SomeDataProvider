@@ -63,7 +63,7 @@ public sealed partial class Service : IFredCatalogGateway
 		{
 			// Reuse the existing client and credentials, but never log the URL or source body.
 			using var request = new HttpRequestMessage(HttpMethod.Get, query + "&file_type=json&api_key=" + _apiKey);
-			using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+			using var response = await SendSourceAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 			if (!response.IsSuccessStatusCode) throw new FredCatalogException("SourceUnavailable");
 			if (response.Content.Headers.ContentLength > MaxCatalogResponseBytes) throw new FredCatalogException("InvalidSourceResponse");
 			await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);

@@ -39,11 +39,15 @@ partial class Session
 	async Task ProcessProviderInformationAsync(Memory<byte> frame, CancellationToken ct)
 	{
 		var operation = BinaryPrimitives.ReadUInt16LittleEndian(frame.Span.Slice(2));
+		// Latch diagnostic intent even if the remaining hello is malformed. It must never fall back to user quotas.
+		if (operation == ProviderHelloRequest.MessageType && frame.Length >= 24 &&
+			(BinaryPrimitives.ReadUInt64LittleEndian(frame.Span.Slice(16)) & 56UL) != 0) _probeRequested = true;
 		var requestId = frame.Length >= 12 ? BinaryPrimitives.ReadInt32LittleEndian(frame.Span.Slice(8)) : 0;
 		ProviderInformationMessage request;
 		try { request = ProviderInformationCodec.DecodeVls(frame.Span); }
 		catch (Exception ex) when (ex is InvalidDataException or ArgumentException or OverflowException)
 		{
+			if (_probeRequested) _probeRefused = true;
 			SendProviderReject(requestId, operation, "InvalidRequest", "Invalid Provider Information request.");
 			return;
 		}

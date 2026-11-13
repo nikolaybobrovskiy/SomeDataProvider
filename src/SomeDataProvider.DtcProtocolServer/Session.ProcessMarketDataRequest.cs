@@ -100,7 +100,7 @@ partial class Session
 				throw new TInvestRequestException($"Symbol is unknown or T-Invest source is not configured: {request.Symbol}.");
 			}
 
-			if (symbol is not TInvestSymbol tInvest || ((Server)Server).MarketDataHub is not { } hub)
+			if (symbol is not TInvestSymbol tInvest || SessionMarketHub is not { } hub)
 			{
 				throw new TInvestRequestException($"Real-time market data is not supported for {request.Symbol}.");
 			}
@@ -161,7 +161,7 @@ partial class Session
 
 			var route = await _symbolsStoreProvider.GetSymbolsStoreAsync(requestedSymbol, exchange, cancel.Token).AsTask().WaitAsync(cancel.Token).ConfigureAwait(false);
 			var symbol = route.HasValue ? await route.Value.SymbolsStore.GetSymbolAsync(route.Value.SymbolCode, cancel.Token).AsTask().WaitAsync(cancel.Token).ConfigureAwait(false) : null;
-			if (symbol is not TInvestSymbol tInvest || ((Server)Server).MarketDataHub is not { } hub)
+			if (symbol is not TInvestSymbol tInvest || SessionMarketHub is not { } hub)
 			{
 				throw new TInvestRequestException("Symbol is unknown or real-time market data is not supported.");
 			}

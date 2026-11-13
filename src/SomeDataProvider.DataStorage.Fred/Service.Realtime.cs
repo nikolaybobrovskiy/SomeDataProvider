@@ -142,7 +142,7 @@ namespace SomeDataProvider.DataStorage.Fred
 			where T : FredResponse
 		{
 			using var requestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
-			using var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+			using var response = await SendSourceAsync(requestMessage, HttpCompletionOption.ResponseContentRead, cancellationToken);
 			var retryAfter = GetRetryAfter(response);
 			await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 			using var textReader = new StreamReader(stream, Encoding.UTF8);

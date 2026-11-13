@@ -2,6 +2,7 @@ namespace SomeDataProvider.DataStorage.TInvest;
 
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using SomeDataProvider.DataStorage.Definitions;
 
 /// <summary>
 /// Downloads one instrument-day trade archive over plain HTTPS GET, with no token (measured: the host serves the files
@@ -36,6 +37,7 @@ public sealed class TradeArchiveClient : IDisposable
 			using var linked = CancellationTokenSource.CreateLinkedTokenSource(timer.Token, cancellationToken);
 			try
 			{
+				ProbeContext.Admit(ProbeSource.TInvest);
 				using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, linked.Token).ConfigureAwait(false);
 				var status = (int)response.StatusCode;
 				if (status == 404) return false;

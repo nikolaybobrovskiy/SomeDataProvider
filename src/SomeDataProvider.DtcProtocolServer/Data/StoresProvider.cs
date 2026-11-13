@@ -35,6 +35,7 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 	readonly TimeProvider _time = TimeProvider.System;
 	readonly bool _fredCatalogAvailable;
 	FredCatalog? _fredCatalog;
+	ProbeScopeRegistry? _probeScopes;
 	TInvestStore? _tInvestStore;
 	string? _tInvestEnvironment;
 	bool _initialized;
@@ -182,8 +183,16 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 
 		MarketDataHub?.Dispose();
 		_fredCatalog?.Dispose();
+		_probeScopes?.Dispose();
 		if (_lazyFredStore.IsValueCreated) _lazyFredStore.Value.Dispose();
 		_tInvestStore?.Dispose();
+	}
+
+	internal ProbeScopeRegistry GetProbeScopes(TimeProvider clock)
+	{
+#pragma warning disable CC0022 // Owned by this provider and disposed in Dispose.
+		lock (_startLock) return _probeScopes ??= new ProbeScopeRegistry(clock);
+#pragma warning restore CC0022
 	}
 
 	internal FredCatalog GetFredCatalog()

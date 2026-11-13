@@ -3,6 +3,7 @@ namespace SomeDataProvider.DataStorage.TInvest;
 using System.Runtime.CompilerServices;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using SomeDataProvider.DataStorage.Definitions;
 using Tinkoff.InvestApi.V1;
 
 public sealed partial class SdkTInvestGateway
@@ -12,9 +13,24 @@ public sealed partial class SdkTInvestGateway
 	{
 		var deadline = _clock.GetUtcNow().AddSeconds(8);
 		await _limiter.AcquireAsync(TInvestLimitGroup.Subscriptions, deadline, cancellationToken).ConfigureAwait(false);
-		var client = new MarketDataStreamService.MarketDataStreamServiceClient(_marketInvoker);
-		var call = client.MarketDataStream(cancellationToken: cancellationToken);
-		var stream = new MarketStream(this, call);
+		// Isolated probe hubs still share the normal gateway-wide stream ceiling.
+		if (Interlocked.Increment(ref _openStreams) > _maximumStreams)
+		{
+			Interlocked.Decrement(ref _openStreams);
+			throw new TInvestRequestException("Server stream limit reached.", TInvestFailureKind.Limit);
+		}
+		MarketStream stream;
+		try
+		{
+			ProbeContext.Admit(ProbeSource.TInvest);
+			var client = new MarketDataStreamService.MarketDataStreamServiceClient(_marketInvoker);
+			stream = new MarketStream(this, client.MarketDataStream(cancellationToken: cancellationToken));
+		}
+		catch
+		{
+			Interlocked.Decrement(ref _openStreams);
+			throw;
+		}
 		try
 		{
 			await stream.WriteAsync(new MarketDataRequest
@@ -108,6 +124,7 @@ public sealed partial class SdkTInvestGateway
 	{
 		readonly SdkTInvestGateway _owner;
 		readonly AsyncDuplexStreamingCall<MarketDataRequest, MarketDataResponse> _call;
+		int _disposed;
 		public MarketStream(SdkTInvestGateway owner, AsyncDuplexStreamingCall<MarketDataRequest, MarketDataResponse> call)
 		{
 			_owner = owner;
@@ -169,6 +186,7 @@ public sealed partial class SdkTInvestGateway
 					throw new ArgumentOutOfRangeException(nameof(request));
 			}
 
+			ProbeContext.Admit(ProbeSource.TInvest);
 			await WriteAsync(message, deadline, cancellationToken).ConfigureAwait(false);
 			return uids;
 		}
@@ -193,7 +211,12 @@ public sealed partial class SdkTInvestGateway
 			}
 		}
 
-		public void Dispose() => _call.Dispose();
+		public void Dispose()
+		{
+			if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+			try { _call.Dispose(); }
+			finally { Interlocked.Decrement(ref _owner._openStreams); }
+		}
 		internal async Task WriteAsync(MarketDataRequest message, DateTimeOffset deadline, CancellationToken ct)
 		{
 			var remaining = deadline - _owner._clock.GetUtcNow();

@@ -14,6 +14,29 @@ using SomeDataProvider.DataStorage.Fred;
 public class FredCatalogGatewayTests
 {
 	[Test]
+	public async Task ProbeCatalogAndLegacyCallsShareTheFredHttpCeiling()
+	{
+		var calls = 0;
+		using var handler = new FakeFredHandler(_ =>
+		{
+			calls++;
+			return FakeFredHandler.JsonResponse("{\"categories\":[]}");
+		});
+		using var http = Client(handler);
+		using var service = Service(http);
+		using var scopes = new SomeDataProvider.DataStorage.Definitions.ProbeScopeRegistry(TimeProvider.System);
+		var scope = scopes.Open("synthetic-probe", 180, 0, 1);
+		using (SomeDataProvider.DataStorage.Definitions.ProbeContext.Enter(scope))
+		{
+			await ((IFredCatalogGateway)service).GetChildrenAsync(0, default);
+			Assert.ThrowsAsync<SomeDataProvider.DataStorage.Definitions.ProbeRejectedException>(() => service.GetCategoriesAsync());
+		}
+		Assert.That(calls, Is.EqualTo(1));
+		await service.GetCategoriesAsync();
+		Assert.That(calls, Is.EqualTo(2), "Ordinary work is unaffected by an exhausted probe.");
+	}
+
+	[Test]
 	public async Task AdapterReadsOnlyExplicitCategoryCallsAndPreservesAnUnknownTotal()
 	{
 		var calls = 0;

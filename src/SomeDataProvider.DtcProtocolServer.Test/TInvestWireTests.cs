@@ -439,18 +439,20 @@ sealed class TInvestTestHost : IDisposable
 	readonly StoresProvider _provider;
 	readonly ConnectedServer _server;
 
-	public TInvestTestHost(StoresProvider provider, TimeProvider? clock = null)
+	public TInvestTestHost(StoresProvider provider, TimeProvider? clock = null, bool enableProbes = false)
 	{
 		_provider = provider;
 		_server = new ConnectedServer(_provider, clock, false);
+		_server.EnableLoopbackProbes = enableProbes;
 		if (!_server.Start()) throw new InvalidOperationException("Loopback test server could not start.");
 	}
 
-	public TInvestTestHost(ITInvestGateway gateway, TimeProvider? clock = null, TInvestOptions? options = null, bool onlyHistoryServer = false)
+	public TInvestTestHost(ITInvestGateway gateway, TimeProvider? clock = null, TInvestOptions? options = null, bool onlyHistoryServer = false, bool enableProbes = false)
 	{
 		Store = new TInvestStore(gateway, options ?? new TInvestOptions(), clock);
 		_provider = new StoresProvider(null, Store, NullLoggerFactory.Instance);
 		_server = new ConnectedServer(_provider, clock, onlyHistoryServer);
+		_server.EnableLoopbackProbes = enableProbes;
 		if (!_server.Start()) throw new InvalidOperationException("Loopback test server could not start.");
 	}
 

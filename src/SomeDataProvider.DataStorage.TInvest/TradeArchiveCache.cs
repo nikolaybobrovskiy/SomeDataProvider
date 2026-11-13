@@ -1,7 +1,9 @@
 namespace SomeDataProvider.DataStorage.TInvest;
 
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
+using SomeDataProvider.DataStorage.Definitions;
 
 /// <summary>
 /// Downloaded archives as they came from the host, under {folder}/{uid}/{date}.archive. A past day's archive does not
@@ -17,6 +19,7 @@ public sealed class TradeArchiveCache
 	readonly TimeProvider _clock;
 	readonly object _lock = new();
 	readonly Dictionary<string, int> _pins = new(StringComparer.OrdinalIgnoreCase);
+	readonly ConditionalWeakTable<ProbeScope, ProbePartition> _probePartitions = new();
 
 	public TradeArchiveCache(string folder, long maxBytes, TimeProvider clock)
 	{
@@ -27,7 +30,17 @@ public sealed class TradeArchiveCache
 
 	public string Folder => _folder;
 
-	public string PathFor(string uid, DateOnly day) => Path.Combine(_folder, Segment(uid), day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) + Extension);
+	public string PathFor(string uid, DateOnly day)
+	{
+		var folder = _folder;
+		if (ProbeContext.IsProbe)
+		{
+			var scope = ProbeContext.Current ?? throw new ProbeRejectedException();
+			scope.Check();
+			folder = _probePartitions.GetValue(scope, owner => new ProbePartition(Path.Combine(_folder, ".probes", Guid.NewGuid().ToString("N")), owner, _lock)).Folder;
+		}
+		return Path.Combine(folder, Segment(uid), day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) + Extension);
+	}
 
 	/// <summary>Returns the cached file and marks it as used.</summary>
 	public bool TryGet(string uid, DateOnly day, out string path)
@@ -96,6 +109,7 @@ public sealed class TradeArchiveCache
 		{
 			if (!Directory.Exists(_folder)) return null;
 			return new DirectoryInfo(_folder).EnumerateFiles("*" + Extension, SearchOption.AllDirectories)
+				.Where(f => !Path.GetRelativePath(_folder, f.FullName).StartsWith(".probes" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
 				.Select(f => DateOnly.TryParseExact(Path.GetFileNameWithoutExtension(f.Name), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var day) ? (DateOnly?)day : null)
 				.Where(d => d != null).DefaultIfEmpty(null).Max();
 		}
@@ -143,6 +157,26 @@ public sealed class TradeArchiveCache
 			// Eviction that had to skip this file can proceed now.
 			EvictLocked(null);
 		}
+	}
+
+	sealed class ProbePartition
+	{
+		public ProbePartition(string folder, ProbeScope owner, object gate)
+		{
+			Folder = folder;
+			// The scope owns this registration through its terminal cancellation. No user file is in this directory.
+			_ = owner.Cancellation.UnsafeRegister(_ =>
+			{
+				lock (gate)
+				{
+					try { Directory.Delete(folder, true); }
+					catch (IOException) { }
+					catch (UnauthorizedAccessException) { }
+				}
+			}, null);
+		}
+
+		public string Folder { get; }
 	}
 
 	sealed class Lease : IDisposable

@@ -3,11 +3,13 @@ namespace SomeDataProvider.DataStorage.TInvest;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text.Json;
+using SomeDataProvider.DataStorage.Definitions;
 
 public sealed partial class TInvestStore
 {
 	readonly object _catalogLock = new();
 	readonly byte[] _catalogCursorKey = RandomNumberGenerator.GetBytes(32);
+	readonly Dictionary<ProbeScope, Task<TInvestCatalogSnapshot>> _probeCatalogs = new();
 	Task? _catalogRefresh;
 	ITimer? _catalogTimer;
 	bool _catalogStale;
@@ -52,6 +54,7 @@ public sealed partial class TInvestStore
 		ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 		cancellationToken.ThrowIfCancellationRequested();
 		if (!SupportsCatalog) throw new TInvestCatalogException("FeatureUnavailable");
+		if (ProbeContext.IsProbe) return await GetProbeCatalogAsync(cancellationToken).ConfigureAwait(false);
 		Task pending;
 		lock (_catalogLock)
 		{
@@ -67,6 +70,32 @@ public sealed partial class TInvestStore
 
 	byte[] CatalogBinding(string node, string filter, int size) => SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new { Source = "t-invest", _options.Environment, Node = node, Filter = filter, Size = size }));
 
+	async Task<TInvestCatalogSnapshot> GetProbeCatalogAsync(CancellationToken ct)
+	{
+		var scope = ProbeContext.Current ?? throw new ProbeRejectedException();
+		scope.Check();
+		Task<TInvestCatalogSnapshot> pending;
+		lock (_catalogLock)
+		{
+			if (_catalog != null && !_catalogStale && _clock.GetUtcNow() - _catalog.Created < TimeSpan.FromHours(1)) return _catalog;
+			foreach (var retired in _probeCatalogs.Where(p => p.Key.Expired || p.Key.Cancellation.IsCancellationRequested).Select(p => p.Key).ToArray()) _probeCatalogs.Remove(retired);
+			if (!_probeCatalogs.TryGetValue(scope, out pending!))
+			{
+				if (_probeCatalogs.Count >= 64) throw new ProbeRejectedException();
+				pending = _probeCatalogs[scope] = LoadProbeCatalogAsync(scope);
+			}
+		}
+		return await pending.WaitAsync(ct).ConfigureAwait(false);
+	}
+
+	async Task<TInvestCatalogSnapshot> LoadProbeCatalogAsync(ProbeScope scope)
+	{
+		using var owner = ProbeContext.Enter(scope);
+		using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token, scope.Cancellation);
+		// Probe jobs never publish shared staleness or create a periodic refresh timer.
+		return await MaterializeCatalogAsync(cancel.Token).ConfigureAwait(false);
+	}
+
 	void StartCatalogRefresh()
 	{
 		if (Volatile.Read(ref _disposed) != 0 || _catalogRefresh is { IsCompleted: false } || _clock.GetUtcNow() < _catalogRetryAt) return;
@@ -78,21 +107,7 @@ public sealed partial class TInvestStore
 	{
 		try
 		{
-			var instruments = new List<TInvestInstrument>();
-			var deadline = _clock.GetUtcNow().AddSeconds(60);
-			using var budget = NewBudget(deadline, _stop.Token);
-			foreach (var kind in new[] { TInvestInstrumentKind.Share, TInvestInstrumentKind.Bond, TInvestInstrumentKind.Etf, TInvestInstrumentKind.Future, TInvestInstrumentKind.Currency })
-			{
-				var remaining = deadline - _clock.GetUtcNow();
-				if (remaining <= TimeSpan.Zero) throw new TimeoutException();
-				var list = await _gateway.ListInstrumentsAsync(kind, deadline, budget.Token)
-					.WaitAsync(remaining, _clock, budget.Token).ConfigureAwait(false);
-				budget.Token.ThrowIfCancellationRequested();
-				if (list.Count > 100_000 || instruments.Count + list.Count > 250_000) throw new TInvestCatalogException("CatalogLimit");
-				if (list.Any(i => i.Short.Kind != kind)) throw new TInvestCatalogException("InvalidSourceData");
-				instruments.AddRange(list);
-			}
-			var snapshot = new TInvestCatalogSnapshot(instruments, _clock.GetUtcNow());
+			var snapshot = await MaterializeCatalogAsync(_stop.Token).ConfigureAwait(false);
 			lock (_catalogLock)
 			{
 				_stop.Token.ThrowIfCancellationRequested();
@@ -120,8 +135,31 @@ public sealed partial class TInvestStore
 		_catalogTimer.Change(delay, Timeout.InfiniteTimeSpan);
 	}
 
+	async Task<TInvestCatalogSnapshot> MaterializeCatalogAsync(CancellationToken ct)
+	{
+		var instruments = new List<TInvestInstrument>();
+		var deadline = _clock.GetUtcNow().AddSeconds(60);
+		using var budget = NewBudget(deadline, ct);
+		foreach (var kind in new[] { TInvestInstrumentKind.Share, TInvestInstrumentKind.Bond, TInvestInstrumentKind.Etf, TInvestInstrumentKind.Future, TInvestInstrumentKind.Currency })
+		{
+			var remaining = deadline - _clock.GetUtcNow();
+			if (remaining <= TimeSpan.Zero) throw new TimeoutException();
+			var list = await _gateway.ListInstrumentsAsync(kind, deadline, budget.Token)
+				.WaitAsync(remaining, _clock, budget.Token).ConfigureAwait(false);
+			budget.Token.ThrowIfCancellationRequested();
+			if (list.Count > 100_000 || instruments.Count + list.Count > 250_000) throw new TInvestCatalogException("CatalogLimit");
+			if (list.Any(i => i.Short.Kind != kind)) throw new TInvestCatalogException("InvalidSourceData");
+			instruments.AddRange(list);
+		}
+		return new TInvestCatalogSnapshot(instruments, _clock.GetUtcNow());
+	}
+
 	void DisposeCatalog()
 	{
-		lock (_catalogLock) _catalogTimer?.Dispose();
+		lock (_catalogLock)
+		{
+			_catalogTimer?.Dispose();
+			_probeCatalogs.Clear();
+		}
 	}
 }

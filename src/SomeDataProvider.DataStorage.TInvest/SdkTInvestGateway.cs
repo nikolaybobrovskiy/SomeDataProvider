@@ -8,6 +8,7 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
+using SomeDataProvider.DataStorage.Definitions;
 using Tinkoff.InvestApi.V1;
 
 /// <summary>The only bridge implementation that depends on SDK types.</summary>
@@ -31,6 +32,8 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 	readonly bool _includeDealer;
 	readonly CallInvoker _marketInvoker;
 	readonly int _maximumCandleCalls;
+	readonly int _maximumStreams;
+	int _openStreams;
 
 	public SdkTInvestGateway(TInvestToken token, TInvestOptions options, TInvestRateLimiter limiter, TimeProvider? clock = null, ILogger<SdkTInvestGateway>? logger = null)
 		: this(token, options, limiter, clock, null, logger)
@@ -42,6 +45,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 		options.Validate();
 		_logger = logger;
 		_maximumCandleCalls = options.MaxCandleCallsPerRequest;
+		_maximumStreams = options.MaxStreams;
 		_includeDealer = options.IncludeDealerTrades;
 		_token = token;
 		_limiter = limiter;
@@ -74,6 +78,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 	{
 		options.Validate();
 		_maximumCandleCalls = options.MaxCandleCallsPerRequest;
+		_maximumStreams = options.MaxStreams;
 		_includeDealer = options.IncludeDealerTrades;
 		_limiter = limiter;
 		_clock = clock;
@@ -212,6 +217,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 		policy.ApplicationPolicy.Add(new System.Security.Cryptography.Oid("1.3.6.1.5.5.7.3.1"));
 		return new SocketsHttpHandler
 		{
+			AllowAutoRedirect = false,
 			EnableMultipleHttp2Connections = true,
 			SslOptions = new SslClientAuthenticationOptions
 			{
@@ -256,6 +262,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 			try
 			{
 				cancellationToken.ThrowIfCancellationRequested();
+				ProbeContext.Admit(ProbeSource.TInvest);
 				beforeDispatch?.Invoke();
 				using var call = createCall();
 				responseHeaders = await call.ResponseHeadersAsync.ConfigureAwait(false);

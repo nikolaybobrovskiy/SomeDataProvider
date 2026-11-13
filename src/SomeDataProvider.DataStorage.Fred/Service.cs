@@ -39,7 +39,7 @@ namespace SomeDataProvider.DataStorage.Fred
 		public Service(ServiceApiKey apiKey, ILoggerFactory loggerFactory)
 		{
 			_apiKey = apiKey;
-			_httpClient = new HttpClient { BaseAddress = new Uri(ApiUrl) };
+			_httpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = new Uri(ApiUrl) };
 			_disposeClient = true;
 			_l = loggerFactory.CreateLogger<Service>();
 		}
@@ -55,7 +55,7 @@ namespace SomeDataProvider.DataStorage.Fred
 		{
 			return await _l.LogOperationAsync(async () =>
 			{
-				var jsonResponse = await _httpClient.GetJsonAsync($"category/children?category_id={parentCategoryId}&api_key={_apiKey}&file_type=json", cancellationToken);
+				var jsonResponse = await GetSourceJsonAsync($"category/children?category_id={parentCategoryId}&api_key={_apiKey}&file_type=json", cancellationToken);
 				if (jsonResponse["categories"] is not JArray catsJson) return Array.Empty<CategoryInfo>();
 				return catsJson.ToObject<CategoryInfo[]>() ?? Array.Empty<CategoryInfo>();
 			}, "GetCategories({parentCategoryId})", parentCategoryId);
@@ -65,7 +65,7 @@ namespace SomeDataProvider.DataStorage.Fred
 		{
 			return await _l.LogOperationAsync(async () =>
 			{
-				var jsonResponse = await _httpClient.GetJsonAsync($"category/series?category_id={categoryId}&api_key={_apiKey}&file_type=json", cancellationToken);
+				var jsonResponse = await GetSourceJsonAsync($"category/series?category_id={categoryId}&api_key={_apiKey}&file_type=json", cancellationToken);
 				if (jsonResponse["seriess"] is not JArray seriesJson) return Array.Empty<SeriesInfo>();
 				return seriesJson.ToObject<SeriesInfo[]>() ?? Array.Empty<SeriesInfo>();
 			}, "GetCategorySeries({categoryId})", categoryId);
@@ -80,7 +80,7 @@ namespace SomeDataProvider.DataStorage.Fred
 		{
 			return await _l.LogOperationAsync(async () =>
 			{
-				var jsonResponse = await _httpClient.GetJsonAsync($"series?series_id={seriesId}&api_key={_apiKey}&file_type=json", cancellationToken);
+				var jsonResponse = await GetSourceJsonAsync($"series?series_id={seriesId}&api_key={_apiKey}&file_type=json", cancellationToken);
 				if (jsonResponse["seriess"] is JArray { Count: > 0 } series)
 					return series[0].ToObject<SeriesInfo>();
 				return null;
@@ -94,7 +94,7 @@ namespace SomeDataProvider.DataStorage.Fred
 				var limitQueryParam = limit > 0 ? $"&limit={limit}" : string.Empty;
 				var uri = $"series/search?search_text={Uri.EscapeDataString(searchText)}&search_type={searchType}&api_key={_apiKey}&file_type=json{limitQueryParam}";
 				using var requestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
-				using var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+				using var response = await SendSourceAsync(requestMessage, HttpCompletionOption.ResponseContentRead, cancellationToken);
 				var jsonResponse = await response.GetJsonAsync(cancellationToken);
 				// Unlike GetSeriesInfoAsync (an absent series means "not found"), a symbol search must tell a FRED
 				// API error apart from a plain no-matches result (the caller answers the two very differently).
@@ -138,7 +138,7 @@ namespace SomeDataProvider.DataStorage.Fred
 				if (end != default) endQueryParam = $"&observation_end={end.ToString(DateFormat, CultureInfo.InvariantCulture)}";
 
 				var uri = $"series/observations?series_id={seriesId}&api_key={_apiKey}&file_type=json{unitsQueryParam}{startQueryParam}{endQueryParam}{offsetQueryParam}{limitQueryParam}";
-				var jsonResponse = await _httpClient.GetJsonAsync(uri, cancellationToken);
+				var jsonResponse = await GetSourceJsonAsync(uri, cancellationToken);
 				if (jsonResponse is JObject jObj)
 					return jObj.ToObject<ObservationsData>();
 				return null;

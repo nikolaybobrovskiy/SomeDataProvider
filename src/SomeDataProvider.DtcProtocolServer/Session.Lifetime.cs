@@ -86,6 +86,7 @@ partial class Session
 		if (_closing) return false;
 		_closing = true;
 		StopMarketSubscriptions();
+		StopProbeWork();
 		StopHeartbeatTimers();
 		return true;
 	}

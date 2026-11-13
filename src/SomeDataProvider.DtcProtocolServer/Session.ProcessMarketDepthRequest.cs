@@ -127,7 +127,7 @@ partial class Session
 
 			var route = await _symbolsStoreProvider.GetSymbolsStoreAsync(requestedSymbol, exchange, cancel.Token).AsTask().WaitAsync(cancel.Token).ConfigureAwait(false);
 			var symbol = route.HasValue ? await route.Value.SymbolsStore.GetSymbolAsync(route.Value.SymbolCode, cancel.Token).AsTask().WaitAsync(cancel.Token).ConfigureAwait(false) : null;
-			if (symbol is not TInvestSymbol tInvest || !tInvest.HasMarketDepth || ((Server)Server).MarketDataHub is not { } hub)
+			if (symbol is not TInvestSymbol tInvest || !tInvest.HasMarketDepth || SessionMarketHub is not { } hub)
 			{
 				throw new TInvestRequestException("Symbol is unknown or market depth is not supported.");
 			}

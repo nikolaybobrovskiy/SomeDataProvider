@@ -13,6 +13,44 @@ using Tinkoff.InvestApi.V1;
 [TestFixture]
 public class GatewayTests
 {
+	[Test]
+	public void ARefusedProbeDoesNotRecordAFictitiousRecentSourceDispatch()
+	{
+		var clock = new ManualTimeProvider();
+		clock.Advance(TickFixture.Now - DateTimeOffset.UnixEpoch);
+		using var scopes = new SomeDataProvider.DataStorage.Definitions.ProbeScopeRegistry(clock);
+		using var probe = SomeDataProvider.DataStorage.Definitions.ProbeContext.Enter(scopes.Open("synthetic-probe", 180, 0, 0));
+		var invoker = new ScriptedInvoker((_, _) => new GetLastTradesResponse());
+		using var gateway = NewGateway(invoker, clock);
+		var rolling = new TInvestReconcileBudget(clock, 6);
+		using var request = rolling.BeginRequest("synthetic-profile", 2);
+		var from = clock.GetUtcNow().AddMinutes(-5);
+		var to = clock.GetUtcNow().AddSeconds(-2);
+		Assert.ThrowsAsync<SomeDataProvider.DataStorage.Definitions.ProbeRejectedException>(() => gateway.GetRecentTradesAsync("invented-uid", from, to, 2,
+			() => request.BeforeDispatch(from, to), clock.GetUtcNow().AddSeconds(20), default));
+		Assert.That(request.Attempts, Is.Zero);
+		Assert.That(invoker.Calls, Is.Zero);
+	}
+
+	[TestCase(1)]
+	[TestCase(2)]
+	public async Task ProbeBudgetCountsTheActualUnaryRetry(int ceiling)
+	{
+		var clock = new ManualTimeProvider();
+		using var scopes = new SomeDataProvider.DataStorage.Definitions.ProbeScopeRegistry(clock);
+		var scope = scopes.Open("synthetic-probe", 180, ceiling, 0);
+		using var probe = SomeDataProvider.DataStorage.Definitions.ProbeContext.Enter(scope);
+		var invoker = new ScriptedInvoker((_, n) => n == 1
+			? throw new RpcException(new Status(StatusCode.ResourceExhausted, "80002"), Reset(1)) : new FindInstrumentResponse());
+		using var gateway = NewGateway(invoker, clock);
+		var task = gateway.FindInstrumentsAsync("SYNTH", clock.GetUtcNow().AddSeconds(8), default);
+		clock.Advance(TimeSpan.FromSeconds(1));
+		if (ceiling == 1) Assert.ThrowsAsync<SomeDataProvider.DataStorage.Definitions.ProbeRejectedException>(async () => await task);
+		else Assert.That(await task, Is.Empty);
+		Assert.That(invoker.Calls, Is.EqualTo(ceiling));
+		Assert.That(scope.Remaining.TInvest, Is.Zero);
+	}
+
 	[TestCase("Sandbox", "sandbox-invest-public-api.tbank.ru")]
 	[TestCase("Production", "invest-public-api.tbank.ru")]
 	public async Task ChannelAppliesTlsCredentialsAndAppNameWithoutNetwork(string environment, string host)

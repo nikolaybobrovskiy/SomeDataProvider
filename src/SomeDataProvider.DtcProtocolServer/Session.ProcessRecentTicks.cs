@@ -5,12 +5,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dtc.Protocol;
 using Dtc.Protocol.Private;
+using SomeDataProvider.DataStorage.Definitions;
 using SomeDataProvider.DataStorage.TInvest;
 using SomeDataProvider.DtcProtocolServer.Data;
 
 partial class Session
 {
 	ProviderHelloResponse? _providerNegotiation;
+	volatile bool _probeRefused;
+	volatile bool _probeRequested;
+	volatile ProbeScope? _probeScope;
 
 	long ProviderClockSample() => (_timeProvider.GetUtcNow() - DateTimeOffset.UnixEpoch).Ticks / 10;
 
@@ -21,13 +25,29 @@ partial class Session
 			void Reject(string reason) => SendProviderReject(hello.RequestID, hello.Type, reason, "Provider hello could not be accepted.");
 			try
 			{
-				if (hello.ProbeScopeID != null)
+				if (_probeRefused)
 				{
 					Reject("Unsupported");
 					return;
 				}
 				var provider = _symbolsStoreProvider as StoresProvider;
+				_probeScope?.Check();
 				var store = provider?.TInvestReady == true ? provider.GetTInvestInformationStore() : null;
+				if (hello.ProbeScopeID != null || hello.ProbeTInvestAttempts != null || hello.ProbeFredAttempts != null)
+				{
+					_probeRequested = _probeRefused = true;
+					if (hello.ProbeScopeID == null || hello.ProbeTInvestAttempts == null || hello.ProbeFredAttempts == null || hello.Mode == ProviderHelloModes.ClockOnly)
+					{
+						Reject("InvalidRequest");
+						return;
+					}
+					if (!((Server)Server).EnableLoopbackProbes || provider == null || hello.MinimumVersion > 1 ||
+						RemoteEndPoint is not System.Net.IPEndPoint endpoint || !System.Net.IPAddress.IsLoopback(endpoint.Address))
+					{
+						Reject("Unsupported");
+						return;
+					}
+				}
 				if (hello.Mode == ProviderHelloModes.ClockOnly)
 				{
 					if (_providerHello == null || _providerNegotiation == null || (_providerNegotiation.Features & ProviderInformationFeatures.ClockRefreshV1) == 0 || store == null)
@@ -52,6 +72,7 @@ partial class Session
 					{
 						RequestID = hello.RequestID, Mode = ProviderHelloModes.ClockOnly, Source = hello.Source,
 						InstrumentUID = hello.InstrumentUID, UIDEpoch = hello.UIDEpoch, ProviderUtcMicroseconds = ProviderClockSample(),
+						ProbeScopeID = null, ProbeTInvestAttempts = null, ProbeFredAttempts = null,
 					});
 					return;
 				}
@@ -77,6 +98,15 @@ partial class Session
 				var features = ProviderInformationFeatures.InstrumentContextV1 | ProviderInformationFeatures.TradingCalendarV1 | ProviderInformationFeatures.EmptyDayProofV1;
 				if (store?.SupportsRecentClosedTicks == true) features |= ProviderInformationFeatures.RecentClosedTicksV1 | ProviderInformationFeatures.ClockRefreshV1;
 				if (store?.SupportsCatalog == true || provider?.FredCatalogAvailable == true) features |= ProviderInformationFeatures.SymbolCatalogV1;
+				if (hello.ProbeScopeID != null)
+				{
+					_probeScope = provider!.GetProbeScopes(_timeProvider).Open(hello.ProbeScopeID, hello.ProbeLifetimeSeconds,
+						hello.ProbeTInvestAttempts!.Value, hello.ProbeFredAttempts!.Value, hello.Mode == ProviderHelloModes.JoinHistorical);
+					_probeRefused = false;
+					AttachProbeScope();
+				}
+				if (((Server)Server).EnableLoopbackProbes && provider != null &&
+					RemoteEndPoint is System.Net.IPEndPoint remote && System.Net.IPAddress.IsLoopback(remote.Address)) features |= ProviderInformationFeatures.ProbeBudgetV1;
 				_providerHello = hello;
 				_providerNegotiation = new ProviderHelloResponse
 				{
@@ -84,9 +114,12 @@ partial class Session
 					Features = hello.MinimumVersion <= 1 ? features : 0, BudgetScopeID = hello.BudgetScopeID,
 					Source = hello.Source, InstrumentUID = hello.InstrumentUID, UIDEpoch = hello.UIDEpoch,
 					ProbeLifetimeSeconds = hello.ProbeLifetimeSeconds, ProviderUtcMicroseconds = ProviderClockSample(),
+					ProbeScopeID = hello.ProbeScopeID, ProbeTInvestAttempts = _probeScope?.TInvestCeiling, ProbeFredAttempts = _probeScope?.FredCeiling,
 				};
 				SendProviderMessage(_providerNegotiation);
 			}
+			catch (ProbeRejectedException) { Reject("ProbeBudgetUnavailable"); }
+			catch (ArgumentOutOfRangeException) { Reject("InvalidRequest"); }
 			catch (TInvestRecentRequestException ex) { Reject(ex.Reason); }
 			catch (Exception) { Reject("SourceUnavailable"); }
 		}

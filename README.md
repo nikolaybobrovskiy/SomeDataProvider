@@ -222,9 +222,67 @@ and obsolete-coverage invalidation. It means empty tick answers require source-m
 past day is available. `RecentClosedTicksV1` and `ClockRefreshV1` are now enabled together for an
 attempt-guarded, exchange-only store. Historical hello Mode 1 joins a stable profile/source/UID epoch;
 Mode 2 refreshes only the provider clock and shares the recent request budget. `SymbolCatalogV1` is enabled
-for a configured FRED source or a ready T-Invest store with bulk-list support. Scoped search and probe bits remain off;
-probe scopes are rejected. Ordinary clients need not send a hello and receive no
+for a configured FRED source or a ready T-Invest store with bulk-list support. Scoped search remains off.
+`ProbeBudgetV1` is off unless the process explicitly enables the loopback diagnostic below. Ordinary clients need not send a hello and receive no
 unsolicited extension messages; standard definitions, history and market data retain their existing behavior.
+
+### Budgeted loopback diagnostics
+
+Live checks still require separate user approval for each finite run. This feature does not run a check,
+read a token, change deployed configuration or grant permission to restart a running server. An approved operator
+may enable it for a future process with the startup switch `--enable-loopback-probes` (boolean, default off).
+Only loopback peers can create scopes. Never change normal quotas or recording settings for a diagnostic.
+
+The first Provider Information hello carries an optional, complete probe section:
+
+| Field | Default / accepted range |
+|---|---|
+| `ProbeScopeID` | Caller-chosen opaque, nonempty ID, at most 256 UTF-8 bytes; no trimming or case folding |
+| `ProbeLifetimeSeconds` | 180; 30–900 seconds, measured from the original creation with a monotonic clock |
+| `ProbeTInvestAttempts` | Required with the ID; 0–60 total admitted source attempts |
+| `ProbeFredAttempts` | Required with the ID; 0–6 total admitted source attempts |
+
+Invalid limits are rejected before any source call, not clamped. There are at most 64 retained unexpired
+scopes per stores provider. Purged IDs are quarantined for another 900 seconds (at most 1,024 tombstones;
+when full, creation rejects rather than forgetting an ID early). Choose a fresh opaque ID for every run.
+Scope state is ephemeral and disappears with the process. A repeated active ID joins
+the same counters only with the same original lifetime and ceilings; it never refills or extends them.
+Each historical socket sends its own hello with the same ID and original limits. Mode 0 creates or joins
+the diagnostic scope, including for ordinary FRED/market history; recent reconciliation's Mode 1 is join-only
+and additionally retains its existing cached source/UID/epoch checks and separate rolling budget.
+Successful hello replies echo the accepted total ceilings, not a fresh allowance. Clock-only refresh
+does not repeat the optional probe section, renew a scope or reset either budget.
+
+The execution-context adapter is entered at each probe socket request. The T-Invest gateway checks it
+immediately before every unary dispatch, including retries and candle/recent reservations, each archive
+HTTP attempt, stream opening and each nonempty subscription/control write. FRED's legacy, catalog and
+real-time HTTP paths all check the same adapter before dispatch; they have no automatic HTTP retries.
+Direct provider diagnostics must explicitly enter `ProbeContext.Enter(scope)` around their work;
+entering it with no enforceable scope denies every source dispatch. Without `ProbeBudgetV1`, clients
+must stop after hello: a refused or malformed probe section latches the socket as diagnostic and cannot
+fall back to unbudgeted ordinary requests.
+
+Probe-triggered catalog loads are scoped too: they never own the ordinary catalog's periodic timer or
+publish a probe failure as shared staleness. A fresh shared catalog can be read without an upstream call.
+Archive fills retain their initiating scope after a request returns, and different scopes/user work do
+not join a probe-owned fill. Probe live interests use a separate nonpersisting hub, so snapshots, recovery,
+depth resync and reconnect admissions retain one budget owner. Those hubs share the same gateway limiter
+and total `MaxStreams` ceiling as normal clients. Refused admission or expiry stops only probe interests;
+healthy user streams and independently owned user fills are not canceled. Each source has its own
+maximum admitted attempts: reaching that maximum permits the last allowed call to finish, and does not
+spend or transfer the other source's allowance. The first attempt refused for lack of source allowance
+stops the whole finite probe run; neither source admits another attempt after that refusal.
+Probe archive files have a separate generated namespace, share the existing aggregate cache cap and pin
+protections, do not advance recorder pruning and are cleaned up on scope cancellation where I/O permits.
+Probe-path writes and cleanup cannot replace or delete a user's cached instrument-day; normal aggregate
+LRU eviction can still evict unpinned user files under the existing cap. Probe archive reads reuse only
+their scope's partition, not the user's archive files. No new attempt is admitted after expiry; the
+provider may reject or close the probe socket. This counts admitted source dispatches, not DTC requests
+or delivered rows; reads satisfied by a scope's available local caches cost no source attempt. A ceiling
+is an early-stop guard, not a promise that a run will finish within it.
+
+Offline fixtures use synthetic instruments, fake clocks and fake transports. They are not evidence that
+L1–L11 have run, that upstream completeness is established or that any deployment gate is satisfied.
 
 The [T-Bank catalog](docs/t-invest-catalog.md) (20107–20110) provides paged kind/board browsing from
 bulk lists, with materialized provider snapshots, authenticated cursors and optional context hints.

@@ -169,6 +169,16 @@ namespace SomeDataProvider.DtcProtocolServer
 						var ct = GetContext.CancellationToken;
 						ct.ThrowIfCancellationRequested();
 						var providerType = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Span.Slice(2));
+						using var probeContext = _probeRequested ? ProbeContext.Enter(_probeScope) : null;
+						if (_probeRequested && providerType is not (DtcConstants.HEARTBEAT or DtcConstants.ENCODING_REQUEST or DtcConstants.LOGON_REQUEST or ProviderHelloRequest.MessageType))
+						{
+							if (_probeRefused || _probeScope == null)
+							{
+								CloseSession();
+								return;
+							}
+							_probeScope.Check();
+						}
 						if (IsVlsSession && providerType is >= 20100 and <= 20114)
 						{
 							await ProcessProviderInformationAsync(buffer, ct);

@@ -6,6 +6,43 @@ using SomeDataProvider.DtcProtocolServer.Test;
 [TestFixture]
 public class CatalogStoreTests
 {
+	[TestCase(1)]
+	[TestCase(10)]
+	public async Task AProbeCatalogFailureDoesNotPoisonTheSharedCatalogOrItsTimer(int ceiling)
+	{
+		var clock = new ManualTimeProvider();
+		using var scopes = new SomeDataProvider.DataStorage.Definitions.ProbeScopeRegistry(clock);
+		var scope = scopes.Open("synthetic-probe", 180, ceiling, 0);
+		using var gateway = new ScriptedTInvestGateway();
+		gateway.ListInstruments = async (_, _) =>
+		{
+			await Task.Yield();
+			SomeDataProvider.DataStorage.Definitions.ProbeContext.Admit(SomeDataProvider.DataStorage.Definitions.ProbeSource.TInvest);
+			return Array.Empty<TInvestInstrument>();
+		};
+		using var store = new TInvestStore(gateway, new(), clock);
+		using (SomeDataProvider.DataStorage.Definitions.ProbeContext.Enter(scope))
+		{
+			if (ceiling == 1)
+			{
+				var error = Assert.CatchAsync(async () => await store.GetCatalogAsync(default));
+				Assert.That(error, Is.TypeOf<SomeDataProvider.DataStorage.Definitions.ProbeRejectedException>().Or.InstanceOf<OperationCanceledException>());
+			}
+			else
+			{
+				Assert.That((await store.GetCatalogAsync(default)).Instruments, Is.Empty);
+				Assert.That(scope.Remaining.TInvest, Is.EqualTo(5));
+				clock.Advance(TimeSpan.FromHours(1));
+				await store.CatalogRefreshTask;
+				Assert.That(gateway.CatalogCalls.Count, Is.EqualTo(5), "A successful probe load must not schedule another source call on a periodic timer.");
+			}
+		}
+		Assert.That((await store.GetCatalogAsync(default)).Instruments, Is.Empty);
+		clock.Advance(TimeSpan.FromHours(1));
+		await store.CatalogRefreshTask;
+		Assert.That((await store.GetCatalogAsync(default)).Instruments, Is.Empty);
+	}
+
 	[Test]
 	public async Task RefreshIsSingleFlightAndAFailureRetainsTheOldSnapshotAsStale()
 	{

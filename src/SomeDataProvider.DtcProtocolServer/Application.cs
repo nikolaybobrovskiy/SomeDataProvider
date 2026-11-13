@@ -60,6 +60,9 @@ namespace SomeDataProvider.DtcProtocolServer
 			[Option("--only-history", Description = "Enable only history server mode (enables compression, disables heartbeat, one connection per history request).")]
 			public bool OnlyHistoryServer { get; set; }
 
+			[Option("--enable-loopback-probes", Description = "Allow explicitly approved, budgeted loopback diagnostics for this process only. Default is off.")]
+			public bool EnableLoopbackProbes { get; set; }
+
 			public override Task<int> OnExecuteAsync(CommandLineApplication app)
 			{
 				var ct = GetContext.CancellationToken;
@@ -72,7 +75,7 @@ namespace SomeDataProvider.DtcProtocolServer
 						_symbolsStoreProvider,
 						_historyStoreProvider,
 						_seriesSource,
-						_loggerFactory);
+						_loggerFactory) { EnableLoopbackProbes = EnableLoopbackProbes };
 					L.LogInformation("Starting server on {listenEndpoint}...", mainServer.Endpoint);
 					mainServer.Start();
 					ct.WaitHandle.WaitOne();

@@ -11,7 +11,7 @@ public sealed partial class TInvestStore
 	const int ArchivesPerMinute = 27;
 
 	readonly object _tickLock = new();
-	readonly Dictionary<(string Uid, DateOnly Day), Task<DayState>> _fetches = new();
+	readonly Dictionary<(string Uid, DateOnly Day, ProbeScope? Probe), Task<DayState>> _fetches = new();
 	readonly Dictionary<(string Path, long Length, bool Dealer, long From, long To), Task<int>> _countTasks = new();
 	readonly List<Task> _fills = new();
 	readonly SemaphoreSlim _fetchGate = new(FetchConcurrency);
@@ -320,11 +320,18 @@ public sealed partial class TInvestStore
 
 	Task<DayState> GetOrStartFetch(TInvestSymbol symbol, DateOnly day, TInvestRateLimiter.Reservation? archives)
 	{
-		var key = (symbol.Instrument.Short.Uid, day);
+		var scope = ProbeContext.Current;
+		var isProbe = ProbeContext.IsProbe;
+		var key = (symbol.Instrument.Short.Uid, day, scope);
 		lock (_tickLock)
 		{
 			if (_fetches.TryGetValue(key, out var running)) return running;
-			var task = Task.Run(() => FetchDayAsync(symbol, day, archives));
+			var task = Task.Run(async () =>
+			{
+				// A fill can outlive its socket. Keep its budget owner; never let user work join a probe-owned fill.
+				using var probeContext = isProbe ? ProbeContext.Enter(scope) : null;
+				return await FetchDayAsync(symbol, day, archives, scope).ConfigureAwait(false);
+			});
 			_fetches[key] = task;
 			task.ContinueWith(_ =>
 			{
@@ -344,18 +351,19 @@ public sealed partial class TInvestStore
 		}, TaskScheduler.Default);
 	}
 
-	async Task<DayState> FetchDayAsync(TInvestSymbol symbol, DateOnly day, TInvestRateLimiter.Reservation? archives)
+	async Task<DayState> FetchDayAsync(TInvestSymbol symbol, DateOnly day, TInvestRateLimiter.Reservation? archives, ProbeScope? scope)
 	{
+		using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token, scope?.Cancellation ?? default);
 		var uid = symbol.Instrument.Short.Uid;
 		var background = _clock.GetUtcNow().AddMinutes(BackgroundFillMinutes);
 		// Background-only work waits on the archive window for long; it must not hold the foreground's permits.
 		var gate = archives == null ? _backgroundGate : _fetchGate;
-		await gate.WaitAsync(_stop.Token).ConfigureAwait(false);
+		await gate.WaitAsync(cancel.Token).ConfigureAwait(false);
 		try
 		{
 			var path = ArchiveCache.PathFor(uid, day);
 			var id = symbol.Instrument.Short.Ticker + "_" + symbol.Instrument.Short.ClassCode;
-			if (await _gateway.DownloadTradeArchiveAsync(id, day, path, archives, background, _stop.Token).ConfigureAwait(false))
+			if (await _gateway.DownloadTradeArchiveAsync(id, day, path, archives, background, cancel.Token).ConfigureAwait(false))
 			{
 				if (new FileInfo(path).Length > _options.ArchiveCacheMaxBytes)
 				{
@@ -366,7 +374,7 @@ public sealed partial class TInvestStore
 
 				ArchiveCache.Evict(path);
 				var newest = ArchiveCache.NewestDay();
-				if (newest != null) Volatile.Read(ref _recording)?.DeleteBefore(newest.Value);
+				if (newest != null && scope == null) Volatile.Read(ref _recording)?.DeleteBefore(newest.Value);
 				return new(DayKind.File, path);
 			}
 

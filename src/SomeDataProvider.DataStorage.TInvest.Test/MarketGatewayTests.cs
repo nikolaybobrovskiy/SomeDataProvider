@@ -10,6 +10,43 @@ using Tinkoff.InvestApi.V1;
 [TestFixture]
 public class MarketGatewayTests
 {
+	[Test]
+	public async Task ProbeHubsCannotRaiseTheNormalGatewayStreamCeiling()
+	{
+		var clock = new ManualTimeProvider();
+		var invoker = new Invoker();
+		using var gateway = new SdkTInvestGateway(invoker, new TInvestOptions { MaxStreams = 1 }, new TInvestRateLimiter(clock), clock);
+		using var user = await gateway.OpenMarketDataStreamAsync(default);
+		using var scopes = new SomeDataProvider.DataStorage.Definitions.ProbeScopeRegistry(clock);
+		using (SomeDataProvider.DataStorage.Definitions.ProbeContext.Enter(scopes.Open("synthetic-probe", 180, 2, 0)))
+			Assert.ThrowsAsync<TInvestRequestException>(() => gateway.OpenMarketDataStreamAsync(default));
+		Assert.That(invoker.Opens, Is.EqualTo(1));
+		await user.SendAsync(new(TInvestSubscriptionKind.Trades, new[] { "invented-uid" }), clock.GetUtcNow().AddSeconds(20), default);
+		user.Dispose();
+		user.Dispose();
+		using var replacement = await gateway.OpenMarketDataStreamAsync(default);
+		Assert.That(invoker.Opens, Is.EqualTo(2));
+	}
+
+	[Test]
+	public async Task StreamSetupAndEachSubscriptionDispatchConsumeTheProbeBudget()
+	{
+		var clock = new ManualTimeProvider();
+		using var scopes = new SomeDataProvider.DataStorage.Definitions.ProbeScopeRegistry(clock);
+		var scope = scopes.Open("synthetic-probe", 180, 2, 0);
+		var invoker = new Invoker();
+		using var gateway = new SdkTInvestGateway(invoker, new TInvestOptions(), new TInvestRateLimiter(clock), clock);
+		using (SomeDataProvider.DataStorage.Definitions.ProbeContext.Enter(scope))
+		{
+			using var stream = await gateway.OpenMarketDataStreamAsync(default);
+			await stream.SendAsync(new(TInvestSubscriptionKind.Trades, new[] { "invented-uid" }), clock.GetUtcNow().AddSeconds(20), default);
+			Assert.ThrowsAsync<SomeDataProvider.DataStorage.Definitions.ProbeRejectedException>(() => stream.SendAsync(new(TInvestSubscriptionKind.Info, new[] { "invented-uid" }), clock.GetUtcNow().AddSeconds(20), default));
+		}
+		Assert.That(invoker.Opens, Is.EqualTo(1));
+		Assert.That(invoker.Writer.Messages.Count, Is.EqualTo(2), "Ping setup and one subscription only.");
+		Assert.DoesNotThrowAsync(async () => { using var user = await gateway.OpenMarketDataStreamAsync(default); });
+	}
+
 	[TestCase(false)]
 	[TestCase(true)]
 	public async Task StreamUsesDirectInvokerSourceSettingsAndNormalizedEvents(bool dealer)

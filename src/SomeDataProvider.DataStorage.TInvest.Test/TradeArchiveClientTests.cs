@@ -12,6 +12,26 @@ public class TradeArchiveClientTests
 	static readonly DateOnly Day = new(2026, 10, 28);
 
 	[Test]
+	public async Task ProbeArchiveRetryCannotBypassItsOneAttemptCeiling()
+	{
+		var calls = 0;
+		using var client = new Scope((_, _) =>
+		{
+			calls++;
+			var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+			response.Headers.Add("x-ratelimit-reset", "1");
+			return response;
+		});
+		using var scopes = new SomeDataProvider.DataStorage.Definitions.ProbeScopeRegistry(client.Clock);
+		using var probe = SomeDataProvider.DataStorage.Definitions.ProbeContext.Enter(scopes.Open("synthetic-probe", 180, 1, 0));
+		var task = client.Download();
+		client.Clock.Advance(TimeSpan.FromSeconds(1));
+		Assert.ThrowsAsync<SomeDataProvider.DataStorage.Definitions.ProbeRejectedException>(async () => await task);
+		Assert.That(calls, Is.EqualTo(1));
+		await Task.CompletedTask;
+	}
+
+	[Test]
 	public async Task DownloadsWithoutAnyCredentialAndKeepsTheBytesAsReceived()
 	{
 		using var scope = new Scope((request, _) =>

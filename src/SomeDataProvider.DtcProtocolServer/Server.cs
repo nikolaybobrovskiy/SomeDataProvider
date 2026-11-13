@@ -54,6 +54,7 @@ namespace SomeDataProvider.DtcProtocolServer
 		internal Market.TInvestMarketDataHub? MarketDataHub => (_symbolsStoreProvider as StoresProvider)?.MarketDataHub;
 
 		internal TimeProvider TimeProvider { get; }
+		internal bool EnableLoopbackProbes { get; set; }
 
 		ILogger<Server> L { get; }
 
