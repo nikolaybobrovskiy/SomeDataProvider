@@ -2,7 +2,9 @@
 
 ## Wire and admission
 
-Dtc 8.0.0-alpha.4 supplies Types 20100-20114. `RecentClosedTicksV1` and `ClockRefreshV1`
+Dtc 8.0.0-alpha.5 supplies Types 20100-20114, including the alpha.4 recent-tick contract.
+T-Bank catalog entries may carry optional `Features` and `UIDEpoch` hints; FRED entries never do.
+`RecentClosedTicksV1` and `ClockRefreshV1`
 are advertised together only when the T-Invest store has an attempt-guarded gateway and
 `IncludeDealerTrades=false`. Feature negotiation remains once per socket. First acquire
 context explicitly, then use a dedicated socket with hello Mode 1 (JoinHistorical), the

@@ -1,6 +1,7 @@
 namespace SomeDataProvider.DtcProtocolServer;
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
@@ -26,9 +27,13 @@ partial class Session
 
 	static byte[] EncodeProviderMessage(ProviderInformationMessage message)
 	{
-		var buffer = new byte[ushort.MaxValue];
-		var count = ProviderInformationCodec.EncodeVls(message, buffer);
-		return buffer.AsSpan(0, count).ToArray();
+		var buffer = ArrayPool<byte>.Shared.Rent(ushort.MaxValue);
+		try
+		{
+			var count = ProviderInformationCodec.EncodeVls(message, buffer.AsSpan(0, ushort.MaxValue));
+			return buffer.AsSpan(0, count).ToArray();
+		}
+		finally { ArrayPool<byte>.Shared.Return(buffer); }
 	}
 
 	async Task ProcessProviderInformationAsync(Memory<byte> frame, CancellationToken ct)

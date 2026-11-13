@@ -36,6 +36,8 @@ namespace SomeDataProvider.DataStorage.Fred
 			_l = loggerFactory.CreateLogger<Store>();
 		}
 
+		public IFredCatalogGateway CatalogGateway => _fredService;
+
 		public ValueTask<ISymbolHistoryStoreReader> CreateSymbolHistoryReaderAsync(ISymbol symbol, HistoryInterval historyInterval, DateTime start, DateTime end, int limit, CancellationToken cancellationToken = default)
 		{
 #pragma warning disable CC0022 // Should dispose object

@@ -13,6 +13,17 @@ partial class Session
 {
 	async Task ProcessSymbolCatalogAsync(SymbolCatalogRequest request, CancellationToken ct)
 	{
+		if (request.Catalog == "fred")
+		{
+			if ((_symbolsStoreProvider as StoresProvider)?.FredCatalogAvailable != true || _providerNegotiation == null ||
+				(_providerNegotiation.Features & ProviderInformationFeatures.SymbolCatalogV1) == 0)
+			{
+				SendProviderReject(request.RequestID, request.Type, "FeatureUnavailable", "This catalog is unavailable.");
+				return;
+			}
+			await ProcessFredCatalogAsync(request, ct).ConfigureAwait(false);
+			return;
+		}
 		var store = (_symbolsStoreProvider as StoresProvider)?.GetTInvestInformationStore();
 		if (request.Catalog != "t-invest" || store?.SupportsCatalog != true ||
 			_providerNegotiation == null || (_providerNegotiation.Features & ProviderInformationFeatures.SymbolCatalogV1) == 0)

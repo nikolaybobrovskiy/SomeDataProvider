@@ -33,6 +33,8 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 	readonly CancellationTokenSource _stopStartup = new();
 	readonly object _startLock = new();
 	readonly TimeProvider _time = TimeProvider.System;
+	readonly bool _fredCatalogAvailable;
+	FredCatalog? _fredCatalog;
 	TInvestStore? _tInvestStore;
 	string? _tInvestEnvironment;
 	bool _initialized;
@@ -45,6 +47,7 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 		if (loggerFactory == null) throw new ArgumentNullException(nameof(loggerFactory));
 		_l = loggerFactory.CreateLogger<StoresProvider>();
 		_time = timeProvider ?? TimeProvider.System;
+		_fredCatalogAvailable = !string.IsNullOrEmpty(opts.Fred?.ApiKey);
 		_lazyFredStore = new (() => new DataStorage.Fred.Store(opts.KnownFred.KnownApiKey, loggerFactory));
 		var options = opts.TInvest ?? new TInvestOptions();
 		options.Validate();
@@ -61,12 +64,14 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 		if (loggerFactory == null) throw new ArgumentNullException(nameof(loggerFactory));
 		_l = loggerFactory.CreateLogger<StoresProvider>();
 		_lazyFredStore = new (() => fredStore);
+		_fredCatalogAvailable = true;
 	}
 
 	internal StoresProvider(DataStorage.Fred.Store? fredStore, TInvestStore tInvestStore, ILoggerFactory loggerFactory)
 	{
 		_l = loggerFactory.CreateLogger<StoresProvider>();
 		_lazyFredStore = new(() => fredStore ?? throw new InvalidOperationException("No test FRED store."));
+		_fredCatalogAvailable = fredStore != null;
 		_tInvestStore = tInvestStore;
 		_tInvestEnvironment = "sandbox";
 		MarketDataHub = new(tInvestStore.Gateway, tInvestStore.Options, tInvestStore.Clock, persistRecording: false);
@@ -88,6 +93,7 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 
 	/// <summary>The source exists and its store is published.</summary>
 	internal bool TInvestReady => Volatile.Read(ref _tInvestStore) != null;
+	internal bool FredCatalogAvailable => _fredCatalogAvailable;
 
 	/// <summary>The startup check has not passed yet, and it may still pass: it is configured and has not failed for good.</summary>
 	internal bool TInvestPending => _createGateway != null && !_failedForGood && Volatile.Read(ref _tInvestStore) == null;
@@ -175,8 +181,16 @@ sealed partial class StoresProvider : ISymbolHistoryStoreProvider, ISymbolsStore
 		catch (AggregateException) { /* The loop has already reported its failure. */ }
 
 		MarketDataHub?.Dispose();
+		_fredCatalog?.Dispose();
 		if (_lazyFredStore.IsValueCreated) _lazyFredStore.Value.Dispose();
 		_tInvestStore?.Dispose();
+	}
+
+	internal FredCatalog GetFredCatalog()
+	{
+#pragma warning disable CC0022 // Owned by this provider and disposed in Dispose.
+		lock (_startLock) return _fredCatalog ??= new FredCatalog(FredStore.CatalogGateway, _time);
+#pragma warning restore CC0022
 	}
 
 	internal async ValueTask<SearchResult> SearchWithStatusAsync(string searchText, SymbolSearchType searchType, int limit, string exchange, SymbolType securityType, CancellationToken cancellationToken)
