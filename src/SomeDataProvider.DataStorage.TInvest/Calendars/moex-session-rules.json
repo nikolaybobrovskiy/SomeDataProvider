@@ -1,0 +1,1867 @@
+{
+  "revision": "moex-rules-20261112-v1",
+  "coveredFrom": "2025-01-27",
+  "historicalTo": "2026-11-12",
+  "coveredTo": "2026-12-31",
+  "boundarySupportFrom": "2025-01-24",
+  "rules": [
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "effectiveFrom": "2025-01-24",
+      "effectiveTo": "2025-01-24",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:05:00",
+      "end": "23:50:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": true,
+      "sources": [
+        "https://www.moex.com/files/4rt3gf437mrs5rz3x8nf62dj58",
+        "https://www.moex.com/files/4smrmppypx53h4vaqycg18h3xb",
+        "https://www.moex.com/n98551?nt=107"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2026-03-19",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:05:00",
+      "end": "23:50:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4rt3gf437mrs5rz3x8nf62dj58",
+        "https://www.moex.com/files/4smrmppypx53h4vaqycg18h3xb",
+        "https://www.moex.com/n98551?nt=107"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "effectiveFrom": "2026-03-23",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/449t19qp0qeq6rysw9yzfnpzn0",
+        "https://www.moex.com/n98363"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/449t19qp0qeq6rysw9yzfnpzn0",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n98363"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-02-23",
+      "effectiveTo": "2026-02-23",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-05-01",
+      "effectiveTo": "2026-05-01",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "23:50:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-06-12",
+      "effectiveTo": "2026-06-12",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "23:50:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n100780?nt=107",
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-11-04",
+      "effectiveTo": "2026-11-04",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "23:50:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "main",
+      "effectiveFrom": "2026-03-23",
+      "effectiveTo": "2026-09-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "10:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/449t19qp0qeq6rysw9yzfnpzn0",
+        "https://www.moex.com/n98363"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "main",
+      "effectiveFrom": "2026-09-14",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n103379"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "main",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "main_after_clearing",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2026-03-20",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "14:05:00",
+      "end": "18:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4rt3gf437mrs5rz3x8nf62dj58",
+        "https://www.moex.com/files/4smrmppypx53h4vaqycg18h3xb"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "main_before_clearing",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2026-03-20",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "10:00:00",
+      "end": "14:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4rt3gf437mrs5rz3x8nf62dj58",
+        "https://www.moex.com/files/4smrmppypx53h4vaqycg18h3xb"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "morning",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2026-03-20",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "08:50:00",
+      "end": "10:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n77059?nt=112"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "morning",
+      "effectiveFrom": "2026-03-23",
+      "effectiveTo": "2026-07-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "08:50:00",
+      "end": "10:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n95054",
+        "https://www.moex.com/n98363"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "morning",
+      "effectiveFrom": "2026-07-14",
+      "effectiveTo": "2026-09-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "10:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n101980"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "morning",
+      "effectiveFrom": "2026-09-14",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n103379"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "morning",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:00:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "weekend",
+      "effectiveFrom": "2025-08-16",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Sat;Sun",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n92862"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "weekend",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Sat;Sun",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n92862"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "evening",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2025-09-21",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/44qv32s3n6wkzt20jsmqfv1cce",
+        "https://www.moex.com/files/4sxa7hmwj91xmsc63j4jcqpe43",
+        "https://www.moex.com/files/4wy1zrn1rzmd90z049nmw9h85f"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "evening",
+      "effectiveFrom": "2025-09-22",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49dmtspscdr6xtyfn5yxaw19m3",
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n93399"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "evening",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49dmtspscdr6xtyfn5yxaw19m3",
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n93399"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-05-01",
+      "effectiveTo": "2026-05-01",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-06-12",
+      "effectiveTo": "2026-06-12",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n100780?nt=107",
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-11-04",
+      "effectiveTo": "2026-11-04",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "main",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2025-06-22",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:50:00",
+      "end": "18:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/44qv32s3n6wkzt20jsmqfv1cce",
+        "https://www.moex.com/files/4sxa7hmwj91xmsc63j4jcqpe43"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "main",
+      "effectiveFrom": "2025-06-23",
+      "effectiveTo": "2026-03-22",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/440ewg95ajgbr348w1fjzm1gxc",
+        "https://www.moex.com/files/49dmtspscdr6xtyfn5yxaw19m3",
+        "https://www.moex.com/n90761?nt=107"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "main",
+      "effectiveFrom": "2026-03-23",
+      "effectiveTo": "2026-09-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49d2pft0w0krasfyzg5kxn49w6",
+        "https://www.moex.com/files/4r3fe1vaf4zffw1ry26s917qcq",
+        "https://www.moex.com/n97596"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "main",
+      "effectiveFrom": "2026-09-14",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "main",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "morning",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2025-09-21",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "08:50:00",
+      "end": "09:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/44qv32s3n6wkzt20jsmqfv1cce",
+        "https://www.moex.com/n77059?nt=112"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "morning",
+      "effectiveFrom": "2025-09-22",
+      "effectiveTo": "2026-03-22",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49dmtspscdr6xtyfn5yxaw19m3",
+        "https://www.moex.com/n93399"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "morning",
+      "effectiveFrom": "2026-03-23",
+      "effectiveTo": "2026-09-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49d2pft0w0krasfyzg5kxn49w6",
+        "https://www.moex.com/n99249"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "morning",
+      "effectiveFrom": "2026-09-14",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "morning",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:00:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "weekend",
+      "effectiveFrom": "2026-03-28",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Sat;Sun",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n98417",
+        "https://www.moex.com/s3935"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "weekend",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Sat;Sun",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n98417",
+        "https://www.moex.com/s3935"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "evening",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2025-09-21",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/44qv32s3n6wkzt20jsmqfv1cce",
+        "https://www.moex.com/files/4sxa7hmwj91xmsc63j4jcqpe43",
+        "https://www.moex.com/files/4wy1zrn1rzmd90z049nmw9h85f"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "evening",
+      "effectiveFrom": "2025-09-22",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49dmtspscdr6xtyfn5yxaw19m3",
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n93399"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "evening",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49dmtspscdr6xtyfn5yxaw19m3",
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n93399"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-02-23",
+      "effectiveTo": "2026-02-23",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-05-01",
+      "effectiveTo": "2026-05-01",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-06-12",
+      "effectiveTo": "2026-06-12",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n100780?nt=107",
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-11-04",
+      "effectiveTo": "2026-11-04",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "main",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2026-03-22",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:50:00",
+      "end": "18:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4dqtr4twe55534wmngb0zyk343",
+        "https://www.moex.com/files/4sxa7hmwj91xmsc63j4jcqpe43",
+        "https://www.moex.com/files/4vec0mwx0jvpt0qyhfa3jq22m8"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "main",
+      "effectiveFrom": "2026-03-23",
+      "effectiveTo": "2026-09-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49d2pft0w0krasfyzg5kxn49w6",
+        "https://www.moex.com/files/4r3fe1vaf4zffw1ry26s917qcq",
+        "https://www.moex.com/n97596"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "main",
+      "effectiveFrom": "2026-09-14",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "main",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "morning",
+      "effectiveFrom": "2025-02-27",
+      "effectiveTo": "2026-09-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/44qv32s3n6wkzt20jsmqfv1cce",
+        "https://www.moex.com/n77059?nt=112",
+        "https://www.moex.com/n78015"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "morning",
+      "effectiveFrom": "2026-09-14",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "morning",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:00:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "weekend",
+      "effectiveFrom": "2025-06-28",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Sat;Sun",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n91284",
+        "https://www.moex.com/s3790"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "weekend",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Sat;Sun",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n91284",
+        "https://www.moex.com/s3790"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "evening",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2025-09-21",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/44qv32s3n6wkzt20jsmqfv1cce",
+        "https://www.moex.com/files/4sxa7hmwj91xmsc63j4jcqpe43",
+        "https://www.moex.com/files/4wy1zrn1rzmd90z049nmw9h85f"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "evening",
+      "effectiveFrom": "2025-09-22",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49dmtspscdr6xtyfn5yxaw19m3",
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n93399"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "evening",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "19:00:00",
+      "end": "23:50:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49dmtspscdr6xtyfn5yxaw19m3",
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n93399"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-02-23",
+      "effectiveTo": "2026-02-23",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-05-01",
+      "effectiveTo": "2026-05-01",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-06-12",
+      "effectiveTo": "2026-06-12",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n100780?nt=107",
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "holiday_weekend",
+      "effectiveFrom": "2026-11-04",
+      "effectiveTo": "2026-11-04",
+      "weekdays": "designated_holiday",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "main",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2026-03-22",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:50:00",
+      "end": "18:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4dqtr4twe55534wmngb0zyk343",
+        "https://www.moex.com/files/4sxa7hmwj91xmsc63j4jcqpe43",
+        "https://www.moex.com/files/4vec0mwx0jvpt0qyhfa3jq22m8"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "main",
+      "effectiveFrom": "2026-03-23",
+      "effectiveTo": "2026-09-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/49d2pft0w0krasfyzg5kxn49w6",
+        "https://www.moex.com/files/4r3fe1vaf4zffw1ry26s917qcq",
+        "https://www.moex.com/n97596"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "main",
+      "effectiveFrom": "2026-09-14",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "main",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "09:00:00",
+      "end": "19:00:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "morning",
+      "effectiveFrom": "2025-01-27",
+      "effectiveTo": "2026-09-13",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:50:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/44qv32s3n6wkzt20jsmqfv1cce",
+        "https://www.moex.com/n77059?nt=112",
+        "https://www.moex.com/n78015"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "morning",
+      "effectiveFrom": "2026-09-14",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:00:00",
+      "nextMain": false,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "morning",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Mon-Fri;working_day_override",
+      "start": "06:50:00",
+      "end": "09:00:00",
+      "nextMain": false,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103379",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "weekend",
+      "effectiveFrom": "2025-03-01",
+      "effectiveTo": "2025-03-01",
+      "weekdays": "Sat",
+      "start": "14:00:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/n77931",
+        "https://www.moex.com/n77933"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "weekend",
+      "effectiveFrom": "2025-03-02",
+      "effectiveTo": "2026-11-12",
+      "weekdays": "Sat;Sun",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": false,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n77931",
+        "https://www.moex.com/s3790"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "weekend",
+      "effectiveFrom": "2026-11-13",
+      "effectiveTo": "2026-12-31",
+      "weekdays": "Sat;Sun",
+      "start": "09:50:00",
+      "end": "19:00:00",
+      "nextMain": true,
+      "announcedPlan": true,
+      "boundarySupport": false,
+      "sources": [
+        "https://www.moex.com/files/4nf322n5zswhz7gkrm4s4jrc5q",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n104837",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n77931",
+        "https://www.moex.com/s3790"
+      ]
+    }
+  ],
+  "exceptions": [
+    {
+      "kind": "designated_holiday_no_launched_addition",
+      "dates": [
+        "2026-02-23"
+      ],
+      "markets": [
+        "Bonds"
+      ],
+      "sources": [
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n98417"
+      ]
+    },
+    {
+      "kind": "closed_civil_dates",
+      "dates": [
+        "2025-02-23",
+        "2025-03-08",
+        "2025-05-01",
+        "2025-05-09",
+        "2025-06-12",
+        "2025-11-04",
+        "2025-12-31"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n73701",
+        "https://www.moex.com/n95604?nt=106"
+      ]
+    },
+    {
+      "kind": "closed_civil_dates",
+      "dates": [
+        "2026-01-01",
+        "2026-01-02",
+        "2026-01-07",
+        "2026-03-08",
+        "2026-05-09",
+        "2026-12-31"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n95604?nt=106",
+        "https://www.moex.com/n96571",
+        "https://www.moex.com/n99804?nt=107"
+      ]
+    },
+    {
+      "kind": "no_weekend_addition",
+      "dates": [
+        "2025-03-08",
+        "2025-03-09",
+        "2025-03-22",
+        "2025-03-23",
+        "2025-04-19",
+        "2025-04-20",
+        "2025-05-24",
+        "2025-05-25",
+        "2025-06-21",
+        "2025-06-22",
+        "2025-08-02",
+        "2025-08-03",
+        "2025-09-20",
+        "2025-09-21",
+        "2025-10-25",
+        "2025-10-26",
+        "2025-11-02",
+        "2025-11-22",
+        "2025-11-23",
+        "2025-12-06",
+        "2025-12-07"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n77967",
+        "https://www.moex.com/n92862",
+        "https://www.moex.com/n94472?nt=106",
+        "https://www.moex.com/n94726?nt=107",
+        "https://www.moex.com/n95363?nt=107"
+      ]
+    },
+    {
+      "kind": "no_weekend_addition",
+      "dates": [
+        "2026-01-03",
+        "2026-01-04",
+        "2026-01-10",
+        "2026-01-11",
+        "2026-02-14",
+        "2026-02-15",
+        "2026-03-07",
+        "2026-03-08",
+        "2026-03-21",
+        "2026-03-22",
+        "2026-05-09",
+        "2026-05-10",
+        "2026-06-20",
+        "2026-06-21",
+        "2026-08-01",
+        "2026-08-02",
+        "2026-08-15",
+        "2026-08-16",
+        "2026-09-12",
+        "2026-09-13",
+        "2026-10-24",
+        "2026-10-25",
+        "2026-11-28",
+        "2026-11-29"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n103333?nt=107",
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n105220?nt=107",
+        "https://www.moex.com/n105719",
+        "https://www.moex.com/n95564?nt=106",
+        "https://www.moex.com/n98017?nt=107"
+      ]
+    },
+    {
+      "kind": "normal_working_saturday",
+      "dates": [
+        "2025-11-01"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n94472?nt=106"
+      ]
+    },
+    {
+      "kind": "ordinary_holiday_trading",
+      "dates": [
+        "2025-05-02",
+        "2025-05-08",
+        "2025-06-13",
+        "2025-11-03",
+        "2026-01-05",
+        "2026-01-06",
+        "2026-01-08",
+        "2026-01-09",
+        "2026-03-09",
+        "2026-05-11"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n73701",
+        "https://www.moex.com/n89969?nt=106",
+        "https://www.moex.com/n96571",
+        "https://www.moex.com/n98720?nt=106",
+        "https://www.moex.com/n99804?nt=107"
+      ]
+    },
+    {
+      "kind": "designated_holiday_addition",
+      "dates": [
+        "2026-02-23",
+        "2026-05-01",
+        "2026-06-12",
+        "2026-11-04"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n100780?nt=107",
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n97448?nt=106",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "kind": "designated_holiday_addition",
+      "dates": [
+        "2026-05-01",
+        "2026-06-12",
+        "2026-11-04"
+      ],
+      "markets": [
+        "Bonds"
+      ],
+      "sources": [
+        "https://www.moex.com/n100780?nt=107",
+        "https://www.moex.com/n105655?nt=107",
+        "https://www.moex.com/n98417",
+        "https://www.moex.com/n99076"
+      ]
+    },
+    {
+      "kind": "first_weekend",
+      "dates": [
+        "2025-03-01"
+      ],
+      "markets": [
+        "Shares"
+      ],
+      "sources": [
+        "https://www.moex.com/n77931"
+      ]
+    },
+    {
+      "kind": "evening_early_end",
+      "dates": [
+        "2025-02-13"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds"
+      ],
+      "sources": [
+        "https://www.moex.com/n77678",
+        "https://www.moex.com/n77679"
+      ]
+    },
+    {
+      "kind": "unknown_evening_restart",
+      "dates": [
+        "2025-03-25"
+      ],
+      "markets": [
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n88785"
+      ]
+    },
+    {
+      "kind": "unknown_clearing_end",
+      "dates": [
+        "2025-04-22"
+      ],
+      "markets": [
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n89683",
+        "https://www.moex.com/n89685"
+      ]
+    },
+    {
+      "kind": "published_evening_restart",
+      "dates": [
+        "2025-04-28"
+      ],
+      "markets": [
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n89889",
+        "https://www.moex.com/n89890",
+        "https://www.moex.com/n89891"
+      ]
+    },
+    {
+      "kind": "published_evening_restart",
+      "dates": [
+        "2025-08-28"
+      ],
+      "markets": [
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n93167",
+        "https://www.moex.com/n93168?nt=112"
+      ]
+    },
+    {
+      "kind": "published_evening_restart",
+      "dates": [
+        "2025-11-06"
+      ],
+      "markets": [
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n95116",
+        "https://www.moex.com/n95118",
+        "https://www.moex.com/n95119?nt=112"
+      ]
+    },
+    {
+      "kind": "intraday_halt",
+      "dates": [
+        "2025-09-11"
+      ],
+      "markets": [
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n93530",
+        "https://www.moex.com/n93532"
+      ]
+    },
+    {
+      "kind": "weekend_halt",
+      "dates": [
+        "2025-09-13"
+      ],
+      "markets": [
+        "Shares",
+        "Funds"
+      ],
+      "sources": [
+        "https://www.moex.com/n93599",
+        "https://www.moex.com/n93601",
+        "https://www.moex.com/n93603"
+      ]
+    },
+    {
+      "kind": "delayed_weekend_open",
+      "dates": [
+        "2025-09-28"
+      ],
+      "markets": [
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n92862",
+        "https://www.moex.com/n93991"
+      ]
+    },
+    {
+      "kind": "no_evening",
+      "dates": [
+        "2026-03-20"
+      ],
+      "markets": [
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n98277",
+        "https://www.moex.com/n98551?nt=107",
+        "https://www.moex.com/n98608?nt=107"
+      ]
+    },
+    {
+      "kind": "mode_specific_unavailability",
+      "dates": [
+        "2026-06-22",
+        "2026-06-23",
+        "2026-06-24",
+        "2026-06-25",
+        "2026-06-26",
+        "2026-06-27",
+        "2026-06-28",
+        "2026-06-29",
+        "2026-06-30",
+        "2026-07-01",
+        "2026-07-02",
+        "2026-07-03",
+        "2026-07-04",
+        "2026-07-05"
+      ],
+      "markets": [
+        "Bonds"
+      ],
+      "sources": [
+        "https://www.moex.com/files/415rmzmtse8yes733e12zbxkmh",
+        "https://www.moex.com/files/4r3fe1vaf4zffw1ry26s917qcq"
+      ]
+    },
+    {
+      "kind": "announced_replacement_weekend",
+      "dates": [
+        "2026-12-05",
+        "2026-12-06"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n103931",
+        "https://www.moex.com/n105719"
+      ]
+    },
+    {
+      "kind": "explicit_normal_weekday_disposition",
+      "dates": [
+        "2025-02-24",
+        "2025-03-10"
+      ],
+      "markets": [
+        "Shares",
+        "Funds",
+        "Bonds",
+        "Derivatives"
+      ],
+      "sources": [
+        "https://www.moex.com/n73701",
+        "https://www.moex.com/n77810",
+        "https://www.moex.com/n77829"
+      ]
+    }
+  ],
+  "overrides": [
+    {
+      "market": "Shares",
+      "session": "evening",
+      "date": "2025-02-13",
+      "intervals": [
+        {
+          "start": "19:00:00",
+          "end": "20:40:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n77678",
+        "https://www.moex.com/n77679"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "evening",
+      "date": "2025-02-13",
+      "intervals": [
+        {
+          "start": "19:00:00",
+          "end": "20:40:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n77678",
+        "https://www.moex.com/n77679"
+      ]
+    },
+    {
+      "market": "Bonds",
+      "session": "evening",
+      "date": "2025-02-13",
+      "intervals": [
+        {
+          "start": "19:00:00",
+          "end": "20:40:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n77678",
+        "https://www.moex.com/n77679"
+      ]
+    },
+    {
+      "market": "Shares",
+      "session": "weekend",
+      "date": "2025-09-13",
+      "intervals": [
+        {
+          "start": "09:50:00",
+          "end": "10:00:00"
+        },
+        {
+          "start": "11:40:00",
+          "end": "19:00:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n93599",
+        "https://www.moex.com/n93601",
+        "https://www.moex.com/n93603"
+      ]
+    },
+    {
+      "market": "Funds",
+      "session": "weekend",
+      "date": "2025-09-13",
+      "intervals": [
+        {
+          "start": "09:50:00",
+          "end": "10:00:00"
+        },
+        {
+          "start": "11:40:00",
+          "end": "19:00:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n93599",
+        "https://www.moex.com/n93601",
+        "https://www.moex.com/n93603"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "date": "2025-04-28",
+      "intervals": [
+        {
+          "start": "20:00:00",
+          "end": "23:50:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n89889",
+        "https://www.moex.com/n89890",
+        "https://www.moex.com/n89891"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "date": "2025-08-28",
+      "intervals": [
+        {
+          "start": "19:45:00",
+          "end": "23:50:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n93167",
+        "https://www.moex.com/n93168?nt=112"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "date": "2025-11-06",
+      "intervals": [
+        {
+          "start": "20:05:00",
+          "end": "23:50:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n95116",
+        "https://www.moex.com/n95118",
+        "https://www.moex.com/n95119?nt=112"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "main_after_clearing",
+      "date": "2025-09-11",
+      "intervals": [
+        {
+          "start": "14:05:00",
+          "end": "15:23:00"
+        },
+        {
+          "start": "15:55:00",
+          "end": "18:50:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n93530",
+        "https://www.moex.com/n93532"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "weekend",
+      "date": "2025-09-28",
+      "intervals": [
+        {
+          "start": "10:20:00",
+          "end": "19:00:00"
+        }
+      ],
+      "sources": [
+        "https://www.moex.com/n92862",
+        "https://www.moex.com/n93991"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "date": "2025-03-25",
+      "intervals": [],
+      "sources": [
+        "https://www.moex.com/n88785"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "session": "evening",
+      "date": "2026-03-20",
+      "intervals": [],
+      "sources": [
+        "https://www.moex.com/n98277",
+        "https://www.moex.com/n98551?nt=107",
+        "https://www.moex.com/n98608?nt=107"
+      ]
+    }
+  ],
+  "unknownDates": [
+    {
+      "market": "Derivatives",
+      "date": "2025-03-26",
+      "sources": [
+        "https://www.moex.com/n88785"
+      ]
+    },
+    {
+      "market": "Derivatives",
+      "date": "2025-04-22",
+      "sources": [
+        "https://www.moex.com/n89683",
+        "https://www.moex.com/n89685"
+      ]
+    }
+  ]
+}

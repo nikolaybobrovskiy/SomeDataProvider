@@ -117,7 +117,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 		var shortInstrument = new TInvestInstrumentShort(i.Ticker, i.ClassCode, i.Uid, i.Name, Kind(i.InstrumentKind), i.Lot, i.ApiTradeAvailableFlag);
 		var instrument = new TInvestInstrument(shortInstrument, Decimal(i.MinPriceIncrement), i.Currency, Figi: i.Figi,
 			Board: i.ClassCode, PriceUnit: i.InstrumentKind switch { InstrumentType.Futures => "points", InstrumentType.Bond => "percent-of-nominal", _ => "currency" },
-			FirstMinuteCandle: i.First1MinCandleDate?.ToDateTimeOffset(), FirstDailyCandle: i.First1DayCandleDate?.ToDateTimeOffset());
+			FirstMinuteCandle: i.First1MinCandleDate?.ToDateTimeOffset(), FirstDailyCandle: i.First1DayCandleDate?.ToDateTimeOffset(), Market: CalendarMarket(i));
 		var request = new InstrumentRequest { IdType = InstrumentIdType.Uid, Id = i.Uid };
 		if (i.InstrumentKind == InstrumentType.Futures)
 		{
@@ -154,7 +154,7 @@ public sealed partial class SdkTInvestGateway : ITInvestGateway
 			};
 			instrument = instrument with { Short = shortInstrument with { Kind = kind }, Expiration = detail.ExpirationDate?.ToDateTimeOffset() };
 		}
-		return instrument;
+		return RememberCalendarInstrument(instrument);
 	}
 
 	public async Task<IReadOnlyList<TInvestInstrumentShort>> FindInstrumentsAsync(string query, DateTimeOffset deadline, CancellationToken cancellationToken)

@@ -19,6 +19,6 @@ public sealed record TInvestInstrument(TInvestInstrumentShort Short, decimal Inc
 	decimal IncrementAmount = 0, decimal Nominal = 0, decimal BasicAssetSize = 1, DateTimeOffset? Expiration = null, string? Figi = null,
 	DateTimeOffset? FirstMinuteCandle = null, DateTimeOffset? FirstDailyCandle = null,
 	string? Board = null, string? BoardName = null, string? PriceUnit = null, int DailyStampMode = 0,
-	TInvestCalendar? Calendar = null);
+	TInvestCalendar? Calendar = null, MoexMarket Market = MoexMarket.Unknown);
 
 public sealed record TInvestAccess(bool Authenticated, IReadOnlyList<bool> ReadOnlyAccounts);

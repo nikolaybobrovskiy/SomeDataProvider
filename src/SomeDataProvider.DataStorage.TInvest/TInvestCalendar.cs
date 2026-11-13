@@ -35,6 +35,7 @@ public sealed class TInvestCalendar
 	public string Revision { get; }
 	public string InstrumentUid { get; }
 	public string Provenance { get; }
+	public MoexCalendarMetadata? RuleMetadata { get; init; }
 	public DateOnly CoveredFrom { get; }
 	public DateOnly CoveredTo { get; }
 	public DateTimeOffset Expires { get; }

@@ -143,7 +143,8 @@ partial class Session
 		var from = DateOnly.ParseExact(request.FromTradeDate.ToString("D8", CultureInfo.InvariantCulture), "yyyyMMdd", CultureInfo.InvariantCulture);
 		var to = DateOnly.ParseExact(request.ToTradeDate.ToString("D8", CultureInfo.InvariantCulture), "yyyyMMdd", CultureInfo.InvariantCulture);
 		var calendar = await store.GetTradingCalendarAsync(request.CalendarID, request.CalendarRevision, from, to, ct).ConfigureAwait(false);
-		if (calendar == null)
+		if (calendar == null || calendar.Windows.Any(w => w.IsAnnouncedPlan) ||
+			(calendar.RuleMetadata is { } rules && (rules.Revision != calendar.Revision || from < rules.CheckedFrom || to > rules.CheckedTo)))
 		{
 			Reject("CalendarUnavailable");
 			return;

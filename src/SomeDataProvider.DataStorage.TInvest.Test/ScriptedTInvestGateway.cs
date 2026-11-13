@@ -10,6 +10,7 @@ using SomeDataProvider.DataStorage.TInvest;
 public sealed class ScriptedTInvestGateway : ITInvestGateway
 {
 	public TInvestCalendar? Calendar { get; set; }
+	public Func<string, string, DateOnly, DateOnly, TInvestCalendar?>? ResolveCalendar { get; set; }
 
 	public List<(string Ticker, string ClassCode)> Lookups { get; } = new();
 	public List<TInvestInstrument> Instruments { get; } = new();
@@ -58,7 +59,7 @@ public sealed class ScriptedTInvestGateway : ITInvestGateway
 		return ListInstruments?.Invoke(kind, cancellationToken) ?? Task.FromResult<IReadOnlyList<TInvestInstrument>>(Instruments.Where(i => i.Short.Kind == kind).ToArray());
 	}
 
-	public Task<TInvestCalendar?> GetTradingCalendarAsync(string id, string revision, DateOnly from, DateOnly to, DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult(Calendar);
+	public Task<TInvestCalendar?> GetTradingCalendarAsync(string id, string revision, DateOnly from, DateOnly to, DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult(ResolveCalendar != null ? ResolveCalendar(id, revision, from, to) : Calendar);
 
 	public Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken) =>
 		AccessErrors.TryDequeue(out var error) ? Task.FromException<TInvestAccess>(error) : Task.FromResult(Access);

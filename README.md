@@ -324,8 +324,11 @@ before any is sent; END (20106) gives the date/window totals. Zero windows alone
 unavailable without a source call. Production context omits calendar ID/revision, keeps daily mode and weekend
 coverage Unknown and cannot authorize a verified all-session daily source. A client uses its visibly unverified
 Moscow civil-calendar fallback, not guessed exchange holidays or today's venue hours for historical dates.
-The documentary calendar audit and separately approved L3/L10 checks must establish Q6/Q2/Q9 before a later
-adapter serves those windows. Offline fixtures here establish transport only, not real session rules.
+The [reviewed MOEX facts table and generic engine](docs/moex-calendar.md) cover market/session rules,
+not production instrument admission. Production stays Unknown until a dated admission source is approved;
+Q6/Q2/Q9 and the separately approved L3/L10 checks remain closed. With DTC alpha.5, windows and
+revision go on the wire; provenance, checked range and plan labels stay internal and in the docs,
+tied to that revision. Announced-plan dates after 2026-11-12 return unavailable, never a complete calendar.
 
 Rejects (20111) retain RequestID and failed Type, with safe generic text and optional typed retry seconds
 (0–3,600). Stable codes are `InvalidRequest`, `Unsupported`, `AlreadyNegotiated`, `FeatureUnavailable`,
