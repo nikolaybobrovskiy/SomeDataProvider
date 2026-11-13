@@ -344,8 +344,12 @@ ping setting, an idle stream shows one message every 11.0 s.
 
 During a T-Invest outage, affected symbols receive feed-unavailable once; FRED stays usable. The hub reconnects
 with 1, 2, 4 … 30-second backoff and ±20% jitter, resubscribes through the shared quota, and verifies the subscriptions
-with `GetMySubscriptions`; omitted subscription kinds are empty after a bounded collection interval. A mismatch is
-retried once, then stays unavailable while delayed retries run every 30 seconds. Local quota deferrals reject only
+with `GetMySubscriptions`. All three subscription kinds must answer within the two-second collection interval.
+The wire has no echoed query ID: an incomplete collection retires the duplex generation, joins its reader and opens
+a new generation through the normal reconnect backoff. A late reply can never complete a later overlapping query.
+A complete but mismatched collection is retried once, then stays unavailable while delayed retries wait 30 seconds
+without a desired-set change (changes restart that wait). Failed unsubscriptions emit an unsubscribe diagnostic,
+not a subscribe rejection. Local quota deferrals reject only
 waiting subscribers at their deadline, not healthy streams. Successful symbols
 receive feed-available; logon advertises `ResubscribeWhenMarketDataFeedAvailable=1`, so DTC clients resubscribe with their
 existing SymbolIDs and get fresh snapshots. No unsolicited restoration snapshot is pushed. Sierra Chart may show a data
@@ -368,13 +372,21 @@ and the default timeout must exceed three times the longest ping interval. An ac
 is inconclusive for Q-3. Select the test with
 `--filter FullyQualifiedName~SamplesLiveStreamThroughHub` and the same sandbox variables/helper described below.
 
-Slow DTC sessions have separate bounded market-update queues; control frames (snapshots, rejects, feed/trading status,
-heartbeats and history) are not dropped. A full queue drops new market updates for that session only. Each heartbeat's
+Slow DTC sessions have separate bounded market-update queues. Snapshots, rejects, feed status, heartbeats and history
+bypass the queue. A full queue drops new trades and quotes for that session only. Each heartbeat's
 `NumDroppedMessages` is the count since the previous heartbeat: one drop reports 1, then 0 if no new drop, then 1 again
-for a new later drop. Upstream gaps are feed status, never an invented drop count. A dropped best quote is resent with
+for a new later drop. Purged queued trades also count, including feed transitions, resubscription and unsubscribe;
+clients must invalidate continuity on a nonzero count, even if the feed has since recovered. A trading-status fence
+queues the status behind preceding updates in the same bounded FIFO, without moving trades into the socket backlog.
+Trading status is never dropped for capacity: if it cannot fit, the slow consumer is disconnected rather than
+receiving reordered data. Connection loss invalidates continuity. With heartbeat reporting disabled, local drop counts
+are retained but not transmitted; feed and connection loss still invalidate continuity. Upstream gaps are feed status, never
+an invented drop count. A dropped best quote is resent with
 its latest values when room returns, even if the source does not change again. A local depth drop removes that symbol's
 queued deltas and keeps only its latest full snapshot; the snapshot batch is sent before later depth updates for that symbol.
-Queued values are purged on unsubscribe.
+Feed transitions, resubscription and unsubscribe purge queued trades and trading statuses for that symbol. Purged
+statuses are not included in the drop count; clients must invalidate state on feed loss and resubscribe when the feed
+returns. The resubscribe snapshot supplies the current status. Unsubscribe ends that consumer's status stream.
 
 Limits use shared rolling windows at 90%: instruments 180/minute, market data 540/minute, users 90/minute,
 subscriptions 90/minute, archives 27/minute, and all attempts 45/second. Response rate-limit headers can reduce

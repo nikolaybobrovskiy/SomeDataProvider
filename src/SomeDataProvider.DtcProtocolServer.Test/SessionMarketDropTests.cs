@@ -33,6 +33,7 @@ public partial class SessionTests
 		{
 			queue.Enqueue(1, Array.Empty<byte>());
 			queue.Enqueue(1, Array.Empty<byte>());
+			queue.Dequeue();
 			queue.Clear();
 		}
 

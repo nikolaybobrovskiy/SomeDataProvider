@@ -44,6 +44,20 @@ sealed class SessionMarketDataQueue
 		return true;
 	}
 
+	/// <summary>A status shares the bounded FIFO with preceding trades; capacity refusal must close the session.</summary>
+	public bool EnqueueFence(uint symbolId, byte[] bytes)
+	{
+		RepairDepths();
+		RepairQuotes();
+		if (_updates.Count == _limit)
+		{
+			return false;
+		}
+
+		_updates.Enqueue(new(symbolId, bytes, false, false, true));
+		return true;
+	}
+
 	/// <summary>Enqueues a complete snapshot atomically, deferring it if the bounded queue has no room.</summary>
 	public void EnqueueDepthSnapshot(uint symbolId, IReadOnlyList<byte[]> snapshot)
 	{
@@ -145,6 +159,7 @@ sealed class SessionMarketDataQueue
 
 	public void Clear()
 	{
+		AddDropped((uint)_updates.Count(update => !update.IsQuote && !update.IsDepth && !update.IsFence));
 		_updates.Clear();
 		_repairQuotes.Clear();
 		_repairDepths.Clear();
@@ -178,6 +193,11 @@ sealed class SessionMarketDataQueue
 			if (update.SymbolId == symbolId && predicate(update))
 			{
 				removed++;
+				if (!update.IsQuote && !update.IsDepth && !update.IsFence)
+				{
+					// A purge is still a lost trade, even when a feed transition caused it.
+					AddDropped(1);
+				}
 			}
 			else
 			{
@@ -227,5 +247,5 @@ sealed class SessionMarketDataQueue
 
 	readonly record struct DepthRepair(int FrameCount, Func<IReadOnlyList<byte[]>> CreateSnapshot);
 
-	readonly record struct Update(uint SymbolId, byte[] Bytes, bool IsQuote, bool IsDepth);
+	readonly record struct Update(uint SymbolId, byte[] Bytes, bool IsQuote, bool IsDepth, bool IsFence = false);
 }

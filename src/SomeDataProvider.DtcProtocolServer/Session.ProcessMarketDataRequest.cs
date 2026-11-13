@@ -218,16 +218,21 @@ partial class Session
 					break;
 				case HubUpdate update:
 					encoder.EncodeTInvestUpdate(symbolId, update.Update, lot);
+					_marketQueue ??= new(((Server)Server).MarketDataHub?.QueueLimit ?? 50_000);
 					if (update.Update is TInvestStatus)
 					{
-						SendResponse(encoder.GetEncodedMessage());
+						if (!_marketQueue.EnqueueFence(symbolId, encoder.GetEncodedMessage()))
+						{
+							// Do not expand the socket backlog or silently discard a status for a slow consumer.
+							CloseSession();
+							return;
+						}
 					}
 					else
 					{
-						_marketQueue ??= new(((Server)Server).MarketDataHub?.QueueLimit ?? 50_000);
 						_marketQueue.Enqueue(symbolId, encoder.GetEncodedMessage(), update.Update is TInvestQuote);
-						PumpMarketData();
 					}
+					PumpMarketData();
 
 					break;
 			}

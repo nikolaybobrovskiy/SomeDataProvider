@@ -428,7 +428,7 @@ sealed class UpstreamStream : IDisposable
 			}
 			else if (!subscribe && IsWanted(uid))
 			{
-				_diagnostic?.Invoke("Old book subscription removal failed; replacement remains delayed.");
+				_diagnostic?.Invoke("Book unsubscribe failed; replacement remains delayed.");
 			}
 		}
 	}
@@ -465,7 +465,14 @@ sealed class UpstreamStream : IDisposable
 			}
 			else if (IsWanted(uid))
 			{
-				ReportRejected(uid, kind, status);
+				if (subscribe)
+				{
+					ReportRejected(uid, kind, status);
+				}
+				else
+				{
+					_diagnostic?.Invoke($"{kind} unsubscribe failed.");
+				}
 			}
 		}
 	}
@@ -508,7 +515,10 @@ sealed class UpstreamStream : IDisposable
 				}
 				catch (OperationCanceledException) when (collect.IsCancellationRequested && !ct.IsCancellationRequested)
 				{
-					break;
+					// GetMySubscriptions has no echoed request ID. A missing kind may still arrive late;
+					// retire this duplex generation before any reconciliation write or another query.
+					// The next cycle owns a different reader and reply channel, and the old reader is joined.
+					throw new TimeoutException("Subscription verification did not finish in this stream generation.");
 				}
 			}
 

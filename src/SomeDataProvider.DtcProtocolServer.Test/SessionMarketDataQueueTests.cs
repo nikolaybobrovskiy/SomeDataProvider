@@ -173,6 +173,27 @@ public class SessionMarketDataQueueTests
 		queue.Remove(1);
 		Assert.That(queue.Dequeue(), Is.Null);
 		Assert.That(queue.Count, Is.Zero);
-		Assert.That(queue.TakeDropped(), Is.EqualTo(1));
+		Assert.That(queue.TakeDropped(), Is.EqualTo(2));
+	}
+
+	[TestCase("market")]
+	[TestCase("all")]
+	[TestCase("clear")]
+	public void EveryTradePurgeCountsLossWithoutCountingReplaceableState(string removal)
+	{
+		var queue = new SessionMarketDataQueue(8);
+		queue.Enqueue(1, new byte[] { 1 });
+		queue.Enqueue(1, new byte[] { 2 });
+		queue.Enqueue(1, new byte[] { 3 }, quote: true);
+		queue.EnqueueDepthSnapshot(1, new[] { new byte[] { 4 } });
+		Assert.That(queue.EnqueueFence(1, new byte[] { 5 }), Is.True);
+		switch (removal)
+		{
+			case "market": queue.RemoveMarketData(1); break;
+			case "all": queue.Remove(1); break;
+			case "clear": queue.Clear(); break;
+		}
+		Assert.That(queue.TakeDropped(), Is.EqualTo(2));
+		Assert.That(queue.TakeDropped(), Is.Zero);
 	}
 }

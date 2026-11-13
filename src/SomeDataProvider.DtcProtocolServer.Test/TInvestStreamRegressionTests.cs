@@ -216,18 +216,23 @@ public class TInvestStreamRegressionTests
 
 	[TestCase(false)]
 	[TestCase(true)]
-	public async Task ElementFailureRetriesWithoutReconnectEvenWhenGetMyOmitsEmptyKinds(bool omitEmpty)
+	public async Task CompleteVerificationRetriesInPlaceButMissingKindsRequireANewGeneration(bool omitEmpty)
 	{
 		var clock = new ManualTimeProvider();
-		var fail = true;
-		var stream = new ScriptedMarketDataStream
-		{
-			OmitEmptyKinds = omitEmpty,
-			Status = (kind, _) => kind == TInvestSubscriptionKind.Book && fail ? TInvestSubscriptionStatus.InternalError : TInvestSubscriptionStatus.Success
-		};
+		var fail = 1;
+		var streams = new ConcurrentQueue<ScriptedMarketDataStream>();
 		using var gateway = new ScriptedTInvestGateway
 		{
-			OpenStream = _ => Task.FromResult<ITInvestMarketDataStream>(stream)
+			OpenStream = _ =>
+			{
+				var stream = new ScriptedMarketDataStream
+				{
+					OmitEmptyKinds = omitEmpty,
+					Status = (kind, _) => kind == TInvestSubscriptionKind.Book && Volatile.Read(ref fail) != 0 ? TInvestSubscriptionStatus.InternalError : TInvestSubscriptionStatus.Success
+				};
+				streams.Enqueue(stream);
+				return Task.FromResult<ITInvestMarketDataStream>(stream);
+			}
 		};
 		var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		var retry = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -241,9 +246,9 @@ public class TInvestStreamRegressionTests
 			}
 		}, (_, _) =>
 		{
-		}, diagnostic: text =>
+		}, () => 0.5, diagnostic: text =>
 		{
-			if (text == "Subscription retry scheduled.")
+			if (text == (omitEmpty ? "Stream disconnected; reconnect scheduled." : "Subscription retry scheduled."))
 			{
 				retry.TrySetResult();
 			}
@@ -253,12 +258,13 @@ public class TInvestStreamRegressionTests
 			"invented-uid"
 		});
 		await TInvestMarketDataHubTests.Pump(clock, () => retry.Task.IsCompleted);
-		await TInvestMarketDataHubTests.Until(() => clock.ActiveTimers == 2);
-		fail = false;
-		clock.Advance(TimeSpan.FromSeconds(30));
+		await TInvestMarketDataHubTests.Until(() => clock.ActiveTimers == (omitEmpty ? 1 : 2));
+		Volatile.Write(ref fail, 0);
+		clock.Advance(TimeSpan.FromSeconds(omitEmpty ? 1 : 30));
 		await TInvestMarketDataHubTests.Pump(clock, () => ready.Task.IsCompleted);
-		Assert.That(stream.Disposed, Is.False);
-		Assert.That(stream.Queries, Is.GreaterThanOrEqualTo(2));
+		Assert.That(streams.First().Disposed, Is.EqualTo(omitEmpty));
+		Assert.That(streams.Count, Is.EqualTo(omitEmpty ? 2 : 1));
+		Assert.That(streams.Sum(stream => stream.Queries), Is.GreaterThanOrEqualTo(2));
 		upstream.Dispose();
 		await upstream.Completion.WaitAsync(TimeSpan.FromSeconds(5));
 	}
