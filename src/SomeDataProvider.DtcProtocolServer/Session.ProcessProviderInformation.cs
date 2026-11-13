@@ -62,6 +62,11 @@ partial class Session
 				await ProcessRecentTicksAsync(recent, ct).ConfigureAwait(false);
 				return;
 			}
+			if (request is SymbolCatalogRequest catalog)
+			{
+				await ProcessSymbolCatalogAsync(catalog, ct).ConfigureAwait(false);
+				return;
+			}
 			if (request is InstrumentContextRequest context)
 			{
 				if (context.Symbol.StartsWith("fred-", StringComparison.Ordinal))
@@ -185,7 +190,7 @@ partial class Session
 		foreach (var frame in frames) SendResponse(frame);
 	}
 
-	InstrumentContextResponse MakeInstrumentContext(TInvestInstrument instrument, TInvestOptions options, string symbol)
+	InstrumentContextResponse MakeInstrumentContext(TInvestInstrument instrument, TInvestOptions options, string symbol, DateTimeOffset? asOf = null)
 	{
 		static string? Known(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 		static string Number(decimal value) => value.ToString("0.############################", CultureInfo.InvariantCulture);
@@ -205,7 +210,7 @@ partial class Session
 			_ => instrument.Increment,
 		};
 		var calendar = instrument.Calendar;
-		if (calendar != null && (calendar.InstrumentUid != instrument.Short.Uid || calendar.Expires <= _timeProvider.GetUtcNow() ||
+		if (calendar != null && (calendar.InstrumentUid != instrument.Short.Uid || calendar.Expires <= (asOf ?? _timeProvider.GetUtcNow()) ||
 			calendar.IncludeDealerTrades != options.IncludeDealerTrades || calendar.CandleSource != options.CandleSource)) calendar = null;
 		var dailyMode = instrument.DailyStampMode is 1 or 2 ? instrument.DailyStampMode : 0;
 		var semantics = $"t-invest:v1;candles={options.CandleSource};candle-filter={(options.IncludeDealerTrades ? "all-returned" : "exchange")};trades={(options.IncludeDealerTrades ? "exchange+dealer" : "exchange")};quantity=units;daily={dailyMode};weekend=unknown;price={instrument.PriceUnit ?? "unknown"}";

@@ -76,6 +76,7 @@ partial class Session
 				}
 				var features = ProviderInformationFeatures.InstrumentContextV1 | ProviderInformationFeatures.TradingCalendarV1 | ProviderInformationFeatures.EmptyDayProofV1;
 				if (store?.SupportsRecentClosedTicks == true) features |= ProviderInformationFeatures.RecentClosedTicksV1 | ProviderInformationFeatures.ClockRefreshV1;
+				if (store?.SupportsCatalog == true) features |= ProviderInformationFeatures.SymbolCatalogV1;
 				_providerHello = hello;
 				_providerNegotiation = new ProviderHelloResponse
 				{

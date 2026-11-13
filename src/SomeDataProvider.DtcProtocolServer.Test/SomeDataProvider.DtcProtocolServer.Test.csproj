@@ -19,8 +19,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
-    <PackageReference Include="Dtc.Client" Version="[8.0.0-alpha.4]" />
-    <PackageReference Include="Dtc.Conformance" Version="[8.0.0-alpha.4]" />
+    <PackageReference Include="Dtc.Client" Version="[8.0.0-alpha.5]" />
+    <PackageReference Include="Dtc.Conformance" Version="[8.0.0-alpha.5]" />
     <PackageReference Include="NUnit" Version="$(NUnitVersion)" />
     <PackageReference Include="NUnit3TestAdapter" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsVersion)" />

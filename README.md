@@ -216,14 +216,19 @@ Recorded days that are older than the newest archive day the bridge has seen are
 
 An explicit hello (20100/20101) negotiates instrument context and calendar transport on either listener.
 It echoes the caller's stable logical-profile `BudgetScopeID`, samples the provider UTC clock and reports
-wire caps: 65,535-byte frames, 4,096-byte long text, 16,384-byte context, 500 catalog rows (catalog feature off),
+wire caps: 65,535-byte frames, 4,096-byte long text, 16,384-byte context, 500 catalog rows,
 32 trade dates and 16 windows per date. `EmptyDayProofV1` is enabled atomically with the absence-only-empty fix
 and obsolete-coverage invalidation. It means empty tick answers require source-matched proof, not that every
 past day is available. `RecentClosedTicksV1` and `ClockRefreshV1` are now enabled together for an
 attempt-guarded, exchange-only store. Historical hello Mode 1 joins a stable profile/source/UID epoch;
-Mode 2 refreshes only the provider clock and shares the recent request budget. Catalog, scoped search
-and probe bits remain off; probe scopes are rejected. Ordinary clients need not send a hello and receive no
+Mode 2 refreshes only the provider clock and shares the recent request budget. `SymbolCatalogV1` is enabled
+for a ready T-Invest store with bulk-list support. Scoped search and probe bits remain off;
+probe scopes are rejected. Ordinary clients need not send a hello and receive no
 unsolicited extension messages; standard definitions, history and market data retain their existing behavior.
+
+The [T-Bank catalog](docs/t-invest-catalog.md) (20107–20110) provides paged kind/board browsing from
+bulk lists, with materialized provider snapshots, authenticated cursors and optional context hints.
+FRED categories remain unavailable in this stage. All three Dtc packages pin exactly `8.0.0-alpha.5`.
 
 Recent closed reconciliation (20114) fetches only its exact `[From,To)` bounds through GetLastTrades,
 with no archive/candle fallback or background fill. The 58-minute start guard and two-second closed-end

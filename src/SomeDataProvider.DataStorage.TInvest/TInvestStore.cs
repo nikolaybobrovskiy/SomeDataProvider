@@ -169,6 +169,7 @@ public sealed partial class TInvestStore : ISymbolsStore, IDisposable
 	{
 		if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 		_refreshTimer.Dispose();
+		DisposeCatalog();
 		_stop.Cancel();
 		_gateway.Dispose();
 	}

@@ -7,6 +7,7 @@ public interface ITInvestGateway : IDisposable
 {
 	/// <summary>True only when each recent source attempt invokes the dispatch guard after source admission.</summary>
 	bool SupportsRecentClosedTicks => false;
+	bool SupportsCatalog => false;
 
 	/// <summary>Returns only a verified instrument calendar and trade-date mapping, never inferred venue hours.</summary>
 	Task<TInvestCalendar?> GetTradingCalendarAsync(string id, string revision, DateOnly from, DateOnly to, DateTimeOffset deadline, CancellationToken cancellationToken) => Task.FromResult<TInvestCalendar?>(null);
@@ -14,6 +15,9 @@ public interface ITInvestGateway : IDisposable
 	Task<TInvestAccess> CheckAccessAsync(DateTimeOffset deadline, CancellationToken cancellationToken);
 
 	Task<TInvestInstrument?> GetInstrumentAsync(string ticker, string classCode, DateTimeOffset deadline, CancellationToken cancellationToken);
+
+	Task<IReadOnlyList<TInvestInstrument>> ListInstrumentsAsync(TInvestInstrumentKind kind, DateTimeOffset deadline, CancellationToken cancellationToken) =>
+		throw new TInvestRequestException("Bulk catalogs are not supported by this gateway.", TInvestFailureKind.Unsupported);
 
 	Task<IReadOnlyList<TInvestInstrumentShort>> FindInstrumentsAsync(string query, DateTimeOffset deadline, CancellationToken cancellationToken);
 
